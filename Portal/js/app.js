@@ -267,12 +267,22 @@ async function handleDeactivate() {
     hideProgress();
     const ok   = outcome.summary?.succeeded ?? outcome.results?.filter(r => r.success).length ?? 0;
     const fail = outcome.summary?.failed    ?? outcome.results?.filter(r => !r.success).length ?? 0;
+
+    // Optimistically remove successfully deactivated roles so the table updates
+    // instantly — API propagation can lag several seconds after a 200 response.
+    const succeededUids = (outcome.results || [])
+      .filter(r => r.success)
+      .map(r => r.uid);
+    if (succeededUids.length) roleManager.removeActiveRoles(succeededUids);
+
     if (fail === 0) {
       showToast('Successfully deactivated ' + ok + ' role' + (ok !== 1 ? 's' : '') + '.', 'success');
     } else {
       showToast(ok + ' deactivated, ' + fail + ' failed.', 'warning');
     }
-    await _refresh();
+    // Background sync — small delay gives the API time to propagate the deactivation
+    // before we re-fetch, preventing the role from briefly reappearing.
+    setTimeout(() => _refresh(), 3000);
   } catch (err) {
     hideProgress();
     showToast('Deactivation error: ' + err.message, 'error', 10000);

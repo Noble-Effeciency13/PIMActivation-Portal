@@ -254,6 +254,20 @@
   <!-- Toast notifications -->
   <div id="toast-container" role="region" aria-live="polite" aria-label="Notifications"></div>
 
+  <!-- ── Operation overlay (activation / deactivation progress) ──────────── -->
+  <div id="op-overlay" class="op-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="op-overlay-title">
+    <div class="op-panel">
+      <div class="op-header">
+        <span class="op-spinner" aria-hidden="true"></span>
+        <h2 class="op-title" id="op-overlay-title"></h2>
+      </div>
+      <div class="op-progress-track">
+        <div class="op-progress-fill" id="op-progress-fill"></div>
+      </div>
+      <ul class="op-role-list" id="op-role-list" aria-live="polite"></ul>
+    </div>
+  </div>
+
   <!-- Scripts -->
   <script src="js/msal-config.js" defer></script>
   <script src="js/auth.js" defer></script>

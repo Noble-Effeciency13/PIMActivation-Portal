@@ -19,7 +19,7 @@ const AZURE_PARALLEL_LIMIT = 4;
 
 /**
  * @param {object[]} roles   — array of role descriptors (uid, type, id, ...)
- * @param {object}   options — { durationMinutes, justification, ticketNumber }
+ * @param {object}   options — { durationMinutes, justification, ticketNumber, onProgress }
  * @returns {Promise<BulkResult>}
  */
 async function bulkActivate(roles, options = {}) {
@@ -38,15 +38,16 @@ async function bulkActivate(roles, options = {}) {
 
 /**
  * @param {object[]} roles — array of role descriptors
+ * @param {object}   options — { onProgress }
  * @returns {Promise<BulkResult>}
  */
-async function bulkDeactivate(roles) {
+async function bulkDeactivate(roles, options = {}) {
   const entraGroup = roles.filter(r => r.type === 'User' || r.type === 'Group');
   const azure      = roles.filter(r => r.type === 'AzureResource');
 
   const [egResults, azResults] = await Promise.all([
-    _bulkDeactivateEntraGroup(entraGroup),
-    _bulkDeactivateAzure(azure)
+    _bulkDeactivateEntraGroup(entraGroup, options),
+    _bulkDeactivateAzure(azure, options)
   ]);
 
   return _buildResult([...egResults, ...azResults]);
@@ -100,10 +101,12 @@ async function _bulkActivateEntraGroup(roles, options) {
   });
 
   const responses = await graphClient.graphBatch(requests);
-  return _mapBatchResponses(roles, responses, 'activate');
+  const results = _mapBatchResponses(roles, responses, 'activate');
+  results.forEach(r => options.onProgress && options.onProgress(r));
+  return results;
 }
 
-async function _bulkDeactivateEntraGroup(roles) {
+async function _bulkDeactivateEntraGroup(roles, options = {}) {
   if (roles.length === 0) return [];
 
   const requests = roles.map(role => {
@@ -126,7 +129,9 @@ async function _bulkDeactivateEntraGroup(roles) {
   });
 
   const responses = await graphClient.graphBatch(requests);
-  return _mapBatchResponses(roles, responses, 'deactivate');
+  const results = _mapBatchResponses(roles, responses, 'deactivate');
+  results.forEach(r => options.onProgress && options.onProgress(r));
+  return results;
 }
 
 function _mapBatchResponses(roles, responses, action) {
@@ -156,21 +161,29 @@ async function _bulkActivateAzure(roles, options) {
         ...options,
         durationMinutes: role._effectiveDurationMinutes || options.durationMinutes || 480
       });
-      return { uid: role.uid, type: role.type, success: true, activatedAt: new Date().toISOString() };
+      const r = { uid: role.uid, type: role.type, success: true, activatedAt: new Date().toISOString() };
+      options.onProgress && options.onProgress(r);
+      return r;
     } catch (err) {
-      return { uid: role.uid, type: role.type, success: false, error: err.message };
+      const r = { uid: role.uid, type: role.type, success: false, error: err.message };
+      options.onProgress && options.onProgress(r);
+      return r;
     }
   });
 }
 
-async function _bulkDeactivateAzure(roles) {
+async function _bulkDeactivateAzure(roles, options = {}) {
   if (roles.length === 0) return [];
   return _runWithLimit(roles, AZURE_PARALLEL_LIMIT, async role => {
     try {
       await armClient.deactivateAzureRole(role.scopeId || role.scope, role.id);
-      return { uid: role.uid, type: role.type, success: true, deactivatedAt: new Date().toISOString() };
+      const r = { uid: role.uid, type: role.type, success: true, deactivatedAt: new Date().toISOString() };
+      options.onProgress && options.onProgress(r);
+      return r;
     } catch (err) {
-      return { uid: role.uid, type: role.type, success: false, error: err.message };
+      const r = { uid: role.uid, type: role.type, success: false, error: err.message };
+      options.onProgress && options.onProgress(r);
+      return r;
     }
   });
 }

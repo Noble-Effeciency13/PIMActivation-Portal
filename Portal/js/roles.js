@@ -460,6 +460,19 @@ class RoleManager {
       .filter(Boolean);
   }
 
+  /**
+   * Optimistically remove roles that were successfully deactivated so the
+   * table updates instantly without waiting for API propagation.
+   * @param {string[]} uids
+   */
+  removeActiveRoles(uids) {
+    const set = new Set(uids);
+    this.activeRoles = this.activeRoles.filter(r => !set.has(r.uid || r.id));
+    uids.forEach(uid => this.selectedActive.delete(uid));
+    this.renderActive();
+    this._updateBars();
+  }
+
   // ── Internal helpers ──────────────────────────────────────────────────────
 
   _updateBars() {
