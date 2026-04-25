@@ -50,6 +50,8 @@ class PolicyCache {
       requiresJustification: false,
       requiresTicket:        false,
       requiresMfa:           false,
+      requiresAuthContext:   false,
+      authContextId:         null,
       requiresApproval:      false,
       maxDurationHours:      8
     };
@@ -58,11 +60,15 @@ class PolicyCache {
     const rules = policy.rules;
     const find  = id => rules.find(r => r.id === id);
 
-    const justRule     = find('Justification_EndUser_Assignment');
-    const ticketRule   = find('Ticketing_EndUser_Assignment');
-    const mfaRule      = find('AuthenticationContext_EndUser_Assignment');
-    const approvalRule = find('Approval_EndUser_Assignment');
-    const expiryRule   = find('Expiration_EndUser_Assignment');
+    // Justification, Ticketing and MFA are sub-rules inside Enablement_EndUser_Assignment.
+    // They are NOT separate rule objects — checking Justification_EndUser_Assignment.isRequired
+    // always returns undefined/false even when they are required.
+    const enablementRule = find('Enablement_EndUser_Assignment');
+    const authCtxRule    = find('AuthenticationContext_EndUser_Assignment');
+    const approvalRule   = find('Approval_EndUser_Assignment');
+    const expiryRule     = find('Expiration_EndUser_Assignment');
+
+    const enabledRules = Array.isArray(enablementRule?.enabledRules) ? enablementRule.enabledRules : [];
 
     let maxHours = 8;
     if (expiryRule?.maximumDuration) {
@@ -71,10 +77,11 @@ class PolicyCache {
     }
 
     return {
-      requiresJustification: justRule?.isRequired === true,
-      requiresTicket:        ticketRule?.isRequired === true,
-      requiresMfa:           mfaRule?.isEnabled === true,
-      authContextId:         mfaRule?.isEnabled ? (mfaRule?.claimValue || null) : null,
+      requiresMfa:           enabledRules.includes('MultiFactorAuthentication'),
+      requiresJustification: enabledRules.includes('Justification'),
+      requiresTicket:        enabledRules.includes('Ticketing'),
+      requiresAuthContext:   authCtxRule?.isEnabled === true,
+      authContextId:         authCtxRule?.isEnabled ? (authCtxRule?.claimValue || null) : null,
       requiresApproval:      approvalRule?.isEnabled === true,
       maxDurationHours:      maxHours
     };

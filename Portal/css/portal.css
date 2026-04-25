@@ -750,17 +750,18 @@ a:hover { text-decoration: underline; }
 
 /* ── Footer ───────────────────────────────────────────────────────────────── */
 .app-footer {
-  padding:    20px 24px 16px;
+  position:   sticky;
+  bottom:     0;
+  z-index:    10;
+  padding:    14px 24px;
   background: var(--bg-surface);
   border-top: 1px solid var(--border);
-  margin-top: auto;
   text-align: center;
 }
 .footer-tagline {
-  font-size:     13px;
-  font-style:    italic;
-  color:         var(--text-muted);
-  margin-bottom: 12px;
+  font-size:  12px;
+  font-style: italic;
+  color:      var(--text-muted);
 }
 .footer-inner {
   display:         flex;
