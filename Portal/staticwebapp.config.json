@@ -1,10 +1,5 @@
 {
-  "routes": [
-    {
-      "route": "/auth-callback",
-      "rewrite": "/index.html"
-    }
-  ],
+  "routes": [],
   "navigationFallback": {
     "rewrite": "/index.html",
     "exclude": ["/css/*", "/js/*", "/images/*", "*.ico", "*.svg", "*.png", "*.woff2"]

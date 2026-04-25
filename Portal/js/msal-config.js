@@ -16,7 +16,7 @@ window.msalConfig = {
   auth: {
     clientId:    '__PORTAL_CLIENT_ID__',
     authority:   'https://login.microsoftonline.com/organizations',
-    redirectUri: window.location.origin + '/auth-callback',
+    redirectUri: window.location.origin,
     postLogoutRedirectUri: window.location.origin
   },
   cache: {
