@@ -155,7 +155,7 @@ async function getActiveEntraRoles() {
     directoryScopeId: item.directoryScopeId,
     memberType:       item.memberType || 'Direct',
     assignmentType:   item.assignmentType || 'Assigned',
-    endDateTime:      _resolveEndDateTime(item.scheduleInfo)
+    endDateTime:      item.endDateTime || _resolveEndDateTime(item.scheduleInfo)
   }));
 }
 
@@ -179,7 +179,7 @@ async function getActiveGroupRoles() {
     scope:          'Group',
     memberType:     item.memberType || 'Direct',
     assignmentType: item.assignmentType || 'Assigned',
-    endDateTime:    _resolveEndDateTime(item.scheduleInfo)
+    endDateTime:    item.endDateTime || _resolveEndDateTime(item.scheduleInfo)
   }));
 }
 
