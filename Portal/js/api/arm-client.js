@@ -9,9 +9,9 @@
 /* global portalAuth */
 
 const ARM_BASE    = 'https://management.azure.com';
-const ARM_VERSION_ELIG   = '2022-04-01-preview';
-const ARM_VERSION_ACTIVE = '2022-04-01-preview';
-const ARM_VERSION_REQ    = '2022-04-01-preview';
+const ARM_VERSION_ELIG   = '2020-10-01-preview';
+const ARM_VERSION_ACTIVE = '2020-10-01-preview';
+const ARM_VERSION_REQ    = '2020-10-01-preview';
 
 async function armGet(path, apiVersion) {
   const token = await portalAuth.getArmToken();

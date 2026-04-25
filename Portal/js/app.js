@@ -278,8 +278,35 @@ async function bootstrap() {
 
   const account = portalAuth.getAccount();
   if (!account) {
-    // Not signed in — redirect to login
-    try { await portalAuth.signIn(); } catch { /* redirect pending */ }
+    // Not signed in — attempt redirect. loginRedirect() navigates away;
+    // if it throws before navigating, show a fallback sign-in button.
+    const loadingMsg = document.getElementById('loading-msg');
+    if (loadingMsg) loadingMsg.textContent = 'Redirecting to sign-in\u2026';
+    try {
+      await portalAuth.signIn();
+      // loginRedirect navigates away — code below only runs if something went wrong
+    } catch (err) {
+      console.error('[App] signIn error:', err);
+      // Show manual sign-in button so user isn't stuck on infinite spinner
+      const overlay = document.getElementById('loading-overlay');
+      if (overlay) {
+        if (loadingMsg) loadingMsg.textContent = 'Sign-in redirect failed.';
+        const btn = document.createElement('button');
+        btn.textContent = 'Sign in';
+        btn.className = 'btn btn-primary';
+        btn.style.marginTop = '14px';
+        btn.addEventListener('click', () => {
+          btn.disabled = true;
+          btn.textContent = 'Redirecting\u2026';
+          portalAuth.signIn().catch(e => {
+            btn.disabled = false;
+            btn.textContent = 'Sign in';
+            console.error('[App] Retry signIn error:', e);
+          });
+        });
+        overlay.appendChild(btn);
+      }
+    }
     return;
   }
 
@@ -405,6 +432,15 @@ async function bootstrap() {
 // Start
 bootstrap().catch(err => {
   console.error('[App] Fatal bootstrap error:', err);
-  const loading = document.getElementById('loading-overlay');
-  if (loading) loading.textContent = 'Error: ' + err.message;
+  const overlay = document.getElementById('loading-overlay');
+  const msg     = document.getElementById('loading-msg');
+  if (msg)     msg.textContent = 'Error: ' + err.message;
+  if (overlay) {
+    const btn = document.createElement('button');
+    btn.textContent = 'Sign in';
+    btn.className   = 'btn btn-primary';
+    btn.style.marginTop = '14px';
+    btn.addEventListener('click', () => portalAuth.signIn().catch(() => {}));
+    overlay.appendChild(btn);
+  }
 });
