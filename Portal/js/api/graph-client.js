@@ -57,6 +57,35 @@ async function graphGetAll(path, useBeta = false) {
   return items;
 }
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * Parse an ISO 8601 duration string (e.g. PT8H, PT30M, P1DT2H) to milliseconds.
+ * Only days, hours, minutes, seconds are handled (weeks/months/years not needed for PIM).
+ */
+function _isoDurationToMs(duration) {
+  if (!duration) return 0;
+  const m = duration.match(/P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!m) return 0;
+  return ((+m[1] || 0) * 86400 + (+m[2] || 0) * 3600 + (+m[3] || 0) * 60 + (+m[4] || 0)) * 1000;
+}
+
+/**
+ * Derive endDateTime from a scheduleInfo object.
+ * The API may return an explicit endDateTime, or only startDateTime + AfterDuration.
+ */
+function _resolveEndDateTime(scheduleInfo) {
+  const exp = scheduleInfo?.expiration;
+  if (!exp) return null;
+  if (exp.endDateTime) return exp.endDateTime;
+  if (exp.type === 'AfterDuration' && exp.duration && scheduleInfo.startDateTime) {
+    return new Date(
+      new Date(scheduleInfo.startDateTime).getTime() + _isoDurationToMs(exp.duration)
+    ).toISOString();
+  }
+  return null;
+}
+
 // ── Eligible roles ────────────────────────────────────────────────────────────
 
 /**
@@ -126,7 +155,7 @@ async function getActiveEntraRoles() {
     directoryScopeId: item.directoryScopeId,
     memberType:       item.memberType || 'Direct',
     assignmentType:   item.assignmentType || 'Assigned',
-    endDateTime:      item.scheduleInfo?.expiration?.endDateTime || null
+    endDateTime:      _resolveEndDateTime(item.scheduleInfo)
   }));
 }
 
@@ -150,7 +179,7 @@ async function getActiveGroupRoles() {
     scope:          'Group',
     memberType:     item.memberType || 'Direct',
     assignmentType: item.assignmentType || 'Assigned',
-    endDateTime:    item.scheduleInfo?.expiration?.endDateTime || null
+    endDateTime:    _resolveEndDateTime(item.scheduleInfo)
   }));
 }
 
