@@ -396,10 +396,9 @@ class RoleManager {
         '<td class="col-role" data-label="Role"><div class="role-cell">' +
           '<span class="role-name">' + escapeHtml(role.name) + '</span>' +
           '<span class="role-scope">' + escapeHtml(_scopeDisplay(role)) + '</span>' +
-        '</div></td>' +
-        '<td class="col-expires" data-label="Expires">' +
           '<span class="awaiting-tag">Awaiting approval</span>' +
-        '</td>' +
+        '</div></td>' +
+        '<td class="col-expires"></td>' +
       '</tr>';
     }).join('');
 

@@ -134,41 +134,36 @@ async function getGraphTokenWithAuthContext(authContextId) {
 }
 
 /**
- * Proactively step up authentication for one or more Conditional Access auth
- * context IDs before attempting PIM activation.  Uses acquireTokenPopup so the
- * user completes the CA challenge (MFA, compliant device, …) without losing
- * the page state.
+ * Proactively step up authentication for Conditional Access auth context IDs.
+ *
+ * acquireTokenPopup is NOT used here: login.microsoftonline.com sets
+ * Cross-Origin-Opener-Policy (COOP) headers which block window.closed polling,
+ * so MSAL 2.x can never reliably detect the popup closed and will always throw
+ * popup_window_error or empty_window_error after the token is (or isn’t) acquired.
+ *
+ * Instead we use acquireTokenRedirect, which navigates the page away cleanly.
+ * CA step-up is session-level: one redirect for Graph scopes satisfies both
+ * Graph and ARM token requests on return.
+ *
+ * The CALLER must save any pending activation state to sessionStorage before
+ * calling this function, because the page will navigate away immediately.
  *
  * @param {string[]} authContextIds  — unique auth context IDs (e.g. 'c2', 'c3')
- * @param {object[]} roles           — the roles being activated (used to decide
- *                                    which resource scopes need step-up)
+ * @param {object[]} roles           — the roles being activated
  */
 async function stepUpForAuthContexts(authContextIds, roles) {
   const hasEntraGroup = roles.some(r => r.type === 'User' || r.type === 'Group');
-  const hasAzure      = roles.some(r => r.type === 'AzureResource');
 
-  for (const ctxId of [...new Set(authContextIds)]) {
-    const claims = JSON.stringify({
-      access_token: { acrs: { essential: true, value: ctxId } }
-    });
+  // Prefer Graph scopes; ARM follows automatically because CA is session-level.
+  const scopes = hasEntraGroup ? window.GRAPH_SCOPES : [window.ARM_SCOPE];
 
-    // Auth context step-up MUST use popup — silent/iframe acquisition always
-    // times out because the user must interact to satisfy the CA policy.
-    // We go directly to popup; if the user already satisfies the policy the
-    // popup closes immediately after token issuance.
+  // Use the first auth context ID — session-level satisfaction covers all.
+  const claims = JSON.stringify({
+    access_token: { acrs: { essential: true, value: authContextIds[0] } }
+  });
 
-    // Step up Graph token for Entra / Group roles
-    if (hasEntraGroup) {
-      const result = await msalInstance.acquireTokenPopup({ scopes: window.GRAPH_SCOPES, account: _account, claims });
-      if (result?.account) { _account = result.account; msalInstance.setActiveAccount(result.account); }
-    }
-
-    // Step up ARM token for Azure Resource roles
-    if (hasAzure) {
-      const result = await msalInstance.acquireTokenPopup({ scopes: [window.ARM_SCOPE], account: _account, claims });
-      if (result?.account) { _account = result.account; msalInstance.setActiveAccount(result.account); }
-    }
-  }
+  await msalInstance.acquireTokenRedirect({ scopes, account: _account, claims });
+  // Page navigates away — execution never continues here.
 }
 
 // Expose globally for other modules
