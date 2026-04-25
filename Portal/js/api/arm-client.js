@@ -99,7 +99,9 @@ async function getActiveAzureRoles() {
     '/providers/Microsoft.Authorization/roleAssignmentScheduleInstances',
     ARM_VERSION_ACTIVE
   );
-  return items.filter(r => r.properties?.assignmentType === 'Activated').map(item => ({
+  // Show all active Azure roles (PIM-activated AND permanently assigned)
+  // assignmentType === 'Activated' would exclude permanent assignments
+  return items.map(item => ({
     uid:         item.id,
     type:        'AzureResource',
     id:          item.properties?.roleDefinitionId || item.name,
@@ -107,6 +109,7 @@ async function getActiveAzureRoles() {
     scope:       _formatScope(item.properties?.scope || '', item.properties?.expandedProperties?.scope?.displayName),
     scopeId:     item.properties?.scope || '',
     memberType:  item.properties?.memberType || 'Direct',
+    assignmentType: item.properties?.assignmentType || 'Assigned',
     endDateTime: item.properties?.endDateTime || null
   }));
 }
@@ -163,29 +166,72 @@ async function deactivateAzureRole(scopeId, roleId) {
 
 // ── Azure role policies ─────────────────────────────────────────────────────────
 
+// Session cache: scopeId:roleGuid → { rules } result
+const _azurePolicyCache = new Map();
+
 /**
  * Fetch the PIM role management policy for a given Azure scope + role definition.
- * Returns a normalised { rules: [...] } object compatible with PolicyCache.extractPolicyDetails.
- * ARM nests rules under properties.policy.properties.rules; we unwrap that here.
+ * Uses a two-step approach:
+ *   1. List policy assignments at the scope to find the policyId matching the role.
+ *   2. Fetch the policy directly — rules are at properties.rules.
+ *
+ * The nested $expand=policy($expand=rules) syntax is NOT supported by ARM, so
+ * we fetch the policy object separately instead.
+ *
  * @param {string} scopeId          — full ARM scope (e.g. /subscriptions/...)
- * @param {string} roleDefinitionId — full role def ID or GUID
+ * @param {string} roleDefinitionId — full role def resource ID or bare GUID
+ * @returns {Promise<{rules: object[]}|null>}
  */
 async function getAzureRolePolicy(scopeId, roleDefinitionId) {
-  const token = await portalAuth.getArmToken();
-  const filter = `$filter=roleDefinitionId eq '${roleDefinitionId}'&$expand=policy($expand=rules)`;
-  const url    = `${ARM_BASE}${scopeId}/providers/Microsoft.Authorization/roleManagementPolicyAssignments?api-version=2020-10-01-preview&${filter}`;
-  const resp   = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-  if (!resp.ok) {
-    const body = await resp.text();
-    throw new Error(`ARM policy GET → ${resp.status}: ${body}`);
+  // Normalise to GUID for resilient matching across scope formats
+  const roleGuid   = (roleDefinitionId || '').split('/').pop().toLowerCase();
+  const cacheKey   = `${scopeId}:${roleGuid}`;
+  if (_azurePolicyCache.has(cacheKey)) return _azurePolicyCache.get(cacheKey);
+
+  const token   = await portalAuth.getArmToken();
+  const headers = { Authorization: `Bearer ${token}` };
+
+  // Step 1: find the policy assignment for this role.
+  // Filter by roleDefinitionId so we get exactly one result even on large
+  // subscriptions with hundreds of role definitions (avoids pagination issues).
+  let policyId = null;
+  let nextUrl  = `${ARM_BASE}${scopeId}/providers/Microsoft.Authorization/roleManagementPolicyAssignments` +
+                 `?api-version=2020-10-01-preview` +
+                 `&$filter=roleDefinitionId eq '${encodeURIComponent(roleDefinitionId)}'`;
+
+  while (nextUrl && !policyId) {
+    const listResp = await fetch(nextUrl, { headers });
+    if (!listResp.ok) {
+      const body = await listResp.text();
+      throw new Error(`ARM policy list \u2192 ${listResp.status}: ${body}`);
+    }
+    const listData = await listResp.json();
+    const match    = (listData.value || []).find(
+      a => (a.properties?.roleDefinitionId || '').split('/').pop().toLowerCase() === roleGuid
+    );
+    if (match) {
+      policyId = match.properties?.policyId;
+    } else {
+      nextUrl = listData.nextLink || null;
+    }
   }
-  const data       = await resp.json();
-  const assignment = (data.value || [])[0];
-  if (!assignment) return null;
-  // Normalise: ARM nests rules at properties.policy.properties.rules
-  const policy = assignment.properties?.policy;
-  const rules  = policy?.properties?.rules || policy?.rules || [];
-  return rules.length > 0 ? { rules } : null;
+
+  if (!policyId) {
+    _azurePolicyCache.set(cacheKey, null);
+    return null;
+  }
+
+  // Step 2: fetch the policy object — rules live at properties.rules[]
+  const policyResp = await fetch(`${ARM_BASE}${policyId}?api-version=2020-10-01-preview`, { headers });
+  if (!policyResp.ok) {
+    const body = await policyResp.text();
+    throw new Error(`ARM policy fetch \u2192 ${policyResp.status}: ${body}`);
+  }
+  const policyData = await policyResp.json();
+  const rules  = policyData?.properties?.rules || [];
+  const result = rules.length > 0 ? { rules } : null;
+  _azurePolicyCache.set(cacheKey, result);
+  return result;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

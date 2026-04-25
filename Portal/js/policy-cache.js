@@ -82,7 +82,8 @@ class PolicyCache {
       requiresTicket:        enabledRules.includes('Ticketing'),
       requiresAuthContext:   authCtxRule?.isEnabled === true,
       authContextId:         authCtxRule?.isEnabled ? (authCtxRule?.claimValue || null) : null,
-      requiresApproval:      approvalRule?.isEnabled === true,
+      // Approval_EndUser_Assignment uses setting.isApprovalRequired, NOT isEnabled
+      requiresApproval:      approvalRule?.setting?.isApprovalRequired === true,
       maxDurationHours:      maxHours
     };
   }
