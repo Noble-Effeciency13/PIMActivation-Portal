@@ -440,7 +440,7 @@ a:hover { text-decoration: underline; }
 .col-type    { width: 78px; }
 .col-role    { min-width: 180px; }
 .col-policy  { width: 70px; text-align: center !important; }
-.col-expires { width: 88px; white-space: nowrap; }
+.col-expires { width: 110px; white-space: nowrap; }
 /* Expand column — only visible on mobile via media query override */
 .col-expand  { width: 40px; text-align: center !important; padding: 0 4px !important; display: none; }
 
@@ -593,7 +593,8 @@ a:hover { text-decoration: underline; }
 }
 
 /* Expiry */
-.expiry-timer    { font-variant-numeric: tabular-nums; font-size: 12px; color: var(--text-muted); }
+.expiry-timer    { display: block; font-variant-numeric: tabular-nums; font-size: 12px; color: var(--text-muted); }
+.expiry-abs      { display: block; font-variant-numeric: tabular-nums; font-size: 10px; color: var(--text-faint); margin-top: 2px; }
 .expiry-soon     { color: var(--warning) !important; }
 .expiry-critical { color: var(--danger)  !important; }
 

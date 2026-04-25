@@ -31,6 +31,17 @@ function formatExpiry(dateString) {
   return m + 'm';
 }
 
+function formatExpiryDateTime(dateString) {
+  if (!dateString) return '';
+  const d = new Date(dateString);
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mo = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  return hh + ':' + mm + ' ' + dd + '-' + mo + '-' + yyyy;
+}
+
 // ── Toast ─────────────────────────────────────────────────────────────────────
 
 function showToast(msg, type = 'info', duration = 5000) {

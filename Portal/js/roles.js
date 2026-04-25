@@ -12,7 +12,7 @@
  *  - Expiry countdown timers (30s tick, colour-coded near expiry)
  */
 
-/* global graphClient, armClient, policyCache, PolicyCache, portalAuth, escapeHtml, formatExpiry, showToast */
+/* global graphClient, armClient, policyCache, PolicyCache, portalAuth, escapeHtml, formatExpiry, formatExpiryDateTime, showToast */
 
 class RoleManager {
   constructor() {
@@ -369,7 +369,8 @@ class RoleManager {
         const diff = Math.max(0, new Date(role.endDateTime).getTime() - Date.now());
         const cls  = diff < 1800000 ? 'expiry-critical' : diff < 3600000 ? 'expiry-soon' : '';
         expiryHtml = '<span class="expiry-timer ' + cls + '" data-expires="' +
-          escapeHtml(role.endDateTime) + '">' + formatExpiry(role.endDateTime) + '</span>';
+          escapeHtml(role.endDateTime) + '">' + formatExpiry(role.endDateTime) + '</span>' +
+          '<span class="expiry-abs">' + formatExpiryDateTime(role.endDateTime) + '</span>';
       }
 
       return '<tr class="' + selCls + '" data-uid="' + escapeHtml(uid) + '">' +
@@ -535,6 +536,10 @@ class RoleManager {
         el.textContent = formatExpiry(el.dataset.expires);
         el.classList.toggle('expiry-critical', diff > 0 && diff < 1800000);
         el.classList.toggle('expiry-soon',     diff >= 1800000 && diff < 3600000);
+        const absEl = el.nextElementSibling;
+        if (absEl && absEl.classList.contains('expiry-abs')) {
+          absEl.textContent = formatExpiryDateTime(el.dataset.expires);
+        }
       });
     }, 30000));
   }
