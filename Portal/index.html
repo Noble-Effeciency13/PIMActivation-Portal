@@ -1,234 +1,245 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>PIM Activation Portal</title>
-
-  <!-- Content-Security-Policy is enforced via staticwebapp.config.json -->
-
-  <!-- MSAL 2.x — pinned to a specific version.
-       alcdn.msauth.net was deprecated at MSAL v3.0.0 and returns 404; replaced
-       with the jsDelivr npm mirror. Version is pinned in the URL for
-       supply-chain safety; SRI is omitted to avoid CI injection fragility. -->
-  <script
-    src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.39.0/lib/msal-browser.min.js"
-    crossorigin="anonymous"></script>
-
+  <!-- MSAL 2.x from jsDelivr (must be synchronous — app scripts depend on it) -->
+  <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.39.0/lib/msal-browser.min.js" crossorigin="anonymous"></script>
   <link rel="stylesheet" href="css/portal.css">
 </head>
 <body>
-  <!-- ── Loading overlay ────────────────────────────────────────────────── -->
-  <div id="loading-overlay" class="loading-overlay" role="status" aria-live="polite">
-    <div class="loading-spinner"></div>
-    <p id="loading-message">Loading…</p>
+
+  <!-- Loading overlay -->
+  <div id="loading-overlay">
+    <div class="spinner"></div>
+    <p id="loading-msg">Loading&hellip;</p>
   </div>
 
-  <!-- ── App shell ──────────────────────────────────────────────────────── -->
-  <div id="app" class="app" style="display:none">
+  <!-- App shell (hidden until auth succeeds) -->
+  <div id="app" hidden>
+
+    <!-- ── Header ──────────────────────────────────────────────────────────── -->
     <header class="app-header">
       <div class="header-brand">
-        <img src="images/logo.svg" alt="PIMActivation" class="header-logo" width="28" height="28">
-        <span class="header-title">PIM Activation Portal</span>
-        <span class="header-subtitle">Azure AD Privileged Identity Management</span>
+        <svg class="brand-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+        <span class="brand-name">PIM Activation Portal</span>
       </div>
-      <div class="header-actions">
-        <button id="refresh-btn" class="btn btn-secondary btn-sm" title="Refresh roles" aria-label="Refresh roles">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      <div class="header-right">
+        <!-- Theme picker -->
+        <div class="theme-picker" id="theme-picker">
+          <button class="icon-btn" id="theme-btn" aria-label="Change theme" title="Change theme" aria-expanded="false" aria-haspopup="true">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+              <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+            </svg>
+          </button>
+          <div class="theme-dropdown" id="theme-dropdown" hidden role="menu">
+            <button class="theme-option" data-theme="system" role="menuitem">System default</button>
+            <button class="theme-option" data-theme="dark"   role="menuitem">Dark</button>
+            <button class="theme-option" data-theme="light"  role="menuitem">Light</button>
+            <button class="theme-option" data-theme="hc"     role="menuitem">High Contrast</button>
+          </div>
+        </div>
+        <!-- Refresh -->
+        <button class="icon-btn" id="refresh-btn" aria-label="Refresh roles" title="Refresh roles">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+          </svg>
         </button>
-        <div class="user-info" id="user-info">
+        <!-- User chip -->
+        <div class="user-chip">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+          </svg>
           <span id="user-name" class="user-name"></span>
-          <button id="sign-out-btn" class="btn btn-ghost btn-sm">Sign out</button>
+          <button id="sign-out-btn" class="sign-out-btn">Sign out</button>
         </div>
       </div>
     </header>
 
     <main class="app-main">
-      <!-- Tabs -->
-      <nav class="tab-nav" role="tablist" aria-label="Role views">
-        <button class="tab-btn active" role="tab" aria-selected="true"  aria-controls="panel-eligible" id="tab-eligible" data-tab="eligible">Eligible</button>
-        <button class="tab-btn"        role="tab" aria-selected="false" aria-controls="panel-active"   id="tab-active"   data-tab="active">Active</button>
-        <button class="tab-btn"        role="tab" aria-selected="false" aria-controls="panel-profiles" id="tab-profiles" data-tab="profiles">Profiles</button>
-      </nav>
-
-      <!-- Eligible roles panel -->
-      <div id="panel-eligible" role="tabpanel" aria-labelledby="tab-eligible" class="panel active">
-        <div class="panel-toolbar">
-          <div class="panel-toolbar-left">
-            <label class="select-all-label">
-              <input type="checkbox" id="select-all-eligible" aria-label="Select all eligible roles">
-              <span>Select all</span>
-            </label>
-            <span class="role-count" id="eligible-count"></span>
-          </div>
-          <div class="panel-toolbar-right">
-            <input type="search" id="eligible-search" class="search-input" placeholder="Filter roles…" aria-label="Filter eligible roles">
-            <button id="activate-selected-btn" class="btn btn-primary" disabled>Activate selected</button>
-          </div>
-        </div>
-        <div class="table-scroll" id="eligible-table-container">
-          <table class="roles-table" id="eligible-table" aria-label="Eligible roles">
-            <thead>
-              <tr>
-                <th class="col-check"></th>
-                <th>Type</th>
-                <th>Role</th>
-                <th>Scope</th>
-                <th>Member</th>
-                <th>Max</th>
-                <th>MFA</th>
-                <th title="Justification required">Justif.</th>
-                <th title="Ticket required">Ticket</th>
-                <th title="Approval required">Approval</th>
-              </tr>
-            </thead>
-            <tbody id="eligible-roles-body">
-              <tr class="empty-row"><td colspan="10">Loading roles…</td></tr>
-            </tbody>
-          </table>
-        </div>
+      <!-- Progress bar -->
+      <div id="progress-bar" class="progress-bar" hidden>
+        <div id="progress-fill" class="progress-fill" style="width:0%"></div>
+        <span id="progress-label" class="progress-label"></span>
       </div>
 
-      <!-- Active roles panel -->
-      <div id="panel-active" role="tabpanel" aria-labelledby="tab-active" class="panel" hidden>
-        <div class="panel-toolbar">
-          <div class="panel-toolbar-left">
-            <label class="select-all-label">
-              <input type="checkbox" id="select-all-active" aria-label="Select all active roles">
-              <span>Select all</span>
-            </label>
-            <span class="role-count" id="active-count"></span>
+      <!-- ── Active Roles ──────────────────────────────────────────────────── -->
+      <section class="roles-section" id="section-active">
+        <div class="section-header">
+          <div class="section-title-group">
+            <h2 class="section-title">Active Roles</h2>
+            <span class="role-count" id="active-count" aria-live="polite">&ndash;</span>
           </div>
-          <div class="panel-toolbar-right">
-            <input type="search" id="active-search" class="search-input" placeholder="Filter roles…" aria-label="Filter active roles">
-            <button id="deactivate-selected-btn" class="btn btn-danger" disabled>Deactivate selected</button>
+          <div class="section-controls">
+            <input type="search" id="active-search" class="search-input" placeholder="Filter&hellip;" aria-label="Filter active roles">
           </div>
         </div>
-        <div class="table-scroll" id="active-table-container">
+        <div class="table-wrap">
           <table class="roles-table" id="active-table" aria-label="Active roles">
             <thead>
               <tr>
-                <th class="col-check"></th>
-                <th>Type</th>
-                <th>Role</th>
-                <th>Resource</th>
-                <th>Scope</th>
-                <th>Member</th>
-                <th>Expires</th>
+                <th class="col-cb">
+                  <label class="cb-wrap" title="Select all PIM-activated roles">
+                    <input type="checkbox" id="select-all-active" aria-label="Select all PIM-activated roles">
+                  </label>
+                </th>
+                <th class="col-type">Type</th>
+                <th class="col-role">Role</th>
+                <th class="col-expires">Expires</th>
               </tr>
             </thead>
             <tbody id="active-roles-body">
-              <tr class="empty-row"><td colspan="7">Loading roles…</td></tr>
+              <tr class="row-placeholder"><td colspan="4">Loading&hellip;</td></tr>
             </tbody>
           </table>
         </div>
-      </div>
+        <div class="section-action-bar" id="active-action-bar" hidden>
+          <span class="selection-label" id="active-selection-label"></span>
+          <button class="btn btn-danger btn-sm" id="deactivate-btn">Deactivate selected</button>
+        </div>
+      </section>
 
-      <!-- Profiles (saved activation groups) panel -->
-      <div id="panel-profiles" role="tabpanel" aria-labelledby="tab-profiles" class="panel" hidden>
-        <div class="panel-toolbar">
-          <div class="panel-toolbar-left">
-            <span class="role-count" id="profiles-count"></span>
+      <!-- ── Eligible Roles ────────────────────────────────────────────────── -->
+      <section class="roles-section" id="section-eligible">
+        <div class="section-header">
+          <div class="section-title-group">
+            <h2 class="section-title">Eligible Roles</h2>
+            <span class="role-count" id="eligible-count" aria-live="polite">&ndash;</span>
           </div>
-          <div class="panel-toolbar-right">
-            <button id="save-profile-btn" class="btn btn-secondary">Save current selection as profile</button>
+          <div class="section-controls">
+            <input type="search" id="eligible-search" class="search-input" placeholder="Filter&hellip;" aria-label="Filter eligible roles">
           </div>
         </div>
-        <div id="profiles-list" class="profiles-list">
-          <p class="empty-message">No saved profiles yet. Select eligible roles and click "Save current selection as profile".</p>
+        <div class="table-wrap">
+          <table class="roles-table" id="eligible-table" aria-label="Eligible roles">
+            <thead>
+              <tr>
+                <th class="col-cb">
+                  <label class="cb-wrap" title="Select all eligible roles">
+                    <input type="checkbox" id="select-all-eligible" aria-label="Select all eligible roles">
+                  </label>
+                </th>
+                <th class="col-type">Type</th>
+                <th class="col-role">Role</th>
+                <th class="col-policy" title="Maximum activation duration">Max</th>
+                <th class="col-policy" title="Multi-Factor Authentication / Conditional Access">MFA</th>
+                <th class="col-policy" title="Business justification required">Just.</th>
+                <th class="col-policy" title="Ticket number required">Ticket</th>
+                <th class="col-policy" title="Approval required from approver">Apprv.</th>
+              </tr>
+            </thead>
+            <tbody id="eligible-roles-body">
+              <tr class="row-placeholder"><td colspan="8">Loading&hellip;</td></tr>
+            </tbody>
+          </table>
         </div>
-      </div>
-
-      <!-- Action bar (sticky bottom, eligible tab) -->
-      <div class="action-bar-bottom" id="eligible-action-bar" style="display:none">
-        <span id="selected-eligible-count" class="selected-count"></span>
-        <button id="activate-btn" class="btn btn-primary">Activate selected</button>
-      </div>
-
-      <!-- Action bar (sticky bottom, active tab) -->
-      <div class="action-bar-bottom" id="active-action-bar" style="display:none">
-        <span id="selected-active-count" class="selected-count"></span>
-        <button id="deactivate-btn" class="btn btn-danger">Deactivate selected</button>
-      </div>
+        <div class="section-action-bar" id="eligible-action-bar" hidden>
+          <span class="selection-label" id="eligible-selection-label"></span>
+          <button class="btn btn-primary btn-sm" id="activate-btn">Activate selected</button>
+        </div>
+      </section>
     </main>
+
+    <!-- ── Footer ──────────────────────────────────────────────────────────── -->
+    <footer class="app-footer">
+      <p class="footer-tagline">With love from the community to the community.</p>
+      <div class="footer-grid">
+        <div class="footer-col">
+          <span class="footer-heading">Product</span>
+          <a href="https://github.com/Noble-Effeciency13/PIMActivation-Portal#features" target="_blank" rel="noopener noreferrer">Features</a>
+          <a href="https://github.com/Noble-Effeciency13/PIMActivation-Portal#how-it-works" target="_blank" rel="noopener noreferrer">How it works</a>
+          <a href="https://github.com/Noble-Effeciency13/PIMActivation-Portal/issues" target="_blank" rel="noopener noreferrer">FAQ &amp; Issues</a>
+        </div>
+        <div class="footer-col">
+          <span class="footer-heading">Legal</span>
+          <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy policy</a>
+          <a href="/terms"   target="_blank" rel="noopener noreferrer">Terms of use</a>
+          <a href="/legal"   target="_blank" rel="noopener noreferrer">Legal Notice</a>
+        </div>
+        <div class="footer-col">
+          <span class="footer-heading">Connect</span>
+          <div class="footer-person">
+            <span class="footer-person-name">Sebastian Markdanner</span>
+            <div class="footer-person-links">
+              <a href="https://www.linkedin.com/in/sebastian-markdanner/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg>
+              </a>
+              <a href="https://github.com/Noble-Effeciency13" target="_blank" rel="noopener noreferrer" aria-label="GitHub">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+              </a>
+            </div>
+          </div>
+          <div class="footer-person">
+            <span class="footer-person-name">Lukas Gosling</span>
+            <div class="footer-person-links">
+              <a href="https://www.linkedin.com/in/lukas-gosling/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg>
+              </a>
+              <a href="https://github.com/l-gosling" target="_blank" rel="noopener noreferrer" aria-label="GitHub">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+              </a>
+            </div>
+          </div>
+        </div>
+        <div class="footer-col">
+          <span class="footer-heading">Related products</span>
+          <a href="https://github.com/Noble-Effeciency13/PIMActivation"     target="_blank" rel="noopener noreferrer">PIMActivation (PowerShell)</a>
+          <a href="https://github.com/Noble-Effeciency13/PIMActivation-Web" target="_blank" rel="noopener noreferrer">PIMActivation (Self-hosted)</a>
+        </div>
+      </div>
+      <p class="footer-copy">&copy; 2026 PIM Activation Dashboard. Built for efficiency.</p>
+    </footer>
   </div>
 
-  <!-- ── Sign-in screen ─────────────────────────────────────────────────── -->
-  <div id="sign-in-screen" class="sign-in-screen" style="display:none">
-    <div class="sign-in-card">
-      <img src="images/logo.svg" alt="PIMActivation" width="48" height="48">
-      <h1>PIM Activation Portal</h1>
-      <p class="sign-in-subtitle">Sign in with your Microsoft account to manage your PIM eligible roles.</p>
-      <button id="sign-in-btn" class="btn btn-primary btn-lg">Sign in with Microsoft</button>
-      <p class="sign-in-note">This portal runs entirely in your browser — no data is sent to any third-party server.</p>
-    </div>
-  </div>
-
-  <!-- ── Activation modal ───────────────────────────────────────────────── -->
-  <div id="activation-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="activation-modal-title" hidden>
-    <div class="modal-container">
+  <!-- ── Activation modal ────────────────────────────────────────────────── -->
+  <div id="activation-modal" class="modal-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal">
       <div class="modal-header">
-        <h2 id="activation-modal-title">Activate roles</h2>
-        <button class="modal-close-btn" id="activation-modal-close" aria-label="Close">×</button>
+        <h2 class="modal-title" id="modal-title">Activate Roles</h2>
+        <button class="icon-btn modal-close" id="modal-close-btn" aria-label="Close">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
       </div>
       <div class="modal-body">
-        <div class="modal-role-list" id="activation-role-list"></div>
+        <div class="modal-role-list" id="modal-role-list"></div>
         <form id="activation-form" novalidate>
-          <div class="form-group">
-            <label for="duration-select">Duration</label>
-            <select id="duration-select" class="form-select" required></select>
+          <div class="form-row">
+            <label class="form-label">Duration</label>
+            <div class="duration-inputs">
+              <input type="number" id="duration-hours" class="duration-num" min="0" max="24" value="8" aria-label="Hours">
+              <span class="duration-sep">h</span>
+              <input type="number" id="duration-mins"  class="duration-num" min="0" max="59" value="0"  aria-label="Minutes">
+              <span class="duration-sep">m</span>
+              <span class="duration-hint" id="duration-hint"></span>
+            </div>
           </div>
-          <div class="form-group" id="justification-group">
-            <label for="justification-input">Justification <span class="required-indicator">*</span></label>
-            <textarea id="justification-input" class="form-textarea" rows="3" maxlength="500" placeholder="Business reason for this activation…"></textarea>
+          <div class="form-row" id="justification-row">
+            <label class="form-label" for="justification-input">Justification <span class="req-mark" aria-hidden="true">*</span></label>
+            <textarea id="justification-input" class="form-textarea" rows="3" maxlength="500" placeholder="Business reason for this activation&hellip;"></textarea>
           </div>
-          <div class="form-group" id="ticket-group" style="display:none">
-            <label for="ticket-input">Ticket number <span class="required-indicator">*</span></label>
-            <input type="text" id="ticket-input" class="form-input" maxlength="100" placeholder="INC-12345">
+          <div class="form-row" id="ticket-row" hidden>
+            <label class="form-label" for="ticket-input">Ticket number <span class="req-mark" aria-hidden="true">*</span></label>
+            <input type="text" id="ticket-input" class="form-input" maxlength="100" placeholder="e.g. INC-12345">
           </div>
         </form>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-ghost" id="activation-cancel-btn">Cancel</button>
-        <button type="submit" form="activation-form" class="btn btn-primary" id="activation-confirm-btn">Activate</button>
+        <button class="btn btn-ghost"    id="modal-cancel-btn">Cancel</button>
+        <button class="btn btn-primary"  id="modal-confirm-btn">Activate</button>
       </div>
     </div>
   </div>
 
-  <!-- ── Save profile modal ─────────────────────────────────────────────── -->
-  <div id="profile-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="profile-modal-title" hidden>
-    <div class="modal-container">
-      <div class="modal-header">
-        <h2 id="profile-modal-title">Save activation profile</h2>
-        <button class="modal-close-btn" id="profile-modal-close" aria-label="Close">×</button>
-      </div>
-      <div class="modal-body">
-        <div class="form-group">
-          <label for="profile-name-input">Profile name <span class="required-indicator">*</span></label>
-          <input type="text" id="profile-name-input" class="form-input" maxlength="80" placeholder="e.g. Daily admin tasks" required>
-        </div>
-        <p class="profile-roles-preview" id="profile-roles-preview"></p>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-ghost" id="profile-cancel-btn">Cancel</button>
-        <button type="button" class="btn btn-primary" id="profile-save-btn">Save profile</button>
-      </div>
-    </div>
-  </div>
+  <!-- Toast notifications -->
+  <div id="toast-container" role="region" aria-live="polite" aria-label="Notifications"></div>
 
-  <!-- ── Toast notifications ────────────────────────────────────────────── -->
-  <div id="toast-container" class="toast-container" role="region" aria-live="polite" aria-label="Notifications"></div>
-
-  <!-- ── Progress bar ───────────────────────────────────────────────────── -->
-  <div id="progress-bar-container" class="progress-bar-container" hidden>
-    <div class="progress-bar-track">
-      <div id="progress-bar-fill" class="progress-bar-fill" style="width:0%"></div>
-    </div>
-    <p id="progress-bar-label" class="progress-bar-label"></p>
-  </div>
-
-  <!-- ── Application scripts (ES-module order matters) ─────────────────── -->
+  <!-- Scripts -->
   <script src="js/msal-config.js" defer></script>
   <script src="js/auth.js" defer></script>
   <script src="js/api/graph-client.js" defer></script>

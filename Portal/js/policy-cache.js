@@ -74,6 +74,7 @@ class PolicyCache {
       requiresJustification: justRule?.isRequired === true,
       requiresTicket:        ticketRule?.isRequired === true,
       requiresMfa:           mfaRule?.isEnabled === true,
+      authContextId:         mfaRule?.isEnabled ? (mfaRule?.claimValue || null) : null,
       requiresApproval:      approvalRule?.isEnabled === true,
       maxDurationHours:      maxHours
     };

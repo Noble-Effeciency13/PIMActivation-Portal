@@ -297,6 +297,35 @@ async function _sendBatchChunk(chunk, retrying = false) {
   return data.responses || [];
 }
 
+// ── Pending approval requests ─────────────────────────────────────────────────
+
+/**
+ * Fetch pending PIM activation requests for the signed-in user.
+ * Used to annotate eligible roles that already have a pending approval.
+ * @returns {Promise<{type: string, roleId?: string, groupId?: string, accessId?: string, status: string}[]>}
+ */
+async function getPendingActivationRequests() {
+  const userId = portalAuth.getUserId();
+  try {
+    const [entra, group] = await Promise.all([
+      graphGetAll(
+        `/roleManagement/directory/roleAssignmentScheduleRequests?$filter=principalId eq '${userId}' and status eq 'PendingApproval'`,
+        false
+      ).catch(() => []),
+      graphGetAll(
+        `/identityGovernance/privilegedAccess/group/assignmentScheduleRequests?$filter=principalId eq '${userId}' and status eq 'PendingApproval'`,
+        false
+      ).catch(() => [])
+    ]);
+    return [
+      ...entra.map(r => ({ type: 'User',  roleId:  r.roleDefinitionId, status: r.status })),
+      ...group.map(r => ({ type: 'Group', groupId: r.groupId, accessId: r.accessId, status: r.status }))
+    ];
+  } catch {
+    return [];
+  }
+}
+
 // Expose globally
 window.graphClient = {
   getEligibleEntraRoles,
@@ -309,5 +338,6 @@ window.graphClient = {
   deactivateEntraRole,
   activateGroupRole,
   deactivateGroupRole,
-  graphBatch
+  graphBatch,
+  getPendingActivationRequests
 };

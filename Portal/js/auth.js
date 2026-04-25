@@ -99,25 +99,39 @@ function getUserId() {
 
 // ── Private helpers ──────────────────────────────────────────────────────────
 
-async function _acquireToken(scopes) {
+async function _acquireToken(scopes, claims) {
   if (!_account) throw new Error('Not signed in');
 
   try {
     const result = await msalInstance.acquireTokenSilent({
       scopes,
-      account: _account
+      account: _account,
+      ...(claims ? { claims } : {})
     });
     return result.accessToken;
   } catch (err) {
     if (err instanceof msal.InteractionRequiredAuthError) {
       // Silent acquisition failed — redirect to Microsoft for fresh tokens.
       // The page will reload on return and initAuth() will process the response.
-      await msalInstance.acquireTokenRedirect({ scopes, account: _account });
+      await msalInstance.acquireTokenRedirect({ scopes, account: _account, ...(claims ? { claims } : {}) });
       // Page navigates away — execution does not continue here.
     }
     throw err;
   }
 }
 
+/**
+ * Acquire a Graph token with a specific authentication context (auth context ID).
+ * Used when a PIM role requires Conditional Access step-up.
+ * @param {string} authContextId
+ * @returns {Promise<string>}
+ */
+async function getGraphTokenWithAuthContext(authContextId) {
+  const claims = JSON.stringify({
+    access_token: { acrs: { essential: true, value: authContextId } }
+  });
+  return _acquireToken(window.GRAPH_SCOPES, claims);
+}
+
 // Expose globally for other modules
-window.portalAuth = { initAuth, signIn, signOut, getGraphToken, getArmToken, getAccount, getUserId };
+window.portalAuth = { initAuth, signIn, signOut, getGraphToken, getArmToken, getGraphTokenWithAuthContext, getAccount, getUserId };

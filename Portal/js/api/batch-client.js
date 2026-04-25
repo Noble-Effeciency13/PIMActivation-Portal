@@ -72,7 +72,7 @@ async function _bulkActivateEntraGroup(roles, options) {
           ticketInfo:  options.ticketNumber ? { ticketNumber: options.ticketNumber, ticketSystem: '' } : undefined,
           scheduleInfo: {
             startDateTime: new Date().toISOString(),
-            expiration: { type: 'AfterDuration', duration: `PT${options.durationMinutes || 60}M` }
+            expiration: { type: 'AfterDuration', duration: `PT${role._effectiveDurationMinutes || options.durationMinutes || 480}M` }
           }
         },
         headers: { 'Content-Type': 'application/json' }
@@ -92,7 +92,7 @@ async function _bulkActivateEntraGroup(roles, options) {
         ticketInfo:       options.ticketNumber ? { ticketNumber: options.ticketNumber, ticketSystem: '' } : undefined,
         scheduleInfo: {
           startDateTime: new Date().toISOString(),
-          expiration: { type: 'AfterDuration', duration: `PT${options.durationMinutes || 60}M` }
+          expiration: { type: 'AfterDuration', duration: `PT${role._effectiveDurationMinutes || options.durationMinutes || 480}M` }
         }
       },
       headers: { 'Content-Type': 'application/json' }
@@ -152,7 +152,10 @@ async function _bulkActivateAzure(roles, options) {
   if (roles.length === 0) return [];
   return _runWithLimit(roles, AZURE_PARALLEL_LIMIT, async role => {
     try {
-      await armClient.activateAzureRole(role.scopeId || role.scope, role.id, options);
+      await armClient.activateAzureRole(role.scopeId || role.scope, role.id, {
+        ...options,
+        durationMinutes: role._effectiveDurationMinutes || options.durationMinutes || 480
+      });
       return { uid: role.uid, type: role.type, success: true, activatedAt: new Date().toISOString() };
     } catch (err) {
       return { uid: role.uid, type: role.type, success: false, error: err.message };
