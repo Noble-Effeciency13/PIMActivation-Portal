@@ -114,7 +114,7 @@ async function getActiveEntraRoles() {
     `/roleManagement/directory/roleAssignmentScheduleInstances?$filter=principalId eq '${userId}'&$expand=roleDefinition,principal`,
     false
   );
-  return data.filter(r => r.assignmentType === 'Activated').map(item => ({
+  return data.map(item => ({
     uid:              item.id,
     type:             'User',
     id:               item.roleDefinitionId,
@@ -122,6 +122,7 @@ async function getActiveEntraRoles() {
     scope:            item.directoryScopeId === '/' ? 'Directory' : item.directoryScopeId,
     directoryScopeId: item.directoryScopeId,
     memberType:       item.memberType || 'Direct',
+    assignmentType:   item.assignmentType || 'Assigned',
     endDateTime:      item.scheduleInfo?.expiration?.endDateTime || null
   }));
 }
@@ -136,16 +137,17 @@ async function getActiveGroupRoles() {
     `/identityGovernance/privilegedAccess/group/assignmentScheduleInstances?$filter=principalId eq '${userId}'&$expand=group`,
     false
   );
-  return data.filter(r => r.assignmentType === 'Activated').map(item => ({
-    uid:         item.id,
-    type:        'Group',
-    id:          item.groupId,
-    groupId:     item.groupId,
-    accessId:    item.accessId,
-    name:        item.group?.displayName || item.groupId,
-    scope:       'Group',
-    memberType:  item.memberType || 'Direct',
-    endDateTime: item.scheduleInfo?.expiration?.endDateTime || null
+  return data.map(item => ({
+    uid:            item.id,
+    type:           'Group',
+    id:             item.groupId,
+    groupId:        item.groupId,
+    accessId:       item.accessId,
+    name:           item.group?.displayName || item.groupId,
+    scope:          'Group',
+    memberType:     item.memberType || 'Direct',
+    assignmentType: item.assignmentType || 'Assigned',
+    endDateTime:    item.scheduleInfo?.expiration?.endDateTime || null
   }));
 }
 

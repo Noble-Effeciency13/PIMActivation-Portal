@@ -148,7 +148,7 @@ class RoleManager {
 
     if (n === 0) {
       const msg = this.eligibleRoles.length === 0 ? 'No eligible roles found.' : 'No roles match your search.';
-      tbody.innerHTML = '<tr class="row-placeholder"><td colspan="8">' + msg + '</td></tr>';
+      tbody.innerHTML = '<tr class="row-placeholder"><td colspan="9">' + msg + '</td></tr>';
       this._updateBars();
       return;
     }
@@ -162,22 +162,52 @@ class RoleManager {
       const pending  = role._hasPendingApproval
         ? '<span class="pending-badge" title="A pending approval request already exists">Pending</span>' : '';
 
-      return '<tr class="' + selCls + '" data-uid="' + escapeHtml(uid) + '">' +
-        '<td class="col-cb"><label class="cb-wrap">' +
-          '<input type="checkbox" class="elig-cb" data-uid="' + escapeHtml(uid) + '" ' + checked +
-          ' aria-label="' + escapeHtml(role.name) + '">' +
-        '</label></td>' +
-        '<td class="col-type" data-label="Type">' + badge + '</td>' +
-        '<td class="col-role" data-label="Role"><div class="role-cell">' +
-          '<span class="role-name">' + escapeHtml(role.name) + pending + '</span>' +
-          '<span class="role-scope">' + escapeHtml(_scopeDisplay(role)) + '</span>' +
-        '</div></td>' +
-        '<td class="col-policy" data-label="Max"><span class="pol-max">' + maxDisp + '</span></td>' +
-        '<td class="col-policy" data-label="MFA">'    + _polMfa(role)                                     + '</td>' +
-        '<td class="col-policy" data-label="Just.">'  + _polDot(role.requiresJustification, 'J', 'pol-warning', 'Justification required') + '</td>' +
-        '<td class="col-policy" data-label="Ticket">' + _polDot(role.requiresTicket,        'T', 'pol-warning', 'Ticket required')        + '</td>' +
-        '<td class="col-policy" data-label="Apprv.">' + _polDot(role.requiresApproval,      'A', 'pol-purple',  'Approval required')       + '</td>' +
-      '</tr>';
+      // Human-readable policy values for the mobile expand panel
+      const maxText  = role.maxDurationHours != null
+        ? (role.maxDurationHours % 1 === 0 ? role.maxDurationHours + 'h' : Math.round(role.maxDurationHours * 60) + 'm')
+        : 'Loading\u2026';
+      const mfaText  = !role.requiresMfa ? 'Not required'
+        : (role.authContextId ? 'Auth context: ' + escapeHtml(role.authContextId) : 'Required');
+
+      const mainRow =
+        '<tr class="' + selCls + '" data-uid="' + escapeHtml(uid) + '">' +
+          '<td class="col-cb"><label class="cb-wrap">' +
+            '<input type="checkbox" class="elig-cb" data-uid="' + escapeHtml(uid) + '" ' + checked +
+            ' aria-label="' + escapeHtml(role.name) + '">' +
+          '</label></td>' +
+          '<td class="col-type" data-label="Type">' + badge + '</td>' +
+          '<td class="col-role" data-label="Role"><div class="role-cell">' +
+            '<span class="role-name">' + escapeHtml(role.name) + pending + '</span>' +
+            '<span class="role-scope">' + escapeHtml(_scopeDisplay(role)) + '</span>' +
+          '</div></td>' +
+          '<td class="col-policy" data-label="Max"><span class="pol-max">' + maxDisp + '</span></td>' +
+          '<td class="col-policy" data-label="MFA">'    + _polMfa(role)                                     + '</td>' +
+          '<td class="col-policy" data-label="Just.">'  + _polDot(role.requiresJustification, 'J', 'pol-warning', 'Justification required') + '</td>' +
+          '<td class="col-policy" data-label="Ticket">' + _polDot(role.requiresTicket,        'T', 'pol-warning', 'Ticket required')        + '</td>' +
+          '<td class="col-policy" data-label="Apprv.">' + _polDot(role.requiresApproval,      'A', 'pol-purple',  'Approval required')       + '</td>' +
+          '<td class="col-expand">' +
+            '<button class="expand-btn" data-uid="' + escapeHtml(uid) + '" aria-label="Show policy details" aria-expanded="false">' +
+              '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">' +
+                '<polyline points="6 9 12 15 18 9"/>' +
+              '</svg>' +
+            '</button>' +
+          '</td>' +
+        '</tr>';
+
+      const detailRow =
+        '<tr class="row-detail" data-detail-uid="' + escapeHtml(uid) + '" hidden>' +
+          '<td colspan="99">' +
+            '<div class="policy-detail">' +
+              '<span class="pd-label">Max duration</span><span class="pd-value">' + maxText + '</span>' +
+              '<span class="pd-label">MFA</span><span class="pd-value">' + mfaText + '</span>' +
+              '<span class="pd-label">Justification</span><span class="pd-value">' + (role.requiresJustification ? 'Required' : 'Not required') + '</span>' +
+              '<span class="pd-label">Ticket</span><span class="pd-value">' + (role.requiresTicket ? 'Required' : 'Not required') + '</span>' +
+              '<span class="pd-label">Approval</span><span class="pd-value">' + (role.requiresApproval ? 'Required' : 'Not required') + '</span>' +
+            '</div>' +
+          '</td>' +
+        '</tr>';
+
+      return mainRow + detailRow;
     }).join('');
 
     tbody.querySelectorAll('.elig-cb').forEach(cb => {
@@ -188,6 +218,19 @@ class RoleManager {
         cb.closest('tr').classList.toggle('row-selected', cb.checked);
         this._updateBars();
         this._syncHeader('eligible');
+      });
+    });
+
+    // Wire expand buttons — tap to reveal policy panel on mobile
+    tbody.querySelectorAll('.expand-btn').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const detail = tbody.querySelector('.row-detail[data-detail-uid="' + btn.dataset.uid + '"]');
+        if (!detail) return;
+        const isOpen = !detail.hidden;
+        detail.hidden = isOpen;
+        btn.classList.toggle('open', !isOpen);
+        btn.setAttribute('aria-expanded', String(!isOpen));
       });
     });
 
