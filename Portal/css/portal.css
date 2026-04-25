@@ -4,6 +4,12 @@
    Three themes: dark (default), light, high-contrast
    ============================================================================= */
 
+/* Ensure [hidden] always wins over display rules set on specific elements.
+   Without this, ID-selector rules (e.g. #loading-overlay { display:flex })
+   override the browser's [hidden] { display:none } from the UA stylesheet
+   because ID selectors have higher specificity than attribute selectors. */
+[hidden] { display: none !important; }
+
 /* ── Dark theme (base / default) ─────────────────────────────────────────── */
 :root {
   --bg:            #0f172a;
