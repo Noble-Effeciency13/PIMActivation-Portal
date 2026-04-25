@@ -93,10 +93,6 @@ function applyTheme(theme) {
 
 // ── Activation modal ──────────────────────────────────────────────────────────
 
-// sessionStorage key used to persist activation context across an auth-context
-// redirect (acquireTokenRedirect navigates away, so state must survive the reload).
-const PENDING_ACTIVATION_KEY = 'pim-pending-activation';
-
 let _pendingRoles = [];
 
 function showActivationModal(roles) {
@@ -424,58 +420,6 @@ function _timeAgo(dateString) {
   const d = Math.floor(h / 24);
   return d + ' day' + (d !== 1 ? 's' : '') + ' ago';
 }
-// ── Pending activation resume ────────────────────────────────────────────────────────────────────
-
-/**
- * Called from bootstrap() after roles are loaded.
- * If sessionStorage contains a saved activation context from an auth-context
- * redirect, re-matches the role UIDs to the freshly loaded eligible roles and
- * runs bulkActivate automatically — no modal interaction required.
- */
-async function _resumePendingActivation() {
-  const raw = sessionStorage.getItem(PENDING_ACTIVATION_KEY);
-  if (!raw) return;
-  sessionStorage.removeItem(PENDING_ACTIVATION_KEY);
-
-  let ctx;
-  try { ctx = JSON.parse(raw); } catch { return; }
-
-  const roles = (ctx.roleUids || [])
-    .map(uid => roleManager.eligibleRoles.find(r => (r.uid || r.id) === uid))
-    .filter(Boolean)
-    .map(role => Object.assign({}, role, {
-      _effectiveDurationMinutes: ctx.roleDurations?.[role.uid || role.id] ?? (role.maxDurationHours || 8) * 60
-    }));
-
-  if (!roles.length) {
-    showToast('Could not resume activation: eligible roles no longer found. Please try again.', 'warning', 8000);
-    return;
-  }
-
-  showProgress('Resuming activation of ' + roles.length + ' role' + (roles.length !== 1 ? 's' : '') + '\u2026');
-
-  try {
-    const outcome = await batchClient.bulkActivate(roles, ctx.options || {});
-    hideProgress();
-    const ok              = outcome.summary?.succeeded ?? 0;
-    const fail            = outcome.summary?.failed    ?? 0;
-    const pendingApproval = (outcome.results || []).filter(r => r.pendingApproval).length;
-    if (fail === 0 && pendingApproval === 0) {
-      showToast('Successfully activated ' + ok + ' role' + (ok !== 1 ? 's' : '') + '.', 'success');
-    } else if (pendingApproval > 0 && fail === 0) {
-      showToast(ok + ' activated. ' + pendingApproval + ' awaiting approval.', 'info', 8000);
-    } else if (ok === 0) {
-      showToast('Activation failed for all ' + fail + ' role' + (fail !== 1 ? 's' : '') + '. Check console.', 'error');
-    } else {
-      showToast(ok + ' role' + (ok !== 1 ? 's' : '') + ' activated. ' + fail + ' failed. Check console.', 'warning');
-    }
-    await _refresh();
-  } catch (err) {
-    hideProgress();
-    showToast('Activation resume error: ' + err.message, 'error', 10000);
-    console.error('[App] Activation resume error:', err);
-  }
-}
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 
 async function bootstrap() {
@@ -661,22 +605,10 @@ async function bootstrap() {
   });
 
   // ── Load roles (renders progressively; Azure appended when ready) ─────────
-  // If an activation was interrupted by an auth-context redirect, await the load
-  // so UIDs can be matched, then resume automatically.
-  if (sessionStorage.getItem(PENDING_ACTIVATION_KEY)) {
-    roleManager.loadRoles()
-      .then(() => _resumePendingActivation())
-      .catch(err => {
-        sessionStorage.removeItem(PENDING_ACTIVATION_KEY);
-        console.error('[App] loadRoles error:', err);
-        showToast('Failed to load roles: ' + err.message, 'error', 10000);
-      });
-  } else {
-    roleManager.loadRoles().catch(err => {
-      console.error('[App] loadRoles error:', err);
-      showToast('Failed to load roles: ' + err.message, 'error', 10000);
-    });
-  }
+  roleManager.loadRoles().catch(err => {
+    console.error('[App] loadRoles error:', err);
+    showToast('Failed to load roles: ' + err.message, 'error', 10000);
+  });
 }
 
 // Start

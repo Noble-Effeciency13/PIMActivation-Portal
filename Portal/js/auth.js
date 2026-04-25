@@ -135,21 +135,12 @@ async function getGraphTokenWithAuthContext(authContextId) {
 
 /**
  * Proactively step up authentication for Conditional Access auth context IDs.
+ * Opens an MSAL popup so the user can satisfy Conditional Access (MFA,
+ * compliant device, etc.) without navigating away from the page.
+ * Returns normally when the popup completes; throws on cancellation or failure.
  *
- * acquireTokenPopup is NOT used here: login.microsoftonline.com sets
- * Cross-Origin-Opener-Policy (COOP) headers which block window.closed polling,
- * so MSAL 2.x can never reliably detect the popup closed and will always throw
- * popup_window_error or empty_window_error after the token is (or isn’t) acquired.
- *
- * Instead we use acquireTokenRedirect, which navigates the page away cleanly.
- * CA step-up is session-level: one redirect for Graph scopes satisfies both
- * Graph and ARM token requests on return.
- *
- * The CALLER must save any pending activation state to sessionStorage before
- * calling this function, because the page will navigate away immediately.
- *
- * @param {string[]} authContextIds  — unique auth context IDs (e.g. 'c2', 'c3')
- * @param {object[]} roles           — the roles being activated
+ * @param {string[]} authContextIds  - unique auth context IDs (e.g. 'c2', 'c3')
+ * @param {object[]} roles           - the roles being activated
  */
 async function stepUpForAuthContexts(authContextIds, roles) {
   const hasEntraGroup = roles.some(r => r.type === 'User' || r.type === 'Group');
@@ -162,8 +153,8 @@ async function stepUpForAuthContexts(authContextIds, roles) {
     access_token: { acrs: { essential: true, value: authContextIds[0] } }
   });
 
-  await msalInstance.acquireTokenRedirect({ scopes, account: _account, claims });
-  // Page navigates away — execution never continues here.
+  await msalInstance.acquireTokenPopup({ scopes, account: _account, claims });
+  // Returns normally — caller continues with activation
 }
 
 // Expose globally for other modules

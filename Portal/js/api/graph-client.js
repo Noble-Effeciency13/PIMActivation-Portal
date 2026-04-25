@@ -361,7 +361,7 @@ async function resolveAdministrativeUnits(ids) {
     const batchRequests = unique.map(id => ({
       id,
       method: 'GET',
-      url:    `/administrativeUnits/${id}?$select=id,displayName`
+      url:    `/directory/administrativeUnits/${id}?$select=id,displayName`
     }));
     try {
       const responses = await graphBatch(batchRequests);

@@ -578,6 +578,7 @@ a:hover { text-decoration: underline; }
 .row-awaiting-approval input[type="checkbox"] { cursor: not-allowed; }
 .awaiting-tag {
   display:        inline-block;
+  align-self:     flex-start;
   margin-top:     3px;
   padding:        1px 6px;
   background:     var(--warning-dim);
