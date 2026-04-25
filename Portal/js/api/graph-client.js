@@ -11,6 +11,9 @@
 const GRAPH_BASE = 'https://graph.microsoft.com/v1.0';
 const BETA_BASE  = 'https://graph.microsoft.com/beta';
 
+// Module-level cache for Administrative Unit display names
+const _auCache = new Map(); // GUID → displayName
+
 // ── Generic fetch wrapper ─────────────────────────────────────────────────────
 async function graphGet(path, useBeta = false) {
   const token = await portalAuth.getGraphToken();
@@ -343,6 +346,41 @@ async function getPendingActivationRequests() {
   }
 }
 
+// ── Administrative Units ─────────────────────────────────────────────────────
+
+/**
+ * Batch-resolve Administrative Unit GUIDs to display names.
+ * Results are cached in-memory for the session.
+ * @param {string[]} ids — AU GUIDs
+ * @returns {Promise<Map<string,string>>} id → displayName
+ */
+async function resolveAdministrativeUnits(ids) {
+  const unique = [...new Set(ids)].filter(id => !_auCache.has(id));
+  if (unique.length > 0) {
+    // Use Graph $batch for efficiency — one round-trip for all AUs
+    const batchRequests = unique.map(id => ({
+      id,
+      method: 'GET',
+      url:    `/administrativeUnits/${id}?$select=id,displayName`
+    }));
+    try {
+      const responses = await graphBatch(batchRequests);
+      responses.forEach(r => {
+        if (r.status === 200 && r.body?.displayName) {
+          _auCache.set(r.id, r.body.displayName);
+        } else {
+          _auCache.set(r.id, r.id); // fall back to GUID
+        }
+      });
+    } catch {
+      unique.forEach(id => _auCache.set(id, id)); // fall back on batch failure
+    }
+  }
+  const result = new Map();
+  ids.forEach(id => result.set(id, _auCache.get(id) || id));
+  return result;
+}
+
 // Expose globally
 window.graphClient = {
   getEligibleEntraRoles,
@@ -357,5 +395,6 @@ window.graphClient = {
   activateGroupRole,
   deactivateGroupRole,
   graphBatch,
-  getPendingActivationRequests
+  getPendingActivationRequests,
+  resolveAdministrativeUnits
 };

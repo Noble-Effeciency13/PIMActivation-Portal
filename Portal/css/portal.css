@@ -551,8 +551,11 @@ a:hover { text-decoration: underline; }
 .pol-warning  { background: var(--warning-dim); color: var(--warning); border: 1px solid var(--warning); }
 .pol-danger   { background: var(--danger-dim);  color: var(--danger);  border: 1px solid var(--danger); }
 .pol-purple   { background: var(--purple-dim);  color: var(--purple);  border: 1px solid var(--purple); }
+.pol-auth-ctx { background: var(--danger-dim);  color: var(--danger);  border: 1px solid var(--danger); }
 .pol-none     { color: var(--text-faint); font-size: 14px; line-height: 1; }
 .pol-max      { font-size: 12px; font-weight: 600; color: var(--text-muted); white-space: nowrap; }
+/* MFA column can contain both an MFA pill and an AC pill */
+.pol-mfa-cell { display: flex; flex-direction: column; align-items: center; gap: 3px; }
 
 /* Pending approval badge */
 .pending-badge {

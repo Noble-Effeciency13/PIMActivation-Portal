@@ -161,6 +161,33 @@ async function deactivateAzureRole(scopeId, roleId) {
   );
 }
 
+// ── Azure role policies ─────────────────────────────────────────────────────────
+
+/**
+ * Fetch the PIM role management policy for a given Azure scope + role definition.
+ * Returns a normalised { rules: [...] } object compatible with PolicyCache.extractPolicyDetails.
+ * ARM nests rules under properties.policy.properties.rules; we unwrap that here.
+ * @param {string} scopeId          — full ARM scope (e.g. /subscriptions/...)
+ * @param {string} roleDefinitionId — full role def ID or GUID
+ */
+async function getAzureRolePolicy(scopeId, roleDefinitionId) {
+  const token = await portalAuth.getArmToken();
+  const filter = `$filter=roleDefinitionId eq '${roleDefinitionId}'&$expand=policy($expand=rules)`;
+  const url    = `${ARM_BASE}${scopeId}/providers/Microsoft.Authorization/roleManagementPolicyAssignments?api-version=2020-10-01-preview&${filter}`;
+  const resp   = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!resp.ok) {
+    const body = await resp.text();
+    throw new Error(`ARM policy GET → ${resp.status}: ${body}`);
+  }
+  const data       = await resp.json();
+  const assignment = (data.value || [])[0];
+  if (!assignment) return null;
+  // Normalise: ARM nests rules at properties.policy.properties.rules
+  const policy = assignment.properties?.policy;
+  const rules  = policy?.properties?.rules || policy?.rules || [];
+  return rules.length > 0 ? { rules } : null;
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function _formatScope(scopePath, displayName) {
@@ -180,6 +207,7 @@ function _formatScope(scopePath, displayName) {
 window.armClient = {
   getEligibleAzureRoles,
   getActiveAzureRoles,
+  getAzureRolePolicy,
   activateAzureRole,
   deactivateAzureRole
 };

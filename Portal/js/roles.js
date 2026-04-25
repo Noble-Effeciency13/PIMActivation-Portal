@@ -74,10 +74,14 @@ class RoleManager {
         armClient.getEligibleAzureRoles(),
         armClient.getActiveAzureRoles()
       ]);
-      this.eligibleRoles = [...this.eligibleRoles, ..._deduplicateAzure(azureElig)];
-      this.activeRoles   = [...this.activeRoles,   ..._deduplicateAzure(azureActive)];
+      const dedupAzureElig   = _deduplicateAzure(azureElig);
+      const dedupAzureActive = _deduplicateAzure(azureActive);
+      this.eligibleRoles = [...this.eligibleRoles, ...dedupAzureElig];
+      this.activeRoles   = [...this.activeRoles,   ...dedupAzureActive];
       this.renderEligible();
       this.renderActive();
+      // Enrich Azure eligible roles with PIM policies (fire-and-forget, same as Entra)
+      this._enrichAzurePolicy(dedupAzureElig).then(() => this.renderEligible()).catch(() => {});
     } catch (err) {
       console.warn('[Roles] Azure roles unavailable:', err.message);
     }
@@ -119,6 +123,35 @@ class RoleManager {
           } catch { /* non-fatal */ }
         })
     );
+
+    // Resolve Administrative Unit display names for AU-scoped Entra roles
+    const auIds = [];
+    for (const role of this.eligibleRoles) {
+      if (role.type !== 'User') continue;
+      const m = (role.directoryScopeId || '').match(/\/administrativeUnits\/([a-f0-9-]{36})/i);
+      if (m) auIds.push(m[1]);
+    }
+    if (auIds.length > 0) {
+      const resolved = await graphClient.resolveAdministrativeUnits(auIds).catch(() => new Map());
+      resolved.forEach((name, id) => _auNames.set(id, name));
+    }
+  }
+
+  // ── Azure policy enrichment ───────────────────────────────────────────
+
+  async _enrichAzurePolicy(roles) {
+    await Promise.allSettled(roles.map(async azureRole => {
+      if (!azureRole.scopeId || !azureRole.id) return;
+      try {
+        const policy = await armClient.getAzureRolePolicy(azureRole.scopeId, azureRole.id);
+        if (policy) {
+          const live = this.eligibleRoles.find(r => r.uid === azureRole.uid);
+          if (live) Object.assign(live, PolicyCache.extractPolicyDetails(policy));
+        }
+      } catch (err) {
+        console.warn('[Roles] Azure policy fetch failed for', azureRole.name, err.message);
+      }
+    }));
   }
 
   // ── Pending approval annotation ───────────────────────────────────────────
@@ -163,11 +196,13 @@ class RoleManager {
         ? '<span class="pending-badge" title="A pending approval request already exists">Pending</span>' : '';
 
       // Human-readable policy values for the mobile expand panel
-      const maxText  = role.maxDurationHours != null
+      const maxText     = role.maxDurationHours != null
         ? (role.maxDurationHours % 1 === 0 ? role.maxDurationHours + 'h' : Math.round(role.maxDurationHours * 60) + 'm')
         : 'Loading\u2026';
-      const mfaText  = !role.requiresMfa ? 'Not required'
-        : (role.authContextId ? 'Auth context: ' + escapeHtml(role.authContextId) : 'Required');
+      const mfaText     = role.requiresMfa          ? 'Required'     : 'Not required';
+      const authCtxText = role.requiresAuthContext
+        ? (role.authContextId ? escapeHtml(role.authContextId) : 'Required')
+        : 'Not required';
 
       const mainRow =
         '<tr class="' + selCls + '" data-uid="' + escapeHtml(uid) + '">' +
@@ -200,6 +235,7 @@ class RoleManager {
             '<div class="policy-detail">' +
               '<span class="pd-label">Max duration</span><span class="pd-value">' + maxText + '</span>' +
               '<span class="pd-label">MFA</span><span class="pd-value">' + mfaText + '</span>' +
+              '<span class="pd-label">Auth Context</span><span class="pd-value">' + authCtxText + '</span>' +
               '<span class="pd-label">Justification</span><span class="pd-value">' + (role.requiresJustification ? 'Required' : 'Not required') + '</span>' +
               '<span class="pd-label">Ticket</span><span class="pd-value">' + (role.requiresTicket ? 'Required' : 'Not required') + '</span>' +
               '<span class="pd-label">Approval</span><span class="pd-value">' + (role.requiresApproval ? 'Required' : 'Not required') + '</span>' +
@@ -464,7 +500,14 @@ function _scopeDisplay(role) {
   if (role.type === 'AzureResource') return role.scope || role.scopeId || '';
   if (role.type === 'Group')         return role.scope || 'Group membership';
   const s = role.scope || role.directoryScopeId || '';
-  return (s === '/' || s === 'Directory') ? 'Directory' : s;
+  if (s === '/' || s === 'Directory') return 'Directory';
+  // Resolve Administrative Unit GUIDs to human-readable names
+  const auMatch = typeof s === 'string' && s.match(/\/administrativeUnits\/([a-f0-9-]{36})/i);
+  if (auMatch) {
+    const name = _auNames.get(auMatch[1]);
+    return 'Administrative Unit: ' + (name || auMatch[1]);
+  }
+  return s;
 }
 
 function _typeBadge(type) {
@@ -487,10 +530,19 @@ function _polDot(required, letter, colorClass, tooltip) {
 }
 
 function _polMfa(role) {
-  if (!role.requiresMfa) return '<span class="pol-none" title="No MFA required">&ndash;</span>';
-  const cls = role.authContextId ? 'pol-danger' : 'pol-required';
-  const tip = role.authContextId ? 'Auth context: ' + role.authContextId : 'MFA required';
-  return '<span class="pol-dot ' + cls + '" title="' + tip + '">MFA</span>';
+  const parts = [];
+  if (role.requiresMfa) {
+    parts.push('<span class="pol-dot pol-required" title="MFA required">MFA</span>');
+  }
+  if (role.requiresAuthContext) {
+    const tip = role.authContextId ? 'Auth context: ' + escapeHtml(role.authContextId) : 'Auth context required';
+    parts.push('<span class="pol-dot pol-auth-ctx" title="' + escapeHtml(tip) + '">AC</span>');
+  }
+  if (parts.length === 0) return '<span class="pol-none" title="No MFA or auth context required">&ndash;</span>';
+  return '<div class="pol-mfa-cell">' + parts.join('') + '</div>';
 }
+
+// Module-level map for Administrative Unit display names (populated during _enrichPolicy)
+const _auNames = new Map(); // GUID → displayName
 
 window.roleManager = new RoleManager();
