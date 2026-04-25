@@ -226,9 +226,9 @@ class RoleManager {
           '</div></td>' +
           '<td class="col-policy" data-label="Max"><span class="pol-max">' + maxDisp + '</span></td>' +
           '<td class="col-policy" data-label="MFA">'    + _polMfa(role)                                     + '</td>' +
-          '<td class="col-policy" data-label="Just.">'  + _polDot(role.requiresJustification, 'J', 'pol-warning', 'Justification required') + '</td>' +
-          '<td class="col-policy" data-label="Ticket">' + _polDot(role.requiresTicket,        'T', 'pol-warning', 'Ticket required')        + '</td>' +
-          '<td class="col-policy" data-label="Apprv.">' + _polDot(role.requiresApproval,      'A', 'pol-purple',  'Approval required')       + '</td>' +
+          '<td class="col-policy" data-label="Just.">'  + _polDot(role.requiresJustification, 'Just.',  'pol-warning', 'Justification required') + '</td>' +
+          '<td class="col-policy" data-label="Ticket">' + _polDot(role.requiresTicket,        'Ticket', 'pol-warning', 'Ticket required')        + '</td>' +
+          '<td class="col-policy" data-label="Apprv.">' + _polDot(role.requiresApproval,      'Apprv.', 'pol-purple',  'Approval required')       + '</td>' +
           '<td class="col-expand">' +
             '<button class="expand-btn" data-uid="' + escapeHtml(uid) + '" aria-label="Show policy details" aria-expanded="false">' +
               '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">' +
@@ -632,7 +632,7 @@ function _polMfa(role) {
   }
   if (role.requiresAuthContext) {
     const tip = role.authContextId ? 'Auth context: ' + escapeHtml(role.authContextId) : 'Auth context required';
-    parts.push('<span class="pol-dot pol-auth-ctx" title="' + escapeHtml(tip) + '">AC</span>');
+    parts.push('<span class="pol-dot pol-auth-ctx" title="' + escapeHtml(tip) + '">CA</span>');
   }
   if (parts.length === 0) return '<span class="pol-none" title="No MFA or auth context required">&ndash;</span>';
   return '<div class="pol-mfa-cell">' + parts.join('') + '</div>';
