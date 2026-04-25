@@ -75,7 +75,9 @@ class RoleManager {
         armClient.getActiveAzureRoles()
       ]);
       const dedupAzureElig   = _deduplicateAzure(azureElig);
-      const dedupAzureActive = _deduplicateAzure(azureActive);
+      // Active roles: dedup on role+scope so the same assignment doesn't appear
+      // twice, but Owner@MG and Owner@Subscription remain separate entries.
+      const dedupAzureActive = _deduplicateAzureActive(azureActive);
       this.eligibleRoles = [...this.eligibleRoles, ...dedupAzureElig];
       this.activeRoles   = [...this.activeRoles,   ...dedupAzureActive];
       this.renderEligible();
@@ -479,6 +481,21 @@ function _deduplicateAzure(roles) {
     }
   }
   return [...map.values()];
+}
+
+/**
+ * Active Azure role deduplication.
+ * Keys on roleGuid + scopeId so the same assignment never appears twice,
+ * but the same role at different scopes (e.g. Owner@MG vs Owner@Subscription)
+ * are kept as separate entries.
+ */
+function _deduplicateAzureActive(roles) {
+  const seen = new Map();
+  for (const role of roles) {
+    const key = `${_roleGuid(role.id)}:${role.scopeId || ''}`;
+    if (!seen.has(key)) seen.set(key, role);
+  }
+  return [...seen.values()];
 }
 
 function _roleGuid(id) {
