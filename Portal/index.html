@@ -10,12 +10,10 @@
 
   <!-- MSAL 2.x — pinned to a specific version.
        alcdn.msauth.net was deprecated at MSAL v3.0.0 and returns 404; replaced
-       with the jsDelivr npm mirror.
-       The __MSAL_SRI__ placeholder is replaced at deploy time by the workflow,
-       which fetches the file and computes the correct SHA-256 SRI hash. -->
+       with the jsDelivr npm mirror. Version is pinned in the URL for
+       supply-chain safety; SRI is omitted to avoid CI injection fragility. -->
   <script
     src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.39.0/lib/msal-browser.min.js"
-    integrity="__MSAL_SRI__"
     crossorigin="anonymous"></script>
 
   <link rel="stylesheet" href="css/portal.css">

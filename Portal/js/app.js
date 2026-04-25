@@ -326,14 +326,21 @@ async function bootstrap() {
   }
 
   if (!account) {
-    // Show sign-in screen
-    if (loadingOverlay) loadingOverlay.style.display = 'none';
-    if (signInScreen)   signInScreen.style.display   = '';
-    document.getElementById('sign-in-btn')?.addEventListener('click', () => {
-      // loginRedirect navigates away — no try/catch needed here;
-      // errors before navigation are rare and unrecoverable.
-      portalAuth.signIn().catch(err => showToast(`Sign-in failed: ${err.message}`, 'error'));
-    });
+    // No cached account — redirect immediately to Microsoft login.
+    // The page will navigate away; on return handleRedirectPromise() picks up the result.
+    if (loadingMessage) loadingMessage.textContent = 'Redirecting to sign-in…';
+    try {
+      await portalAuth.signIn();
+    } catch (err) {
+      // Only reached if loginRedirect itself throws before navigating (very rare).
+      if (loadingOverlay) loadingOverlay.style.display = 'none';
+      if (signInScreen)   signInScreen.style.display   = '';
+      const btn = document.getElementById('sign-in-btn');
+      if (btn) {
+        btn.textContent = 'Retry sign-in';
+        btn.addEventListener('click', () => portalAuth.signIn(), { once: true });
+      }
+    }
     return;
   }
 

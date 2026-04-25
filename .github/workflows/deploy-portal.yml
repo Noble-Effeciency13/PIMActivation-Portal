@@ -22,24 +22,6 @@ jobs:
             echo "ERROR: placeholder was not replaced" && exit 1
           fi
 
-      - name: Compute and inject MSAL SRI hash
-        run: |
-          MSAL_URL="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.39.0/lib/msal-browser.min.js"
-          HTTP_STATUS=$(curl -o /tmp/msal-browser.min.js -s -w "%{http_code}" "$MSAL_URL")
-          if [ "$HTTP_STATUS" != "200" ]; then
-            echo "ERROR: MSAL CDN returned HTTP $HTTP_STATUS" && exit 1
-          fi
-          HASH=$(openssl dgst -sha256 -binary /tmp/msal-browser.min.js | openssl base64 -A)
-          SRI_VALUE="sha256-${HASH}"
-          echo "Computed SRI: $SRI_VALUE"
-          sed -i "s|__MSAL_SRI__|${SRI_VALUE}|g" Portal/index.html
-
-      - name: Verify MSAL SRI placeholder replaced
-        run: |
-          if grep -q '__MSAL_SRI__' Portal/index.html; then
-            echo "ERROR: MSAL SRI placeholder was not replaced" && exit 1
-          fi
-
       - name: Deploy to Azure Static Web Apps
         uses: Azure/static-web-apps-deploy@v1
         with:
