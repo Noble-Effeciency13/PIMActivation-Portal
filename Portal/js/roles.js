@@ -91,18 +91,33 @@ class RoleManager {
   async _enrichPolicy() {
     const tenantId = portalAuth.getAccount()?.tenantId ||
                      portalAuth.getAccount()?.idTokenClaims?.tid || 'default';
+
+    // Bulk-fetch all tenant-root Entra policies in one call.
+    // This avoids per-role queries that 403 on AU-scoped roles (the caller
+    // does not need AU-admin permissions — tenant-root policies cover all
+    // role definitions and work for both directory-wide and AU-scoped assignments).
+    const policyAssignments = await graphClient.getAllEntraRolePolicies().catch(err => {
+      console.warn('[Roles] Entra policy bulk fetch failed:', err.message);
+      return [];
+    });
+    const policyByRoleId = new Map(policyAssignments.map(a => [a.roleDefinitionId, a.policy]));
+
+    for (const role of this.eligibleRoles) {
+      if (role.type !== 'User') continue;
+      const policy = policyByRoleId.get(role.id);
+      if (policy) Object.assign(role, PolicyCache.extractPolicyDetails(policy));
+    }
+
+    // Group roles: per-group policy (Group policies aren't scoped the same way)
     await Promise.allSettled(
-      this.eligibleRoles.map(async role => {
-        try {
-          let policy = null;
-          if (role.type === 'User') {
-            policy = await policyCache.getEntraPolicy(tenantId, role.id, role.directoryScopeId);
-          } else if (role.type === 'Group') {
-            policy = await policyCache.getGroupPolicy(tenantId, role.groupId || role.id, role.accessId || 'member');
-          }
-          if (policy) Object.assign(role, PolicyCache.extractPolicyDetails(policy));
-        } catch { /* non-fatal */ }
-      })
+      this.eligibleRoles
+        .filter(r => r.type === 'Group')
+        .map(async role => {
+          try {
+            const policy = await policyCache.getGroupPolicy(tenantId, role.groupId || role.id, role.accessId || 'member');
+            if (policy) Object.assign(role, PolicyCache.extractPolicyDetails(policy));
+          } catch { /* non-fatal */ }
+        })
     );
   }
 

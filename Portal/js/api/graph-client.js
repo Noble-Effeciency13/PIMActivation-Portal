@@ -152,7 +152,9 @@ async function getActiveGroupRoles() {
 // ── Policy ────────────────────────────────────────────────────────────────────
 
 /**
- * Fetch the role management policy for an Entra role.
+ * Fetch the role management policy for a specific Entra role + scope.
+ * NOTE: Will 403 for AU-scoped roles unless the caller has AU-admin permissions.
+ * Prefer getAllEntraRolePolicies() for bulk enrichment.
  * @param {string} roleId  — role definition ID
  * @param {string} scopeId — directory scope ID
  * @returns {Promise<object>}
@@ -163,6 +165,19 @@ async function getEntraRolePolicy(roleId, scopeId = '/') {
     false
   );
   return assignments[0]?.policy || null;
+}
+
+/**
+ * Bulk-fetch all Entra role management policy assignments at the tenant root scope.
+ * Returns the raw policy assignment objects (each has .roleDefinitionId and .policy).
+ * Use this instead of getEntraRolePolicy() to avoid 403s on AU-scoped role queries.
+ * @returns {Promise<object[]>}
+ */
+async function getAllEntraRolePolicies() {
+  return graphGetAll(
+    `/policies/roleManagementPolicyAssignments?$filter=scopeId eq '%2F' and scopeType eq 'DirectoryRole'&$expand=policy($expand=rules)`,
+    false
+  );
 }
 
 /**
@@ -333,6 +348,7 @@ window.graphClient = {
   getActiveEntraRoles,
   getActiveGroupRoles,
   getEntraRolePolicy,
+  getAllEntraRolePolicies,
   getGroupPolicy,
   activateEntraRole,
   deactivateEntraRole,

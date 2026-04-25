@@ -1,5 +1,18 @@
 {
-  "routes": [],
+  "routes": [
+    {
+      "route": "/js/*",
+      "headers": {
+        "Cache-Control": "no-cache, must-revalidate"
+      }
+    },
+    {
+      "route": "/css/*",
+      "headers": {
+        "Cache-Control": "no-cache, must-revalidate"
+      }
+    }
+  ],
   "navigationFallback": {
     "rewrite": "/index.html",
     "exclude": ["/css/*", "/js/*", "/images/*", "*.ico", "*.svg", "*.png", "*.woff2"]
