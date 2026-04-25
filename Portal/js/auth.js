@@ -152,32 +152,21 @@ async function stepUpForAuthContexts(authContextIds, roles) {
       access_token: { acrs: { essential: true, value: ctxId } }
     });
 
+    // Auth context step-up MUST use popup — silent/iframe acquisition always
+    // times out because the user must interact to satisfy the CA policy.
+    // We go directly to popup; if the user already satisfies the policy the
+    // popup closes immediately after token issuance.
+
     // Step up Graph token for Entra / Group roles
     if (hasEntraGroup) {
-      try {
-        await msalInstance.acquireTokenSilent({ scopes: window.GRAPH_SCOPES, account: _account, claims });
-      } catch (err) {
-        if (err instanceof msal.InteractionRequiredAuthError) {
-          const result = await msalInstance.acquireTokenPopup({ scopes: window.GRAPH_SCOPES, account: _account, claims });
-          if (result?.account) { _account = result.account; msalInstance.setActiveAccount(result.account); }
-        } else {
-          throw err;
-        }
-      }
+      const result = await msalInstance.acquireTokenPopup({ scopes: window.GRAPH_SCOPES, account: _account, claims });
+      if (result?.account) { _account = result.account; msalInstance.setActiveAccount(result.account); }
     }
 
     // Step up ARM token for Azure Resource roles
     if (hasAzure) {
-      try {
-        await msalInstance.acquireTokenSilent({ scopes: [window.ARM_SCOPE], account: _account, claims });
-      } catch (err) {
-        if (err instanceof msal.InteractionRequiredAuthError) {
-          const result = await msalInstance.acquireTokenPopup({ scopes: [window.ARM_SCOPE], account: _account, claims });
-          if (result?.account) { _account = result.account; msalInstance.setActiveAccount(result.account); }
-        } else {
-          throw err;
-        }
-      }
+      const result = await msalInstance.acquireTokenPopup({ scopes: [window.ARM_SCOPE], account: _account, claims });
+      if (result?.account) { _account = result.account; msalInstance.setActiveAccount(result.account); }
     }
   }
 }
