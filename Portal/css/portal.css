@@ -474,9 +474,13 @@ a:hover { text-decoration: underline; }
   border-radius:         var(--radius-sm);
   border:                1px solid var(--border);
   font-size:             12px;
+  max-width:             100%;
+  overflow-wrap:         break-word;
+  word-break:            break-word;
+  box-sizing:            border-box;
 }
-.pd-label { color: var(--text-muted); font-weight: 500; }
-.pd-value  { color: var(--text); }
+.pd-label { color: var(--text-muted); font-weight: 500; white-space: nowrap; }
+.pd-value  { color: var(--text); overflow-wrap: break-word; word-break: break-word; }
 
 /* Checkbox cell */
 .cb-wrap {
@@ -811,12 +815,33 @@ a:hover { text-decoration: underline; }
   /* Show the expand button column */
   .col-expand     { display: table-cell; }
   .col-role { min-width: 140px; }
-  .app-footer { padding: 20px 16px 16px; }
+  /* Switch to auto layout on mobile — fixed layout fights with display:none
+     policy columns when the colspan detail row is revealed, causing the
+     entire table to expand horizontally and break the section layout. */
+  .roles-table    { table-layout: auto; }
+  /* Constrain the detail panel to the actual viewport width */
+  .policy-detail  { max-width: calc(100vw - 32px); }
+  /* Slim footer on mobile — collapse tagline, tighten spacing */
+  .app-footer          { padding: 10px 16px 10px; }
+  .footer-tagline      { display: none; }
+  .footer-inner        { gap: 4px; margin-bottom: 6px; }
+  .footer-people       { gap: 4px 10px; }
+  .footer-person span  { font-size: 11px; }
+  .footer-products a   { font-size: 11px; }
+  .footer-copy         { font-size: 10px; }
   #toast-container { right: 10px; left: 10px; max-width: none; }
   .section-action-bar { padding: 8px 12px; }
 }
 @media (max-width: 380px) {
   .col-type { display: none; }
+}
+
+/* ── Desktop zoom ─────────────────────────────────────────────────────────── */
+/* Scale everything up ~10% on larger screens without affecting the
+   mobile viewport. Phones already use device-width scaling via the
+   viewport meta tag, so zoom is only applied at tablet/desktop widths. */
+@media (min-width: 641px) {
+  html { zoom: 1.1; }
 }
 
 /* ── Activation profiles ──────────────────────────────────────────────────── */
