@@ -133,5 +133,54 @@ async function getGraphTokenWithAuthContext(authContextId) {
   return _acquireToken(window.GRAPH_SCOPES, claims);
 }
 
+/**
+ * Proactively step up authentication for one or more Conditional Access auth
+ * context IDs before attempting PIM activation.  Uses acquireTokenPopup so the
+ * user completes the CA challenge (MFA, compliant device, …) without losing
+ * the page state.
+ *
+ * @param {string[]} authContextIds  — unique auth context IDs (e.g. 'c2', 'c3')
+ * @param {object[]} roles           — the roles being activated (used to decide
+ *                                    which resource scopes need step-up)
+ */
+async function stepUpForAuthContexts(authContextIds, roles) {
+  const hasEntraGroup = roles.some(r => r.type === 'User' || r.type === 'Group');
+  const hasAzure      = roles.some(r => r.type === 'AzureResource');
+
+  for (const ctxId of [...new Set(authContextIds)]) {
+    const claims = JSON.stringify({
+      access_token: { acrs: { essential: true, value: ctxId } }
+    });
+
+    // Step up Graph token for Entra / Group roles
+    if (hasEntraGroup) {
+      try {
+        await msalInstance.acquireTokenSilent({ scopes: window.GRAPH_SCOPES, account: _account, claims });
+      } catch (err) {
+        if (err instanceof msal.InteractionRequiredAuthError) {
+          const result = await msalInstance.acquireTokenPopup({ scopes: window.GRAPH_SCOPES, account: _account, claims });
+          if (result?.account) { _account = result.account; msalInstance.setActiveAccount(result.account); }
+        } else {
+          throw err;
+        }
+      }
+    }
+
+    // Step up ARM token for Azure Resource roles
+    if (hasAzure) {
+      try {
+        await msalInstance.acquireTokenSilent({ scopes: [window.ARM_SCOPE], account: _account, claims });
+      } catch (err) {
+        if (err instanceof msal.InteractionRequiredAuthError) {
+          const result = await msalInstance.acquireTokenPopup({ scopes: [window.ARM_SCOPE], account: _account, claims });
+          if (result?.account) { _account = result.account; msalInstance.setActiveAccount(result.account); }
+        } else {
+          throw err;
+        }
+      }
+    }
+  }
+}
+
 // Expose globally for other modules
-window.portalAuth = { initAuth, signIn, signOut, getGraphToken, getArmToken, getGraphTokenWithAuthContext, getAccount, getUserId };
+window.portalAuth = { initAuth, signIn, signOut, getGraphToken, getArmToken, getGraphTokenWithAuthContext, stepUpForAuthContexts, getAccount, getUserId };

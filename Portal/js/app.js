@@ -204,6 +204,27 @@ async function handleActivate() {
   });
 
   hideActivationModal();
+
+  // Proactive auth context step-up — collect unique acrs values from selected roles
+  // and acquire tokens with those claims before activation. Uses popup so the user
+  // can satisfy Conditional Access (MFA, compliant device, …) without navigating away.
+  const authContextIds = [...new Set(
+    cappedRoles
+      .filter(r => r.requiresAuthContext && r.authContextId)
+      .map(r => r.authContextId)
+  )];
+  if (authContextIds.length > 0) {
+    try {
+      showProgress('Completing authentication requirements\u2026');
+      await portalAuth.stepUpForAuthContexts(authContextIds, cappedRoles);
+    } catch (err) {
+      hideProgress();
+      showToast('Authentication step-up failed: ' + err.message, 'error', 10000);
+      console.error('[App] Auth context step-up error:', err);
+      return;
+    }
+  }
+
   showProgress('Activating ' + cappedRoles.length + ' role' + (cappedRoles.length !== 1 ? 's' : '') + '…');
 
   try {

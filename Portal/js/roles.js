@@ -66,8 +66,9 @@ class RoleManager {
     this.renderEligible();
     this.renderActive();
 
-    // Policy enrichment runs in background; re-renders eligible table when done
-    this._enrichPolicy().then(() => this.renderEligible()).catch(() => {});
+    // Policy enrichment runs in background; re-renders both tables when done
+    // (active table also needs re-render so AU display names are applied)
+    this._enrichPolicy().then(() => { this.renderEligible(); this.renderActive(); }).catch(() => {});
 
     if (typeof updateProgress === 'function') updateProgress(60, 'Loading Azure roles\u2026');
 

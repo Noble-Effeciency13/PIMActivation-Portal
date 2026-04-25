@@ -40,6 +40,24 @@ async function armPost(path, body, apiVersion) {
   return resp.json();
 }
 
+// ARM requires PUT (not POST) for roleAssignmentScheduleRequests — POST maps to
+// the 'action' RBAC verb which requires explicit permission, while PUT maps to
+// 'write' which is implicitly granted to eligible principals by PIM.
+async function armPut(path, body, apiVersion) {
+  const token = await portalAuth.getArmToken();
+  const resp  = await fetch(`${ARM_BASE}${path}?api-version=${apiVersion}`, {
+    method:  'PUT',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body:    JSON.stringify(body)
+  });
+  if (!resp.ok) {
+    const text = await resp.text();
+    throw new Error(`ARM PUT ${path} → ${resp.status}: ${text}`);
+  }
+  if (resp.status === 204) return null;
+  return resp.json();
+}
+
 async function armGetAll(path, apiVersion) {
   const items = [];
   let url = `${ARM_BASE}${path}?api-version=${apiVersion}&$filter=asTarget()&$expand=expandedProperties`;
@@ -124,7 +142,7 @@ async function getActiveAzureRoles() {
  */
 async function activateAzureRole(scopeId, roleId, options = {}) {
   const requestName = crypto.randomUUID();
-  return armPost(
+  return armPut(
     `${scopeId}/providers/Microsoft.Authorization/roleAssignmentScheduleRequests/${requestName}`,
     {
       properties: {
@@ -151,7 +169,7 @@ async function activateAzureRole(scopeId, roleId, options = {}) {
  */
 async function deactivateAzureRole(scopeId, roleId) {
   const requestName = crypto.randomUUID();
-  return armPost(
+  return armPut(
     `${scopeId}/providers/Microsoft.Authorization/roleAssignmentScheduleRequests/${requestName}`,
     {
       properties: {
@@ -243,13 +261,33 @@ async function getAzureRolePolicy(scopeId, roleDefinitionId) {
  * @returns {Promise<object[]>} array of { type, roleDefinitionId, scopeId, scope, name }
  */
 async function getPendingAzureRequests() {
-  const items = await armGetAll(
-    '/providers/Microsoft.Authorization/roleAssignmentScheduleRequests',
-    ARM_VERSION_REQ
-  );
+  // NOTE: armGetAll appends `$filter=asTarget()` which is NOT supported by the
+  // roleAssignmentScheduleRequests endpoint — it silently returns an empty list.
+  // Instead, filter by principalId (OData) and requestType/status in JS.
+  const userId = portalAuth.getUserId();
+  if (!userId) return [];
+
+  const items = [];
+  let url = `${ARM_BASE}/providers/Microsoft.Authorization/roleAssignmentScheduleRequests` +
+            `?api-version=${ARM_VERSION_REQ}` +
+            `&$filter=principalId eq '${userId}'` +
+            `&$expand=expandedProperties`;
+
+  while (url) {
+    const token = await portalAuth.getArmToken();
+    const resp  = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (!resp.ok) {
+      const body = await resp.text();
+      throw new Error(`ARM GET pending requests → ${resp.status}: ${body}`);
+    }
+    const page = await resp.json();
+    if (page.value) items.push(...page.value);
+    url = page.nextLink || null;
+  }
+
   return items
     .filter(item =>
-      item.properties?.status === 'PendingApproval' &&
+      item.properties?.status      === 'PendingApproval' &&
       item.properties?.requestType === 'SelfActivate'
     )
     .map(item => ({
