@@ -1,0 +1,36 @@
+{
+  "routes": [
+    {
+      "route": "/auth-callback",
+      "rewrite": "/index.html"
+    },
+    {
+      "route": "/*",
+      "rewrite": "/index.html"
+    }
+  ],
+  "navigationFallback": {
+    "rewrite": "/index.html",
+    "exclude": ["/css/*", "/js/*", "/images/*", "*.ico", "*.svg", "*.png", "*.woff2"]
+  },
+  "responseOverrides": {
+    "404": {
+      "rewrite": "/index.html",
+      "statusCode": 200
+    }
+  },
+  "globalHeaders": {
+    "content-security-policy": "default-src 'self'; script-src 'self' https://alcdn.msauth.net; connect-src 'self' https://login.microsoftonline.com https://graph.microsoft.com https://management.azure.com; img-src 'self' data:; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; upgrade-insecure-requests",
+    "x-content-type-options": "nosniff",
+    "x-frame-options": "DENY",
+    "x-xss-protection": "1; mode=block",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "permissions-policy": "camera=(), microphone=(), geolocation=(), payment=()",
+    "strict-transport-security": "max-age=31536000; includeSubDomains; preload"
+  },
+  "mimeTypes": {
+    ".json":  "application/json",
+    ".webp":  "image/webp",
+    ".woff2": "font/woff2"
+  }
+}

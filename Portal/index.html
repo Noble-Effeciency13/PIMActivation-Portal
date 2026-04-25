@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>PIM Activation Portal</title>
+
+  <!-- Content-Security-Policy is enforced via staticwebapp.config.json -->
+
+  <!-- MSAL 2.x — pinned to a specific version with SRI hash for supply-chain safety -->
+  <script
+    src="https://alcdn.msauth.net/browser/2.39.0/js/msal-browser.min.js"
+    integrity="sha384-GKyHoXCo+lrJuPAnD3DdHg3hY7lqZf6YhR2C6JvmMiTdnqfr4j+sVqhGFAUlkI"
+    crossorigin="anonymous"
+    defer></script>
+
+  <link rel="stylesheet" href="css/portal.css">
+</head>
+<body>
+  <!-- ── Loading overlay ────────────────────────────────────────────────── -->
+  <div id="loading-overlay" class="loading-overlay" role="status" aria-live="polite">
+    <div class="loading-spinner"></div>
+    <p id="loading-message">Loading…</p>
+  </div>
+
+  <!-- ── App shell ──────────────────────────────────────────────────────── -->
+  <div id="app" class="app" style="display:none">
+    <header class="app-header">
+      <div class="header-brand">
+        <img src="images/logo.svg" alt="PIMActivation" class="header-logo" width="28" height="28">
+        <span class="header-title">PIM Activation Portal</span>
+        <span class="header-subtitle">Azure AD Privileged Identity Management</span>
+      </div>
+      <div class="header-actions">
+        <button id="refresh-btn" class="btn btn-secondary btn-sm" title="Refresh roles" aria-label="Refresh roles">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        </button>
+        <div class="user-info" id="user-info">
+          <span id="user-name" class="user-name"></span>
+          <button id="sign-out-btn" class="btn btn-ghost btn-sm">Sign out</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="app-main">
+      <!-- Tabs -->
+      <nav class="tab-nav" role="tablist" aria-label="Role views">
+        <button class="tab-btn active" role="tab" aria-selected="true"  aria-controls="panel-eligible" id="tab-eligible" data-tab="eligible">Eligible</button>
+        <button class="tab-btn"        role="tab" aria-selected="false" aria-controls="panel-active"   id="tab-active"   data-tab="active">Active</button>
+        <button class="tab-btn"        role="tab" aria-selected="false" aria-controls="panel-profiles" id="tab-profiles" data-tab="profiles">Profiles</button>
+      </nav>
+
+      <!-- Eligible roles panel -->
+      <div id="panel-eligible" role="tabpanel" aria-labelledby="tab-eligible" class="panel active">
+        <div class="panel-toolbar">
+          <div class="panel-toolbar-left">
+            <label class="select-all-label">
+              <input type="checkbox" id="select-all-eligible" aria-label="Select all eligible roles">
+              <span>Select all</span>
+            </label>
+            <span class="role-count" id="eligible-count"></span>
+          </div>
+          <div class="panel-toolbar-right">
+            <input type="search" id="eligible-search" class="search-input" placeholder="Filter roles…" aria-label="Filter eligible roles">
+            <button id="activate-selected-btn" class="btn btn-primary" disabled>Activate selected</button>
+          </div>
+        </div>
+        <div class="table-scroll" id="eligible-table-container">
+          <table class="roles-table" id="eligible-table" aria-label="Eligible roles">
+            <thead>
+              <tr>
+                <th class="col-check"></th>
+                <th>Type</th>
+                <th>Role</th>
+                <th>Scope</th>
+                <th>Member</th>
+                <th>Max</th>
+                <th>MFA</th>
+                <th title="Justification required">Justif.</th>
+                <th title="Ticket required">Ticket</th>
+                <th title="Approval required">Approval</th>
+              </tr>
+            </thead>
+            <tbody id="eligible-roles-body">
+              <tr class="empty-row"><td colspan="10">Loading roles…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Active roles panel -->
+      <div id="panel-active" role="tabpanel" aria-labelledby="tab-active" class="panel" hidden>
+        <div class="panel-toolbar">
+          <div class="panel-toolbar-left">
+            <label class="select-all-label">
+              <input type="checkbox" id="select-all-active" aria-label="Select all active roles">
+              <span>Select all</span>
+            </label>
+            <span class="role-count" id="active-count"></span>
+          </div>
+          <div class="panel-toolbar-right">
+            <input type="search" id="active-search" class="search-input" placeholder="Filter roles…" aria-label="Filter active roles">
+            <button id="deactivate-selected-btn" class="btn btn-danger" disabled>Deactivate selected</button>
+          </div>
+        </div>
+        <div class="table-scroll" id="active-table-container">
+          <table class="roles-table" id="active-table" aria-label="Active roles">
+            <thead>
+              <tr>
+                <th class="col-check"></th>
+                <th>Type</th>
+                <th>Role</th>
+                <th>Resource</th>
+                <th>Scope</th>
+                <th>Member</th>
+                <th>Expires</th>
+              </tr>
+            </thead>
+            <tbody id="active-roles-body">
+              <tr class="empty-row"><td colspan="7">Loading roles…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Profiles (saved activation groups) panel -->
+      <div id="panel-profiles" role="tabpanel" aria-labelledby="tab-profiles" class="panel" hidden>
+        <div class="panel-toolbar">
+          <div class="panel-toolbar-left">
+            <span class="role-count" id="profiles-count"></span>
+          </div>
+          <div class="panel-toolbar-right">
+            <button id="save-profile-btn" class="btn btn-secondary">Save current selection as profile</button>
+          </div>
+        </div>
+        <div id="profiles-list" class="profiles-list">
+          <p class="empty-message">No saved profiles yet. Select eligible roles and click "Save current selection as profile".</p>
+        </div>
+      </div>
+
+      <!-- Action bar (sticky bottom, eligible tab) -->
+      <div class="action-bar-bottom" id="eligible-action-bar" style="display:none">
+        <span id="selected-eligible-count" class="selected-count"></span>
+        <button id="activate-btn" class="btn btn-primary">Activate selected</button>
+      </div>
+
+      <!-- Action bar (sticky bottom, active tab) -->
+      <div class="action-bar-bottom" id="active-action-bar" style="display:none">
+        <span id="selected-active-count" class="selected-count"></span>
+        <button id="deactivate-btn" class="btn btn-danger">Deactivate selected</button>
+      </div>
+    </main>
+  </div>
+
+  <!-- ── Sign-in screen ─────────────────────────────────────────────────── -->
+  <div id="sign-in-screen" class="sign-in-screen" style="display:none">
+    <div class="sign-in-card">
+      <img src="images/logo.svg" alt="PIMActivation" width="48" height="48">
+      <h1>PIM Activation Portal</h1>
+      <p class="sign-in-subtitle">Sign in with your Microsoft account to manage your PIM eligible roles.</p>
+      <button id="sign-in-btn" class="btn btn-primary btn-lg">Sign in with Microsoft</button>
+      <p class="sign-in-note">This portal runs entirely in your browser — no data is sent to any third-party server.</p>
+    </div>
+  </div>
+
+  <!-- ── Activation modal ───────────────────────────────────────────────── -->
+  <div id="activation-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="activation-modal-title" hidden>
+    <div class="modal-container">
+      <div class="modal-header">
+        <h2 id="activation-modal-title">Activate roles</h2>
+        <button class="modal-close-btn" id="activation-modal-close" aria-label="Close">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-role-list" id="activation-role-list"></div>
+        <form id="activation-form" novalidate>
+          <div class="form-group">
+            <label for="duration-select">Duration</label>
+            <select id="duration-select" class="form-select" required></select>
+          </div>
+          <div class="form-group" id="justification-group">
+            <label for="justification-input">Justification <span class="required-indicator">*</span></label>
+            <textarea id="justification-input" class="form-textarea" rows="3" maxlength="500" placeholder="Business reason for this activation…"></textarea>
+          </div>
+          <div class="form-group" id="ticket-group" style="display:none">
+            <label for="ticket-input">Ticket number <span class="required-indicator">*</span></label>
+            <input type="text" id="ticket-input" class="form-input" maxlength="100" placeholder="INC-12345">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" id="activation-cancel-btn">Cancel</button>
+        <button type="submit" form="activation-form" class="btn btn-primary" id="activation-confirm-btn">Activate</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Save profile modal ─────────────────────────────────────────────── -->
+  <div id="profile-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="profile-modal-title" hidden>
+    <div class="modal-container">
+      <div class="modal-header">
+        <h2 id="profile-modal-title">Save activation profile</h2>
+        <button class="modal-close-btn" id="profile-modal-close" aria-label="Close">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="profile-name-input">Profile name <span class="required-indicator">*</span></label>
+          <input type="text" id="profile-name-input" class="form-input" maxlength="80" placeholder="e.g. Daily admin tasks" required>
+        </div>
+        <p class="profile-roles-preview" id="profile-roles-preview"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" id="profile-cancel-btn">Cancel</button>
+        <button type="button" class="btn btn-primary" id="profile-save-btn">Save profile</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Toast notifications ────────────────────────────────────────────── -->
+  <div id="toast-container" class="toast-container" role="region" aria-live="polite" aria-label="Notifications"></div>
+
+  <!-- ── Progress bar ───────────────────────────────────────────────────── -->
+  <div id="progress-bar-container" class="progress-bar-container" hidden>
+    <div class="progress-bar-track">
+      <div id="progress-bar-fill" class="progress-bar-fill" style="width:0%"></div>
+    </div>
+    <p id="progress-bar-label" class="progress-bar-label"></p>
+  </div>
+
+  <!-- ── Application scripts (ES-module order matters) ─────────────────── -->
+  <script src="js/msal-config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/api/graph-client.js"></script>
+  <script src="js/api/arm-client.js"></script>
+  <script src="js/api/batch-client.js"></script>
+  <script src="js/policy-cache.js"></script>
+  <script src="js/profiles.js"></script>
+  <script src="js/roles.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

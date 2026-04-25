@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="PIMActivation — open-source tooling for Microsoft Entra ID Privileged Identity Management. PowerShell module, self-hosted web app, and browser portal.">
+  <meta name="theme-color" content="#0f0f0f" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f5f5f5" media="(prefers-color-scheme: light)">
+  <title>PIMActivation</title>
+  <style>
+    /* ── Tokens ──────────────────────────────────────────────────────────── */
+    :root {
+      --primary: #0078D4;
+      --primary-dim: rgba(0,120,212,0.15);
+      --primary-border: rgba(0,120,212,0.35);
+      --bg: #0f0f0f;
+      --bg-card: rgba(255,255,255,0.04);
+      --bg-card-hover: rgba(255,255,255,0.07);
+      --border: rgba(255,255,255,0.08);
+      --text: #f3f3f3;
+      --text-muted: #888;
+      --text-faint: #555;
+      --radius: 10px;
+      --gap: 24px;
+      --max-w: 900px;
+    }
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f5f5f5;
+        --bg-card: rgba(0,0,0,0.03);
+        --bg-card-hover: rgba(0,0,0,0.06);
+        --border: rgba(0,0,0,0.1);
+        --text: #1a1a1a;
+        --text-muted: #555;
+        --text-faint: #999;
+      }
+    }
+
+    /* ── Reset ───────────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 15px; scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color:      var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      line-height: 1.6;
+    }
+    a { color: var(--primary); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── Layout helpers ──────────────────────────────────────────────────── */
+    .container { max-width: var(--max-w); margin: 0 auto; padding: 0 var(--gap); }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
+
+    /* ── Header / nav ────────────────────────────────────────────────────── */
+    .site-header {
+      border-bottom: 1px solid var(--border);
+      padding: 14px 0;
+      position: sticky;
+      top: 0;
+      background: var(--bg);
+      z-index: 10;
+      backdrop-filter: blur(8px);
+    }
+    .site-header .container { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .site-logo { display: flex; align-items: center; gap: 10px; color: var(--text); font-weight: 700; font-size: 17px; }
+    .site-logo svg { flex-shrink: 0; }
+    .site-nav { display: flex; align-items: center; gap: 20px; }
+    .site-nav a { color: var(--text-muted); font-size: 14px; transition: color 0.15s; }
+    .site-nav a:hover { color: var(--text); text-decoration: none; }
+    .btn-nav {
+      background: var(--primary);
+      border-radius: 6px;
+      color: #fff !important;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 6px 16px;
+      transition: opacity 0.15s;
+    }
+    .btn-nav:hover { opacity: 0.85; text-decoration: none !important; }
+
+    /* ── Hero ────────────────────────────────────────────────────────────── */
+    .hero {
+      padding: 80px 0 64px;
+      text-align: center;
+    }
+    .hero-eyebrow {
+      background: var(--primary-dim);
+      border: 1px solid var(--primary-border);
+      border-radius: 20px;
+      color: var(--primary);
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      margin-bottom: 20px;
+      padding: 4px 14px;
+      text-transform: uppercase;
+    }
+    .hero h1 {
+      font-size: clamp(28px, 5vw, 48px);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      margin-bottom: 18px;
+    }
+    .hero h1 span { color: var(--primary); }
+    .hero p {
+      color: var(--text-muted);
+      font-size: 17px;
+      margin: 0 auto 32px;
+      max-width: 560px;
+    }
+    .hero-actions { display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap; }
+    .btn-primary {
+      background: var(--primary);
+      border-radius: 8px;
+      color: #fff;
+      font-weight: 600;
+      font-size: 15px;
+      padding: 12px 28px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: opacity 0.15s;
+    }
+    .btn-primary:hover { opacity: 0.85; text-decoration: none; }
+    .btn-outline {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 15px;
+      font-weight: 500;
+      padding: 11px 24px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .btn-outline:hover { border-color: var(--primary); background: var(--primary-dim); text-decoration: none; }
+
+    /* ── Section ─────────────────────────────────────────────────────────── */
+    section { padding: 64px 0; }
+    .section-label {
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+    }
+    .section-title { font-size: clamp(22px, 3vw, 32px); font-weight: 700; letter-spacing: -0.01em; margin-bottom: 14px; }
+    .section-subtitle { color: var(--text-muted); font-size: 16px; max-width: 520px; }
+
+    /* ── Product cards ───────────────────────────────────────────────────── */
+    .products-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: var(--gap);
+      margin-top: 40px;
+    }
+
+    .product-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      display: flex;
+      flex-direction: column;
+      padding: 28px 24px;
+      transition: background 0.2s, border-color 0.2s, transform 0.2s;
+    }
+    .product-card:hover { background: var(--bg-card-hover); border-color: var(--primary-border); transform: translateY(-2px); }
+
+    .product-icon {
+      align-items: center;
+      background: var(--primary-dim);
+      border: 1px solid var(--primary-border);
+      border-radius: 8px;
+      display: flex;
+      height: 44px;
+      justify-content: center;
+      margin-bottom: 18px;
+      width: 44px;
+    }
+
+    .product-card h3 { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+    .product-card p  { color: var(--text-muted); flex: 1; font-size: 14px; line-height: 1.55; margin-bottom: 20px; }
+
+    .product-links { display: flex; flex-wrap: wrap; gap: 10px; margin-top: auto; }
+    .product-link {
+      align-items:   center;
+      border:        1px solid var(--border);
+      border-radius: 6px;
+      color:         var(--text-muted);
+      display:       inline-flex;
+      font-size:     13px;
+      font-weight:   500;
+      gap:           6px;
+      padding:       6px 12px;
+      transition:    border-color 0.15s, color 0.15s;
+    }
+    .product-link:hover { border-color: var(--primary); color: var(--primary); text-decoration: none; }
+
+    /* ── Trust section ───────────────────────────────────────────────────── */
+    .trust-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: var(--gap);
+      margin-top: 40px;
+    }
+    .trust-item { text-align: center; }
+    .trust-item svg { color: var(--primary); margin-bottom: 10px; }
+    .trust-item h4 { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+    .trust-item p  { color: var(--text-muted); font-size: 13px; }
+
+    /* ── Footer ──────────────────────────────────────────────────────────── */
+    .site-footer {
+      border-top: 1px solid var(--border);
+      padding: 28px 0;
+    }
+    .site-footer .container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .footer-copy { color: var(--text-faint); font-size: 13px; }
+    .footer-links { display: flex; gap: 18px; }
+    .footer-links a { color: var(--text-muted); font-size: 13px; }
+    .footer-links a:hover { color: var(--text); }
+
+    /* ── Responsive ──────────────────────────────────────────────────────── */
+    @media (max-width: 540px) {
+      .hero { padding: 52px 0 40px; }
+      .site-nav .btn-nav { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── Header ───────────────────────────────────────────────────────────── -->
+  <header class="site-header">
+    <div class="container">
+      <a href="/" class="site-logo" aria-label="PIMActivation home">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect width="24" height="24" rx="5" fill="#0078D4"/>
+          <path d="M7 17V10l5-3 5 3v7" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="10" y="14" width="4" height="3" rx="1" fill="#fff"/>
+        </svg>
+        PIMActivation
+      </a>
+      <nav class="site-nav" aria-label="Site navigation">
+        <a href="#products">Products</a>
+        <a href="#trust">Security</a>
+        <a href="https://github.com/l-gosling/PIMActivation-Web" aria-label="View on GitHub">GitHub</a>
+        <a href="https://pimactivation.com/portal" class="btn-nav">Open Portal</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ── Hero ─────────────────────────────────────────────────────────────── -->
+  <section class="hero" aria-labelledby="hero-heading">
+    <div class="container">
+      <div class="hero-eyebrow">Open Source · MIT License</div>
+      <h1 id="hero-heading">Activate PIM roles<br><span>without the friction</span></h1>
+      <p>Three products, one goal: streamline and enhance the Microsoft Entra ID Privileged Identity Management experience.</p>
+      <div class="hero-actions">
+        <a href="https://pimactivation.com/portal" class="btn-primary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 8 16 12 12 16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          Open Portal
+        </a>
+        <a href="https://github.com/l-gosling/PIMActivation-Web" class="btn-outline">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.477 2 2 6.484 2 12.021c0 4.428 2.865 8.185 6.839 9.504.5.092.682-.217.682-.482 0-.237-.009-.868-.013-1.703-2.782.605-3.369-1.342-3.369-1.342-.454-1.154-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.021C22 6.484 17.522 2 12 2z"/></svg>
+          View on GitHub
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Products ─────────────────────────────────────────────────────────── -->
+  <section id="products" aria-labelledby="products-heading">
+    <div class="container">
+      <div class="section-label">Products</div>
+      <h2 class="section-title" id="products-heading">Three tools, one ecosystem</h2>
+      <p class="section-subtitle">Choose the integration that fits your workflow — from command-line to cloud portal.</p>
+
+      <div class="products-grid">
+
+        <!-- PowerShell module -->
+        <article class="product-card">
+          <div class="product-icon" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0078D4" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+          </div>
+          <h3>PowerShell Module</h3>
+          <p>Activate and manage PIM eligible roles from the terminal. Supports Entra roles, Azure Resource roles, and PIM for Groups. Install from the PowerShell Gallery in seconds.</p>
+          <div class="product-links">
+            <a href="https://www.powershellgallery.com/packages/PIMActivation" class="product-link" target="_blank" rel="noopener noreferrer">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>
+              PSGallery
+            </a>
+            <a href="https://github.com/Noble-Effeciency13/PIMActivation" class="product-link" target="_blank" rel="noopener noreferrer">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.477 2 2 6.484 2 12.021c0 4.428 2.865 8.185 6.839 9.504.5.092.682-.217.682-.482 0-.237-.009-.868-.013-1.703-2.782.605-3.369-1.342-3.369-1.342-.454-1.154-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.021C22 6.484 17.522 2 12 2z"/></svg>
+              GitHub
+            </a>
+          </div>
+        </article>
+
+        <!-- Self-hosted web app -->
+        <article class="product-card">
+          <div class="product-icon" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0078D4" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          </div>
+          <h3>Self-Hosted Web App</h3>
+          <p>A PowerShell Pode server running in Docker. Deploy to your own Azure Container App with a 1-click Bicep template. Supports federated managed identity, certificate, and client-secret authentication.</p>
+          <div class="product-links">
+            <a href="https://github.com/l-gosling/PIMActivation-Web" class="product-link" target="_blank" rel="noopener noreferrer">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.477 2 2 6.484 2 12.021c0 4.428 2.865 8.185 6.839 9.504.5.092.682-.217.682-.482 0-.237-.009-.868-.013-1.703-2.782.605-3.369-1.342-3.369-1.342-.454-1.154-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.021C22 6.484 17.522 2 12 2z"/></svg>
+              GitHub
+            </a>
+            <a href="https://github.com/l-gosling/PIMActivation-Web/tree/main/Self-hosted/deploy/bicep" class="product-link" target="_blank" rel="noopener noreferrer">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              1-click deploy
+            </a>
+          </div>
+        </article>
+
+        <!-- Hosted Portal -->
+        <article class="product-card">
+          <div class="product-icon" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0078D4" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          </div>
+          <h3>Hosted Portal</h3>
+          <p>A zero-backend browser SPA hosted on Azure Static Web Apps. No server, no secrets stored — MSAL handles authentication entirely in your browser. Supports bulk activation and saved activation profiles (IndexedDB).</p>
+          <div class="product-links">
+            <a href="https://pimactivation.com/portal" class="product-link">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 8 16 12 12 16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+              Open
+            </a>
+            <a href="https://github.com/l-gosling/PIMActivation-Web/tree/main/Portal" class="product-link" target="_blank" rel="noopener noreferrer">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.477 2 2 6.484 2 12.021c0 4.428 2.865 8.185 6.839 9.504.5.092.682-.217.682-.482 0-.237-.009-.868-.013-1.703-2.782.605-3.369-1.342-3.369-1.342-.454-1.154-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.021C22 6.484 17.522 2 12 2z"/></svg>
+              GitHub
+            </a>
+          </div>
+        </article>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Trust section ─────────────────────────────────────────────────────── -->
+  <section id="trust" aria-labelledby="trust-heading" style="border-top: 1px solid var(--border);">
+    <div class="container">
+      <div class="section-label">Security &amp; privacy</div>
+      <h2 class="section-title" id="trust-heading">Built with security first</h2>
+      <p class="section-subtitle">Every product in this ecosystem is designed to minimise credential exposure and attack surface.</p>
+
+      <div class="trust-grid">
+        <div class="trust-item">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <h4>No secrets in code</h4>
+          <p>Federated managed identity eliminates client secrets entirely. Certificates are stored in Azure Key Vault.</p>
+        </div>
+        <div class="trust-item">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <h4>Browser-only Portal</h4>
+          <p>The hosted Portal has no backend — your tokens never leave the browser. Profiles are stored in your own IndexedDB.</p>
+        </div>
+        <div class="trust-item">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          <h4>Delegated only</h4>
+          <p>All API calls use delegated user tokens. No application permissions, no service-account credentials.</p>
+        </div>
+        <div class="trust-item">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/></svg>
+          <h4>Open source · MIT</h4>
+          <p>Every line of code is public and auditable. No telemetry, no analytics, no tracking.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Footer ────────────────────────────────────────────────────────────── -->
+  <footer class="site-footer">
+    <div class="container">
+      <p class="footer-copy">© 2026 Sebastian Flæng Markdanner</p>
+      <nav class="footer-links" aria-label="Footer navigation">
+        <a href="https://github.com/l-gosling/PIMActivation-Web" target="_blank" rel="noopener noreferrer">GitHub</a>
+        <a href="https://www.powershellgallery.com/packages/PIMActivation" target="_blank" rel="noopener noreferrer">PSGallery</a>
+        <a href="https://github.com/l-gosling/PIMActivation-Web/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">MIT License</a>
+      </nav>
+    </div>
+  </footer>
+
+</body>
+</html>
