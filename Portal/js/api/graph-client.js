@@ -338,7 +338,7 @@ async function getPendingActivationRequests() {
       ).catch(() => [])
     ]);
     return [
-      ...entra.map(r => ({ type: 'User',  roleId:  r.roleDefinitionId, status: r.status })),
+      ...entra.map(r => ({ type: 'User',  roleId: r.roleDefinitionId, directoryScopeId: r.directoryScopeId || '/', status: r.status })),
       ...group.map(r => ({ type: 'Group', groupId: r.groupId, accessId: r.accessId, status: r.status }))
     ];
   } catch {

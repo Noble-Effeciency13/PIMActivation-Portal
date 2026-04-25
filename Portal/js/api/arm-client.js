@@ -234,6 +234,36 @@ async function getAzureRolePolicy(scopeId, roleDefinitionId) {
   return result;
 }
 
+// ── Pending Azure requests ───────────────────────────────────────────────────
+
+/**
+ * Fetch Azure PIM activation requests for the current user that are
+ * awaiting approval (status eq 'PendingApproval').
+ * Uses the tenant-root asTarget() filter — no subscription enumeration needed.
+ * @returns {Promise<object[]>} array of { type, roleDefinitionId, scopeId, scope, name }
+ */
+async function getPendingAzureRequests() {
+  const items = await armGetAll(
+    '/providers/Microsoft.Authorization/roleAssignmentScheduleRequests',
+    ARM_VERSION_REQ
+  );
+  return items
+    .filter(item =>
+      item.properties?.status === 'PendingApproval' &&
+      item.properties?.requestType === 'SelfActivate'
+    )
+    .map(item => ({
+      type:             'AzureResource',
+      roleDefinitionId: item.properties?.roleDefinitionId || '',
+      scopeId:          item.properties?.scope || '',
+      scope:            _formatScope(
+                          item.properties?.scope || '',
+                          item.properties?.expandedProperties?.scope?.displayName
+                        ),
+      name:             item.properties?.expandedProperties?.roleDefinition?.displayName || item.properties?.roleDefinitionId || 'Unknown'
+    }));
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function _formatScope(scopePath, displayName) {
@@ -254,6 +284,7 @@ window.armClient = {
   getEligibleAzureRoles,
   getActiveAzureRoles,
   getAzureRolePolicy,
+  getPendingAzureRequests,
   activateAzureRole,
   deactivateAzureRole
 };

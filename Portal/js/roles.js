@@ -73,9 +73,10 @@ class RoleManager {
 
     // Phase 2: Azure (may take longer — ARM cold start / MFA step-up)
     try {
-      const [azureElig, azureActive] = await Promise.all([
+      const [azureElig, azureActive, azurePending] = await Promise.all([
         armClient.getEligibleAzureRoles(),
-        armClient.getActiveAzureRoles()
+        armClient.getActiveAzureRoles(),
+        armClient.getPendingAzureRequests().catch(e => { console.warn('[Roles] Azure pending:', e.message); return []; })
       ]);
       const dedupAzureElig   = _deduplicateAzure(azureElig);
       // Active roles: dedup on role+scope so the same assignment doesn't appear
@@ -83,6 +84,8 @@ class RoleManager {
       const dedupAzureActive = _deduplicateAzureActive(azureActive);
       this.eligibleRoles = [...this.eligibleRoles, ...dedupAzureElig];
       this.activeRoles   = [...this.activeRoles,   ...dedupAzureActive];
+      // Merge Azure pending into the global pending list and re-render
+      this._pendingRequests = [...this._pendingRequests, ...azurePending];
       this.renderEligible();
       this.renderActive();
       // Enrich Azure eligible roles with PIM policies (fire-and-forget, same as Entra)
@@ -292,15 +295,48 @@ class RoleManager {
     const seenPending = new Set();
     const pendingRoles = [];
     for (const req of (this._pendingRequests || [])) {
-      const match = this.eligibleRoles.find(r =>
-        (req.type === 'User'  && req.roleId  === r.id && r.type === 'User') ||
-        (req.type === 'Group' && req.groupId === (r.groupId || r.id) &&
-                                 req.accessId === (r.accessId || 'member'))
-      );
-      const key = match && (match.uid || match.id);
+      let match;
+      if (req.type === 'AzureResource') {
+        // Azure: match on roleDefinitionId GUID + scopeId
+        const reqGuid = (req.roleDefinitionId || '').split('/').pop().toLowerCase();
+        match = this.eligibleRoles.find(r =>
+          r.type === 'AzureResource' &&
+          (r.id || '').split('/').pop().toLowerCase() === reqGuid &&
+          (!req.scopeId || r.scopeId === req.scopeId)
+        );
+        // Fallback: match on GUID only (scope-agnostic) if no scope match
+        if (!match && reqGuid) {
+          match = this.eligibleRoles.find(r =>
+            r.type === 'AzureResource' &&
+            (r.id || '').split('/').pop().toLowerCase() === reqGuid
+          );
+        }
+      } else if (req.type === 'User') {
+        // Entra: match on roleDefinitionId + directoryScopeId when available
+        match = this.eligibleRoles.find(r =>
+          r.type === 'User' &&
+          r.id === req.roleId &&
+          (!req.directoryScopeId || r.directoryScopeId === req.directoryScopeId)
+        );
+        // Fallback: match on roleId only
+        if (!match) {
+          match = this.eligibleRoles.find(r => r.type === 'User' && r.id === req.roleId);
+        }
+      } else if (req.type === 'Group') {
+        match = this.eligibleRoles.find(r =>
+          r.type === 'Group' &&
+          (r.groupId || r.id) === req.groupId &&
+          (r.accessId || 'member') === (req.accessId || 'member')
+        );
+      }
+      const key = match && (match.uid || match.id) + ':' + (match.scopeId || match.directoryScopeId || '');
       if (match && key && !seenPending.has(key)) {
         seenPending.add(key);
-        pendingRoles.push(match);
+        // Build a display object — for Azure pending we have name/scope directly on req
+        const displayRole = req.type === 'AzureResource' && !match
+          ? { uid: req.roleDefinitionId + ':' + req.scopeId, type: req.type, name: req.name, scope: req.scope, scopeId: req.scopeId }
+          : match;
+        pendingRoles.push(displayRole);
       }
     }
     const filteredPending = query
