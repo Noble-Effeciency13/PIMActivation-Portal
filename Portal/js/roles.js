@@ -32,14 +32,30 @@ class RoleManager {
 
     // Phase 1: Entra + Group (fast)
     const [entraElig, groupElig, entraActive, groupActive] = await Promise.all([
-      graphClient.getEligibleEntraRoles().catch(e => { console.error('[Roles] Entra eligible:', e); return []; }),
-      graphClient.getEligibleGroupRoles().catch(e => { console.error('[Roles] Group eligible:', e); return []; }),
-      graphClient.getActiveEntraRoles().catch(e    => { console.error('[Roles] Entra active:', e);  return []; }),
-      graphClient.getActiveGroupRoles().catch(e    => { console.error('[Roles] Group active:', e);   return []; })
+      graphClient.getEligibleEntraRoles().catch(e => { console.error('[Roles] Entra eligible:', e); return e; }),
+      graphClient.getEligibleGroupRoles().catch(e => { console.error('[Roles] Group eligible:', e); return e; }),
+      graphClient.getActiveEntraRoles().catch(e    => { console.error('[Roles] Entra active:', e);  return e; }),
+      graphClient.getActiveGroupRoles().catch(e    => { console.error('[Roles] Group active:', e);   return e; })
     ]);
 
-    this.eligibleRoles = [...entraElig, ...groupElig];
-    this.activeRoles   = [...entraActive, ...groupActive];
+    // Surface auth/API errors to the user rather than silently showing empty tables
+    const phase1Errors = [entraElig, groupElig, entraActive, groupActive].filter(r => r instanceof Error);
+    const phase1Results = [entraElig, groupElig, entraActive, groupActive].map(r => r instanceof Error ? [] : r);
+
+    if (phase1Errors.length === 4) {
+      // All calls failed — likely a token or consent issue
+      const msg = phase1Errors[0]?.message || 'Unknown error';
+      if (typeof window.showToast === 'function') {
+        window.showToast(`Failed to load roles: ${msg}`, 'error', 12000);
+      }
+    } else if (phase1Errors.length > 0) {
+      if (typeof window.showToast === 'function') {
+        window.showToast(`Some role sources failed to load. Check the browser console for details.`, 'error', 8000);
+      }
+    }
+
+    this.eligibleRoles = [...phase1Results[0], ...phase1Results[1]];
+    this.activeRoles   = [...phase1Results[2], ...phase1Results[3]];
 
     // Enrich with policy data
     await this._enrichWithPolicy();

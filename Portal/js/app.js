@@ -329,13 +329,10 @@ async function bootstrap() {
     // Show sign-in screen
     if (loadingOverlay) loadingOverlay.style.display = 'none';
     if (signInScreen)   signInScreen.style.display   = '';
-    document.getElementById('sign-in-btn')?.addEventListener('click', async () => {
-      try {
-        await portalAuth.signIn();
-        location.reload();
-      } catch (err) {
-        showToast(`Sign-in failed: ${err.message}`, 'error');
-      }
+    document.getElementById('sign-in-btn')?.addEventListener('click', () => {
+      // loginRedirect navigates away — no try/catch needed here;
+      // errors before navigation are rare and unrecoverable.
+      portalAuth.signIn().catch(err => showToast(`Sign-in failed: ${err.message}`, 'error'));
     });
     return;
   }
@@ -351,9 +348,8 @@ async function bootstrap() {
   if (userNameEl) userNameEl.textContent = userName;
 
   // Wire header buttons
-  document.getElementById('sign-out-btn')?.addEventListener('click', async () => {
-    await portalAuth.signOut();
-    location.reload();
+  document.getElementById('sign-out-btn')?.addEventListener('click', () => {
+    portalAuth.signOut().catch(err => showToast(`Sign-out failed: ${err.message}`, 'error'));
   });
   document.getElementById('refresh-btn')?.addEventListener('click', () => roleManager.loadRoles());
 

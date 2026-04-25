@@ -43,26 +43,26 @@ async function initAuth() {
 }
 
 /**
- * Trigger interactive sign-in (popup).
- * @returns {Promise<msal.AccountInfo>}
+ * Trigger interactive sign-in (redirect).
+ * The page navigates away to Microsoft and returns to /auth-callback,
+ * which is rewritten to index.html. handleRedirectPromise() in initAuth()
+ * picks up the response on the way back.
  */
 async function signIn() {
-  const response = await msalInstance.loginPopup({
-    scopes:         window.GRAPH_SCOPES,
-    prompt:         'select_account'
+  await msalInstance.loginRedirect({
+    scopes: window.GRAPH_SCOPES,
+    prompt: 'select_account'
   });
-  msalInstance.setActiveAccount(response.account);
-  _account = response.account;
-  return _account;
+  // Page navigates away — execution does not continue here.
 }
 
 /**
- * Sign out the current user.
+ * Sign out the current user (redirect flow).
  */
 async function signOut() {
   if (!_account) return;
-  await msalInstance.logoutPopup({ account: _account });
-  _account = null;
+  await msalInstance.logoutRedirect({ account: _account });
+  // Page navigates away — execution does not continue here.
 }
 
 /**
@@ -101,8 +101,10 @@ async function _acquireToken(scopes) {
     return result.accessToken;
   } catch (err) {
     if (err instanceof msal.InteractionRequiredAuthError) {
-      const result = await msalInstance.acquireTokenPopup({ scopes, account: _account });
-      return result.accessToken;
+      // Silent acquisition failed — redirect to Microsoft for fresh tokens.
+      // The page will reload on return and initAuth() will process the response.
+      await msalInstance.acquireTokenRedirect({ scopes, account: _account });
+      // Page navigates away — execution does not continue here.
     }
     throw err;
   }
