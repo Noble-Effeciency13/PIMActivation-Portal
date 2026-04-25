@@ -127,7 +127,7 @@ async function activateAzureRole(scopeId, roleId, options = {}) {
       properties: {
         requestType:      'SelfActivate',
         roleDefinitionId: roleId,
-        principalId:      'me',
+        principalId:      portalAuth.getUserId(),
         justification:    options.justification || 'Activated via PIM Portal',
         ticketInfo:       options.ticketNumber ? { ticketNumber: options.ticketNumber, ticketSystem: '' } : undefined,
         scheduleInfo: {
@@ -154,7 +154,7 @@ async function deactivateAzureRole(scopeId, roleId) {
       properties: {
         requestType:      'SelfDeactivate',
         roleDefinitionId: roleId,
-        principalId:      'me'
+        principalId:      portalAuth.getUserId()
       }
     },
     ARM_VERSION_REQ

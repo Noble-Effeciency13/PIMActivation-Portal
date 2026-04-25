@@ -88,6 +88,15 @@ function getAccount() {
   return _account;
 }
 
+/**
+ * Returns the signed-in user's object ID (oid), required for Graph/ARM
+ * $filter expressions. localAccountId is the oid claim from the id token.
+ * @returns {string|null}
+ */
+function getUserId() {
+  return _account?.localAccountId || null;
+}
+
 // ── Private helpers ──────────────────────────────────────────────────────────
 
 async function _acquireToken(scopes) {
@@ -111,4 +120,4 @@ async function _acquireToken(scopes) {
 }
 
 // Expose globally for other modules
-window.portalAuth = { initAuth, signIn, signOut, getGraphToken, getArmToken, getAccount };
+window.portalAuth = { initAuth, signIn, signOut, getGraphToken, getArmToken, getAccount, getUserId };

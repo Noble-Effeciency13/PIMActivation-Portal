@@ -61,8 +61,9 @@ async function graphGetAll(path, useBeta = false) {
  * @returns {Promise<object[]>}
  */
 async function getEligibleEntraRoles() {
+  const userId = portalAuth.getUserId();
   const data = await graphGetAll(
-    '/roleManagement/directory/roleEligibilityScheduleInstances?$filter=principalId eq \'me\'&$expand=roleDefinition,principal',
+    `/roleManagement/directory/roleEligibilityScheduleInstances?$filter=principalId eq '${userId}'&$expand=roleDefinition,principal`,
     false
   );
   return data.map(item => ({
@@ -82,8 +83,9 @@ async function getEligibleEntraRoles() {
  * @returns {Promise<object[]>}
  */
 async function getEligibleGroupRoles() {
+  const userId = portalAuth.getUserId();
   const data = await graphGetAll(
-    '/identityGovernance/privilegedAccess/group/eligibilityScheduleInstances?$filter=principalId eq \'me\'&$expand=group,principal',
+    `/identityGovernance/privilegedAccess/group/eligibilityScheduleInstances?$filter=principalId eq '${userId}'&$expand=group,principal`,
     false
   );
   return data.map(item => ({
@@ -107,8 +109,9 @@ async function getEligibleGroupRoles() {
  * @returns {Promise<object[]>}
  */
 async function getActiveEntraRoles() {
+  const userId = portalAuth.getUserId();
   const data = await graphGetAll(
-    '/roleManagement/directory/roleAssignmentScheduleInstances?$filter=principalId eq \'me\'&$expand=roleDefinition,principal',
+    `/roleManagement/directory/roleAssignmentScheduleInstances?$filter=principalId eq '${userId}'&$expand=roleDefinition,principal`,
     false
   );
   return data.filter(r => r.assignmentType === 'Activated').map(item => ({
@@ -128,8 +131,9 @@ async function getActiveEntraRoles() {
  * @returns {Promise<object[]>}
  */
 async function getActiveGroupRoles() {
+  const userId = portalAuth.getUserId();
   const data = await graphGetAll(
-    '/identityGovernance/privilegedAccess/group/assignmentScheduleInstances?$filter=principalId eq \'me\'&$expand=group',
+    `/identityGovernance/privilegedAccess/group/assignmentScheduleInstances?$filter=principalId eq '${userId}'&$expand=group`,
     false
   );
   return data.filter(r => r.assignmentType === 'Activated').map(item => ({
@@ -183,7 +187,7 @@ async function getGroupPolicy(groupId, accessId = 'member') {
 async function activateEntraRole(roleId, scopeId, options = {}) {
   return graphPost('/roleManagement/directory/roleAssignmentScheduleRequests', {
     action:          'selfActivate',
-    principalId:     'me',
+    principalId:     portalAuth.getUserId(),
     roleDefinitionId: roleId,
     directoryScopeId: scopeId || '/',
     justification:   options.justification || 'Activated via PIM Portal',
@@ -204,7 +208,7 @@ async function activateEntraRole(roleId, scopeId, options = {}) {
 async function deactivateEntraRole(roleId, scopeId) {
   return graphPost('/roleManagement/directory/roleAssignmentScheduleRequests', {
     action:          'selfDeactivate',
-    principalId:     'me',
+    principalId:     portalAuth.getUserId(),
     roleDefinitionId: roleId,
     directoryScopeId: scopeId || '/'
   });
@@ -218,7 +222,7 @@ async function activateGroupRole(groupId, accessId, options = {}) {
     action:    'selfActivate',
     groupId,
     accessId:  accessId || 'member',
-    principalId: 'me',
+    principalId: portalAuth.getUserId(),
     justification: options.justification || 'Activated via PIM Portal',
     ticketInfo: options.ticketNumber ? { ticketNumber: options.ticketNumber, ticketSystem: '' } : undefined,
     scheduleInfo: {
@@ -239,7 +243,7 @@ async function deactivateGroupRole(groupId, accessId) {
     action:    'selfDeactivate',
     groupId,
     accessId:  accessId || 'member',
-    principalId: 'me'
+    principalId: portalAuth.getUserId()
   });
 }
 

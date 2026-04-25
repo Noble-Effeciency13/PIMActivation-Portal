@@ -67,7 +67,7 @@ async function _bulkActivateEntraGroup(roles, options) {
           action:      'selfActivate',
           groupId:     role.groupId || role.id,
           accessId:    role.accessId || 'member',
-          principalId: 'me',
+          principalId: portalAuth.getUserId(),
           justification: options.justification || 'Activated via PIM Portal',
           ticketInfo:  options.ticketNumber ? { ticketNumber: options.ticketNumber, ticketSystem: '' } : undefined,
           scheduleInfo: {
@@ -85,7 +85,7 @@ async function _bulkActivateEntraGroup(roles, options) {
       url:    '/roleManagement/directory/roleAssignmentScheduleRequests',
       body: {
         action:           'selfActivate',
-        principalId:      'me',
+        principalId:      portalAuth.getUserId(),
         roleDefinitionId: role.id,
         directoryScopeId: role.directoryScopeId || '/',
         justification:    options.justification || 'Activated via PIM Portal',
@@ -112,7 +112,7 @@ async function _bulkDeactivateEntraGroup(roles) {
         id:     role.uid,
         method: 'POST',
         url:    '/identityGovernance/privilegedAccess/group/assignmentScheduleRequests',
-        body: { action: 'selfDeactivate', groupId: role.groupId || role.id, accessId: role.accessId || 'member', principalId: 'me' },
+        body: { action: 'selfDeactivate', groupId: role.groupId || role.id, accessId: role.accessId || 'member', principalId: portalAuth.getUserId() },
         headers: { 'Content-Type': 'application/json' }
       };
     }
@@ -120,7 +120,7 @@ async function _bulkDeactivateEntraGroup(roles) {
       id:     role.uid,
       method: 'POST',
       url:    '/roleManagement/directory/roleAssignmentScheduleRequests',
-      body: { action: 'selfDeactivate', principalId: 'me', roleDefinitionId: role.id, directoryScopeId: role.directoryScopeId || '/' },
+      body: { action: 'selfDeactivate', principalId: portalAuth.getUserId(), roleDefinitionId: role.id, directoryScopeId: role.directoryScopeId || '/' },
       headers: { 'Content-Type': 'application/json' }
     };
   });
