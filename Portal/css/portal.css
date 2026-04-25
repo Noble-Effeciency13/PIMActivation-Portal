@@ -751,3 +751,41 @@ a:hover { text-decoration: underline; }
 @media (max-width: 380px) {
   .col-type { display: none; }
 }
+
+/* ── Activation profiles ──────────────────────────────────────────────────── */
+.profile-save-row {
+  display:        flex;
+  gap:            8px;
+  margin-bottom:  14px;
+  padding-bottom: 14px;
+  border-bottom:  1px solid var(--border);
+}
+.profile-list    { display: flex; flex-direction: column; gap: 8px; }
+.profile-item    {
+  display:       flex;
+  align-items:   center;
+  gap:           10px;
+  padding:       10px 12px;
+  background:    var(--bg-raised);
+  border:        1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition:    border-color 0.15s;
+}
+.profile-item:hover { border-color: var(--border-strong); }
+.profile-info    { flex: 1; min-width: 0; }
+.profile-name    {
+  font-weight:   500;
+  font-size:     13px;
+  overflow:      hidden;
+  text-overflow: ellipsis;
+  white-space:   nowrap;
+}
+.profile-meta    { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+.profile-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.profile-empty   {
+  font-size:   13px;
+  color:       var(--text-muted);
+  text-align:  center;
+  padding:     24px 0;
+  line-height: 1.6;
+}

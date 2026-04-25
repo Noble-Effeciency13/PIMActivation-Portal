@@ -33,6 +33,8 @@ class RoleManager {
     this._stopTimers();
     this._resetSelectAll();
 
+    if (typeof showProgress === 'function') showProgress('Loading Entra & Group roles\u2026');
+
     // Phase 1: Entra + Group (usually fast)
     const [entraElig, groupElig, entraActive, groupActive, pending] = await Promise.all([
       graphClient.getEligibleEntraRoles().catch(e => { console.error('[Roles] Entra elig:', e); return e; }),
@@ -56,10 +58,15 @@ class RoleManager {
     this.activeRoles   = [...toArr(entraActive), ...toArr(groupActive)];
 
     this._annotatePending(pending);
-    await this._enrichPolicy();
 
+    // Render immediately — policy columns show "—" until background enrichment finishes
     this.renderEligible();
     this.renderActive();
+
+    // Policy enrichment runs in background; re-renders eligible table when done
+    this._enrichPolicy().then(() => this.renderEligible()).catch(() => {});
+
+    if (typeof updateProgress === 'function') updateProgress(60, 'Loading Azure roles\u2026');
 
     // Phase 2: Azure (may take longer — ARM cold start / MFA step-up)
     try {
@@ -75,6 +82,7 @@ class RoleManager {
       console.warn('[Roles] Azure roles unavailable:', err.message);
     }
 
+    if (typeof hideProgress === 'function') hideProgress();
     this._startTimers();
   }
 

@@ -254,20 +254,157 @@ async function handleDeactivate() {
 // ── Refresh ───────────────────────────────────────────────────────────────────
 
 async function _refresh() {
-  showProgress('Refreshing roles…');
   try {
     await roleManager.loadRoles();
-    hideProgress();
   } catch (err) {
-    hideProgress();
     showToast('Failed to refresh roles: ' + err.message, 'error');
   }
+}
+
+// ── Activation profiles ────────────────────────────────────────────────────
+
+function showProfilesModal(focusSave = false) {
+  const modal = document.getElementById('profiles-modal');
+  if (!modal) return;
+  _renderProfilesList();
+  modal.hidden = false;
+  if (focusSave) setTimeout(() => document.getElementById('profile-name-input')?.focus(), 50);
+}
+
+function hideProfilesModal() {
+  const modal = document.getElementById('profiles-modal');
+  if (modal) modal.hidden = true;
+}
+
+async function _renderProfilesList() {
+  const body = document.getElementById('profiles-modal-body');
+  if (!body) return;
+
+  const profiles = await profileManager.getProfiles().catch(() => []);
+  const selected = roleManager.getSelectedEligibleRoles();
+
+  let html = '';
+
+  // Save-new-profile row
+  html += '<div class="form-row profile-save-row">' +
+    '<input type="text" id="profile-name-input" class="form-input" placeholder="Profile name…" maxlength="60" style="flex:1">' +
+    '<button class="btn btn-primary btn-sm" id="profile-save-confirm-btn"' +
+      (selected.length === 0 ? ' disabled title="Select eligible roles first"' : '') + '>' +
+      'Save (' + selected.length + ' role' + (selected.length !== 1 ? 's' : '') + ')' +
+    '</button>' +
+  '</div>';
+
+  // Profile list
+  if (profiles.length === 0) {
+    html += '<p class="profile-empty">No profiles saved yet.<br>Select eligible roles and click <strong>Save as profile</strong> to create one.</p>';
+  } else {
+    // Sort: most recently used/created first
+    profiles.sort((a, b) => {
+      const ts = s => s ? new Date(s).getTime() : 0;
+      return (ts(b.lastUsedAt) || ts(b.createdAt)) - (ts(a.lastUsedAt) || ts(a.createdAt));
+    });
+    html += '<div class="profile-list">';
+    for (const p of profiles) {
+      const lastUsed = p.lastUsedAt ? _timeAgo(p.lastUsedAt) : 'Never used';
+      html +=
+        '<div class="profile-item">' +
+          '<div class="profile-info">' +
+            '<div class="profile-name">' + escapeHtml(p.name) + '</div>' +
+            '<div class="profile-meta">' + p.roles.length + ' role' + (p.roles.length !== 1 ? 's' : '') + ' · ' + lastUsed + '</div>' +
+          '</div>' +
+          '<div class="profile-actions">' +
+            '<button class="btn btn-primary btn-sm profile-activate-btn" data-profile-id="' + escapeHtml(p.id) + '">Activate</button>' +
+            '<button class="btn btn-danger btn-sm profile-delete-btn" data-profile-id="' + escapeHtml(p.id) + '" aria-label="Delete profile">' +
+              '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">' +
+                '<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>' +
+              '</svg>' +
+            '</button>' +
+          '</div>' +
+        '</div>';
+    }
+    html += '</div>';
+  }
+
+  body.innerHTML = html;
+
+  // Wire save
+  const saveBtn = document.getElementById('profile-save-confirm-btn');
+  const nameInput = document.getElementById('profile-name-input');
+  saveBtn?.addEventListener('click', _handleSaveProfile);
+  nameInput?.addEventListener('keydown', e => { if (e.key === 'Enter') _handleSaveProfile(); });
+
+  // Wire activate
+  body.querySelectorAll('.profile-activate-btn').forEach(btn => {
+    btn.addEventListener('click', () => _handleActivateProfile(btn.dataset.profileId));
+  });
+
+  // Wire delete
+  body.querySelectorAll('.profile-delete-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Delete this profile?')) return;
+      await profileManager.deleteProfile(btn.dataset.profileId).catch(() => {});
+      _renderProfilesList();
+    });
+  });
+}
+
+async function _handleSaveProfile() {
+  const nameInput = document.getElementById('profile-name-input');
+  const name = nameInput?.value.trim();
+  if (!name) { nameInput?.focus(); showToast('Enter a profile name.', 'warning'); return; }
+  const roles = roleManager.getSelectedEligibleRoles();
+  if (!roles.length) { showToast('Select eligible roles first.', 'warning'); return; }
+  try {
+    await profileManager.saveProfile(name, roles);
+    showToast('Profile "' + name + '" saved.', 'success');
+    _renderProfilesList();
+  } catch (err) {
+    showToast('Failed to save profile: ' + err.message, 'error');
+  }
+}
+
+async function _handleActivateProfile(profileId) {
+  const profiles = await profileManager.getProfiles().catch(() => []);
+  const profile  = profiles.find(p => p.id === profileId);
+  if (!profile) return;
+
+  // Match saved role UIDs to the current eligible list
+  const eligible = roleManager.eligibleRoles;
+  const resolved = profile.roles
+    .map(pr => eligible.find(r => (r.uid || r.id) === (pr.uid || pr.id)))
+    .filter(Boolean);
+
+  if (!resolved.length) {
+    showToast('No matching eligible roles found. Try refreshing roles first.', 'warning', 8000);
+    return;
+  }
+  const skipped = profile.roles.length - resolved.length;
+  if (skipped > 0) showToast(skipped + ' role(s) are no longer eligible and were skipped.', 'warning', 6000);
+
+  await profileManager.touchProfile(profileId).catch(() => {});
+  hideProfilesModal();
+  showActivationModal(resolved);
+}
+
+function _timeAgo(dateString) {
+  const diff = Date.now() - new Date(dateString).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 2)  return 'Just now';
+  if (m < 60) return m + ' minutes ago';
+  const h = Math.floor(m / 60);
+  if (h < 24) return h + ' hour' + (h !== 1 ? 's' : '') + ' ago';
+  const d = Math.floor(h / 24);
+  return d + ' day' + (d !== 1 ? 's' : '') + ' ago';
 }
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 
 async function bootstrap() {
   initTheme();
+
+  // Update loading message while MSAL processes the redirect token exchange
+  const loadingMsg = document.getElementById('loading-msg');
+  if (loadingMsg) loadingMsg.textContent = 'Signing you in…';
 
   // Handle MSAL redirect promise
   try {
@@ -361,6 +498,24 @@ async function bootstrap() {
   document.getElementById('refresh-btn')
     ?.addEventListener('click', () => _refresh());
 
+  // Profiles button (header)
+  document.getElementById('profiles-btn')
+    ?.addEventListener('click', () => showProfilesModal());
+
+  // Save as profile (eligible action bar)
+  document.getElementById('save-profile-btn')
+    ?.addEventListener('click', () => showProfilesModal(true));
+
+  // Profiles modal close
+  document.getElementById('profiles-modal-close-btn')
+    ?.addEventListener('click', hideProfilesModal);
+  document.getElementById('profiles-modal-close-footer')
+    ?.addEventListener('click', hideProfilesModal);
+  document.getElementById('profiles-modal')
+    ?.addEventListener('click', e => {
+      if (e.target === e.currentTarget) hideProfilesModal();
+    });
+
   // Select all — eligible
   document.getElementById('select-all-eligible')
     ?.addEventListener('change', e => roleManager.selectAllEligible(e.target.checked));
@@ -404,8 +559,11 @@ async function bootstrap() {
 
   // Keyboard shortcuts
   document.addEventListener('keydown', e => {
-    const modal = document.getElementById('activation-modal');
-    if (e.key === 'Escape' && modal && !modal.hidden) { hideActivationModal(); }
+    if (e.key !== 'Escape') return;
+    const actModal  = document.getElementById('activation-modal');
+    const profModal = document.getElementById('profiles-modal');
+    if (actModal  && !actModal.hidden)  { hideActivationModal();  return; }
+    if (profModal && !profModal.hidden) { hideProfilesModal();    return; }
   });
 
   // Duration clamp: hours [0..999], mins [0..59]
@@ -420,13 +578,11 @@ async function bootstrap() {
     if (v > 59)               e.target.value = 59;
   });
 
-  // ── Load roles ────────────────────────────────────────────────────────────
-  showProgress('Loading roles…');
-  try {
-    await roleManager.loadRoles();
-  } finally {
-    hideProgress();
-  }
+  // ── Load roles (renders progressively; Azure appended when ready) ─────────
+  roleManager.loadRoles().catch(err => {
+    console.error('[App] loadRoles error:', err);
+    showToast('Failed to load roles: ' + err.message, 'error', 10000);
+  });
 }
 
 // Start

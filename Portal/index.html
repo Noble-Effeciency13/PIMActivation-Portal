@@ -51,6 +51,12 @@
             <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
           </svg>
         </button>
+        <!-- Activation Profiles -->
+        <button class="icon-btn" id="profiles-btn" aria-label="Activation profiles" title="Activation profiles">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+          </svg>
+        </button>
         <!-- User chip -->
         <div class="user-chip">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -141,6 +147,7 @@
         </div>
         <div class="section-action-bar" id="eligible-action-bar" hidden>
           <span class="selection-label" id="eligible-selection-label"></span>
+          <button class="btn btn-ghost btn-sm" id="save-profile-btn">Save as profile</button>
           <button class="btn btn-primary btn-sm" id="activate-btn">Activate selected</button>
         </div>
       </section>
@@ -195,6 +202,24 @@
       </div>
       <p class="footer-copy">&copy; 2026 PIM Activation Dashboard. Built for efficiency.</p>
     </footer>
+  </div>
+
+  <!-- ── Profiles modal ─────────────────────────────────────────────────── -->
+  <div id="profiles-modal" class="modal-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="profiles-modal-title">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title" id="profiles-modal-title">Activation Profiles</h2>
+        <button class="icon-btn modal-close" id="profiles-modal-close-btn" aria-label="Close">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body" id="profiles-modal-body">
+        <!-- Rendered by JS -->
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="profiles-modal-close-footer">Close</button>
+      </div>
+    </div>
   </div>
 
   <!-- ── Activation modal ────────────────────────────────────────────────── -->
