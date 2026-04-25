@@ -573,6 +573,23 @@ a:hover { text-decoration: underline; }
   user-select:   none;
 }
 
+/* Awaiting-approval ghost rows in Active table */
+.row-awaiting-approval { opacity: 0.6; }
+.row-awaiting-approval input[type="checkbox"] { cursor: not-allowed; }
+.awaiting-tag {
+  display:        inline-block;
+  padding:        2px 8px;
+  background:     var(--warning-dim);
+  color:          var(--warning);
+  border:         1px solid var(--warning);
+  border-radius:  var(--radius-xs);
+  font-size:      10px;
+  font-weight:    700;
+  letter-spacing: 0.02em;
+  white-space:    nowrap;
+  user-select:    none;
+}
+
 /* Expiry */
 .expiry-timer    { font-variant-numeric: tabular-nums; font-size: 12px; color: var(--text-muted); }
 .expiry-soon     { color: var(--warning) !important; }

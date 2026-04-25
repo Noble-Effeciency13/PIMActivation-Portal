@@ -18,6 +18,7 @@ class RoleManager {
   constructor() {
     this.eligibleRoles    = [];
     this.activeRoles      = [];
+    this._pendingRequests = [];
     this.selectedEligible = new Set();
     this.selectedActive   = new Set();
     this._timers          = [];
@@ -26,8 +27,9 @@ class RoleManager {
   // ── Load ──────────────────────────────────────────────────────────────────
 
   async loadRoles() {
-    this.eligibleRoles = [];
-    this.activeRoles   = [];
+    this.eligibleRoles    = [];
+    this.activeRoles      = [];
+    this._pendingRequests = [];
     this.selectedEligible.clear();
     this.selectedActive.clear();
     this._stopTimers();
@@ -57,6 +59,7 @@ class RoleManager {
     this.eligibleRoles = [...toArr(entraElig), ...toArr(groupElig)];
     this.activeRoles   = [...toArr(entraActive), ...toArr(groupActive)];
 
+    this._pendingRequests = Array.isArray(pending) ? pending : [];
     this._annotatePending(pending);
 
     // Render immediately — policy columns show "—" until background enrichment finishes
@@ -283,18 +286,39 @@ class RoleManager {
 
     const query = (document.getElementById('active-search')?.value || '').toLowerCase();
     const roles = _sort(_filter(this.activeRoles, query));
+    const n     = roles.length;
 
-    const n = roles.length;
-    document.getElementById('active-count').textContent = n + ' role' + (n !== 1 ? 's' : '');
+    // Build awaiting-approval ghost rows: pending requests matched to eligible roles
+    const seenPending = new Set();
+    const pendingRoles = [];
+    for (const req of (this._pendingRequests || [])) {
+      const match = this.eligibleRoles.find(r =>
+        (req.type === 'User'  && req.roleId  === r.id && r.type === 'User') ||
+        (req.type === 'Group' && req.groupId === (r.groupId || r.id) &&
+                                 req.accessId === (r.accessId || 'member'))
+      );
+      const key = match && (match.uid || match.id);
+      if (match && key && !seenPending.has(key)) {
+        seenPending.add(key);
+        pendingRoles.push(match);
+      }
+    }
+    const filteredPending = query
+      ? pendingRoles.filter(r => [r.name, _scopeDisplay(r), r.type].some(s => s && s.toLowerCase().includes(query)))
+      : pendingRoles;
+    const totalShown = n + filteredPending.length;
 
-    if (n === 0) {
-      const msg = this.activeRoles.length === 0 ? 'No active roles.' : 'No roles match your search.';
+    document.getElementById('active-count').textContent = totalShown + ' role' + (totalShown !== 1 ? 's' : '');
+
+    if (totalShown === 0) {
+      const msg = (this.activeRoles.length === 0 && !this._pendingRequests?.length)
+        ? 'No active roles.' : 'No roles match your search.';
       tbody.innerHTML = '<tr class="row-placeholder"><td colspan="4">' + msg + '</td></tr>';
       this._updateBars();
       return;
     }
 
-    tbody.innerHTML = roles.map(role => {
+    const mainHtml = roles.map(role => {
       const uid    = role.uid || role.id;
       const isPim  = !!role.endDateTime;
       const checked = this.selectedActive.has(uid) ? 'checked' : '';
@@ -324,6 +348,25 @@ class RoleManager {
         '<td class="col-expires" data-label="Expires">' + expiryHtml + '</td>' +
       '</tr>';
     }).join('');
+
+    const pendingHtml = filteredPending.map(role => {
+      const badge = _typeBadge(role.type);
+      return '<tr class="row-awaiting-approval" data-uid="' + escapeHtml(role.uid || role.id) + '">' +
+        '<td class="col-cb"><label class="cb-wrap">' +
+          '<input type="checkbox" disabled aria-label="' + escapeHtml(role.name) + ' (awaiting approval)">' +
+        '</label></td>' +
+        '<td class="col-type" data-label="Type">' + badge + '</td>' +
+        '<td class="col-role" data-label="Role"><div class="role-cell">' +
+          '<span class="role-name">' + escapeHtml(role.name) + '</span>' +
+          '<span class="role-scope">' + escapeHtml(_scopeDisplay(role)) + '</span>' +
+        '</div></td>' +
+        '<td class="col-expires" data-label="Expires">' +
+          '<span class="awaiting-tag">Awaiting approval</span>' +
+        '</td>' +
+      '</tr>';
+    }).join('');
+
+    tbody.innerHTML = mainHtml + pendingHtml;
 
     tbody.querySelectorAll('.active-cb').forEach(cb => {
       cb.addEventListener('change', () => {

@@ -207,13 +207,16 @@ async function handleActivate() {
   showProgress('Activating ' + cappedRoles.length + ' role' + (cappedRoles.length !== 1 ? 's' : '') + '…');
 
   try {
-    const results = await batchClient.bulkActivate(cappedRoles, { justification, ticketNumber });
+    const outcome = await batchClient.bulkActivate(cappedRoles, { justification, ticketNumber });
     hideProgress();
-    const ok   = results.filter(r => r.success).length;
-    const fail = results.filter(r => !r.success).length;
-    if (fail === 0) {
+    const ok   = outcome.summary?.succeeded ?? outcome.results?.filter(r => r.success).length ?? 0;
+    const fail = outcome.summary?.failed    ?? outcome.results?.filter(r => !r.success).length ?? 0;
+    const pendingApproval = (outcome.results || []).filter(r => r.pendingApproval).length;
+    if (fail === 0 && pendingApproval === 0) {
       showToast('Successfully activated ' + ok + ' role' + (ok !== 1 ? 's' : '') + '.', 'success');
-    } else if (ok === 0) {
+    } else if (pendingApproval > 0 && fail === 0) {
+      showToast(ok + ' activated. ' + pendingApproval + ' awaiting approval.', 'info', 8000);
+    } else if (ok === 0 && pendingApproval === 0) {
       showToast('Activation failed for all ' + fail + ' role' + (fail !== 1 ? 's' : '') + '. Check console.', 'error');
     } else {
       showToast(ok + ' role' + (ok !== 1 ? 's' : '') + ' activated. ' + fail + ' failed. Check console.', 'warning');
@@ -234,10 +237,10 @@ async function handleDeactivate() {
 
   showProgress('Deactivating ' + roles.length + ' role' + (roles.length !== 1 ? 's' : '') + '…');
   try {
-    const results = await batchClient.bulkDeactivate(roles);
+    const outcome = await batchClient.bulkDeactivate(roles);
     hideProgress();
-    const ok   = results.filter(r => r.success).length;
-    const fail = results.filter(r => !r.success).length;
+    const ok   = outcome.summary?.succeeded ?? outcome.results?.filter(r => r.success).length ?? 0;
+    const fail = outcome.summary?.failed    ?? outcome.results?.filter(r => !r.success).length ?? 0;
     if (fail === 0) {
       showToast('Successfully deactivated ' + ok + ' role' + (ok !== 1 ? 's' : '') + '.', 'success');
     } else {
@@ -452,6 +455,9 @@ async function bootstrap() {
   const app     = document.getElementById('app');
   if (loading) loading.hidden = true;
   if (app)     app.hidden     = false;
+
+  // Initialise profile DB (non-blocking — it'll be ready long before the user clicks Save)
+  profileManager.init().catch(err => console.warn('[App] ProfileManager init failed:', err));
 
   // Populate user info
   const userName = document.getElementById('user-name');
