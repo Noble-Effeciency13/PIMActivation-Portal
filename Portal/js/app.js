@@ -311,7 +311,11 @@ async function bootstrap() {
   if (loadingMessage) loadingMessage.textContent = 'Initializing…';
 
   // Initialize IndexedDB profiles store
-  await profileManager.init();
+  try {
+    await profileManager.init();
+  } catch (err) {
+    console.warn('[App] IndexedDB init error (profiles disabled):', err);
+  }
 
   // Handle MSAL redirect
   let account;
