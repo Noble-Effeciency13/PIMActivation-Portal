@@ -15,6 +15,9 @@ const msalInstance = new msal.PublicClientApplication(window.msalConfig);
 /** Currently active account */
 let _account = null;
 
+/** Claims string to include in every token acquisition while an auth-context activation is in progress. */
+let _activeAuthContextClaims = null;
+
 /**
  * Must be called once on app startup.
  * Handles the redirect callback if present, sets the active account.
@@ -70,7 +73,7 @@ async function signOut() {
  * @returns {Promise<string>} access token
  */
 async function getGraphToken() {
-  return _acquireToken(window.GRAPH_SCOPES);
+  return _acquireToken(window.GRAPH_SCOPES, _activeAuthContextClaims || undefined);
 }
 
 /**
@@ -78,7 +81,18 @@ async function getGraphToken() {
  * @returns {Promise<string>} access token
  */
 async function getArmToken() {
-  return _acquireToken([window.ARM_SCOPE]);
+  return _acquireToken([window.ARM_SCOPE], _activeAuthContextClaims || undefined);
+}
+
+/**
+ * Set an auth context ID whose claims should be included in every token
+ * acquisition until cleared. Call before bulkActivate, clear in a finally block.
+ * @param {string|null} authContextId
+ */
+function setAuthContextClaims(authContextId) {
+  _activeAuthContextClaims = authContextId
+    ? JSON.stringify({ access_token: { acrs: { essential: true, value: authContextId } } })
+    : null;
 }
 
 /**
@@ -158,4 +172,4 @@ async function stepUpForAuthContexts(authContextIds, roles) {
 }
 
 // Expose globally for other modules
-window.portalAuth = { initAuth, signIn, signOut, getGraphToken, getArmToken, getGraphTokenWithAuthContext, stepUpForAuthContexts, getAccount, getUserId };
+window.portalAuth = { initAuth, signIn, signOut, getGraphToken, getArmToken, getGraphTokenWithAuthContext, stepUpForAuthContexts, setAuthContextClaims, getAccount, getUserId };

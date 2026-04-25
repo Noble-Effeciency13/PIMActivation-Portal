@@ -217,6 +217,9 @@ async function handleActivate() {
     try {
       showProgress('Completing authentication requirements\u2026');
       await portalAuth.stepUpForAuthContexts(authContextIds, cappedRoles);
+      // Thread the auth context claims into every subsequent token acquisition
+      // so both ARM and Graph tokens carry the required acrs claim.
+      portalAuth.setAuthContextClaims(authContextIds[0]);
     } catch (err) {
       hideProgress();
       showToast('Authentication step-up failed: ' + err.message, 'error', 10000);
@@ -247,6 +250,8 @@ async function handleActivate() {
     hideProgress();
     showToast('Activation error: ' + err.message, 'error', 10000);
     console.error('[App] Activate error:', err);
+  } finally {
+    portalAuth.setAuthContextClaims(null);
   }
 }
 
