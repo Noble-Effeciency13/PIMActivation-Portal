@@ -54,7 +54,7 @@ function showToast(msg, type = 'info', duration = 5000) {
   setTimeout(() => el.remove(), duration);
 }
 
-// ── Progress bar ──────────────────────────────────────────────────────────────
+// ── Progress bar (used during initial role load only) ─────────────────────────
 
 let _progressEl   = null;
 let _progressFill = null;
@@ -79,6 +79,90 @@ function hideProgress() {
     if (_progressEl) _progressEl.hidden = true;
   }, 300);
 }
+
+// ── Operation overlay (activation / deactivation) ─────────────────────────────
+
+const _opOverlay = {
+  _el:       null,
+  _titleEl:  null,
+  _fillEl:   null,
+  _listEl:   null,
+  _headerEl: null,
+  _total:    0,
+  _done:     0,
+
+  _init() {
+    if (this._el) return;
+    this._el       = document.getElementById('op-overlay');
+    this._titleEl  = document.getElementById('op-overlay-title');
+    this._fillEl   = document.getElementById('op-progress-fill');
+    this._listEl   = document.getElementById('op-role-list');
+    this._headerEl = this._el?.querySelector('.op-header');
+  },
+
+  /** Open the overlay and populate a row per role (all spinning). */
+  open(title, roles) {
+    this._init();
+    if (!this._el) return;
+    this._total = roles.length;
+    this._done  = 0;
+
+    this._titleEl.textContent = title;
+    this._headerEl.classList.remove('op-done');
+    this._fillEl.style.width = '0%';
+    this._fillEl.classList.remove('op-fill-done');
+
+    this._listEl.innerHTML = roles.map(r => {
+      const scope = r.scopeDisplay || r.scopeId || r.directoryScopeId || '';
+      return '<li class="op-role-item" data-uid="' + escapeHtml(r.uid || r.id) + '">' +
+        '<span class="op-status-icon" aria-label="In progress"></span>' +
+        '<span class="op-role-info">' +
+          '<div class="op-role-name">'  + escapeHtml(r.name || r.id) + '</div>' +
+          (scope ? '<div class="op-role-scope">' + escapeHtml(scope) + '</div>' : '') +
+        '</span>' +
+      '</li>';
+    }).join('');
+
+    this._el.hidden = false;
+  },
+
+  /** Update a single row after its result comes in. */
+  update(result) {
+    this._init();
+    if (!this._el) return;
+    const row = this._listEl?.querySelector('[data-uid="' + CSS.escape(result.uid) + '"]');
+    if (row) {
+      const icon = row.querySelector('.op-status-icon');
+      if (icon) {
+        if (result.pendingApproval) {
+          icon.className = 'op-status-icon op-icon-pending';
+          icon.setAttribute('aria-label', 'Awaiting approval');
+        } else if (result.success) {
+          icon.className = 'op-status-icon op-icon-ok';
+          icon.setAttribute('aria-label', 'Completed');
+        } else {
+          icon.className = 'op-status-icon op-icon-fail';
+          icon.setAttribute('aria-label', 'Failed');
+        }
+      }
+    }
+    this._done++;
+    const pct = this._total > 0 ? (this._done / this._total) * 100 : 100;
+    this._fillEl.style.width = pct + '%';
+  },
+
+  /** Mark the operation complete, briefly show the final state, then close. */
+  close(delay = 1400) {
+    this._init();
+    if (!this._el) return;
+    this._fillEl.style.width = '100%';
+    this._fillEl.classList.add('op-fill-done');
+    this._headerEl?.classList.add('op-done');
+    setTimeout(() => {
+      if (this._el) this._el.hidden = true;
+    }, delay);
+  }
+};
 
 // ── Theme ─────────────────────────────────────────────────────────────────────
 
@@ -228,6 +312,7 @@ async function handleActivate() {
     try {
       showProgress('Completing authentication requirements\u2026');
       await portalAuth.stepUpForAuthContexts(authContextIds, cappedRoles);
+      hideProgress();
       // Thread the auth context claims into every subsequent token acquisition
       // so both ARM and Graph tokens carry the required acrs claim.
       portalAuth.setAuthContextClaims(authContextIds[0]);
@@ -239,14 +324,19 @@ async function handleActivate() {
     }
   }
 
-  showProgress('Activating ' + cappedRoles.length + ' role' + (cappedRoles.length !== 1 ? 's' : '') + '…');
+  const activateLabel = 'Activating ' + cappedRoles.length + ' role' + (cappedRoles.length !== 1 ? 's' : '') + '\u2026';
+  _opOverlay.open(activateLabel, cappedRoles);
 
   try {
-    const outcome = await batchClient.bulkActivate(cappedRoles, { justification, ticketNumber });
-    hideProgress();
+    const outcome = await batchClient.bulkActivate(cappedRoles, {
+      justification,
+      ticketNumber,
+      onProgress: r => _opOverlay.update(r)
+    });
     const ok   = outcome.summary?.succeeded ?? outcome.results?.filter(r => r.success).length ?? 0;
     const fail = outcome.summary?.failed    ?? outcome.results?.filter(r => !r.success).length ?? 0;
     const pendingApproval = (outcome.results || []).filter(r => r.pendingApproval).length;
+    _opOverlay.close(fail > 0 ? 2500 : 1400);
     if (fail === 0 && pendingApproval === 0) {
       showToast('Successfully activated ' + ok + ' role' + (ok !== 1 ? 's' : '') + '.', 'success');
     } else if (pendingApproval > 0 && fail === 0) {
@@ -258,7 +348,7 @@ async function handleActivate() {
     }
     await _refresh();
   } catch (err) {
-    hideProgress();
+    _opOverlay.close(0);
     showToast('Activation error: ' + err.message, 'error', 10000);
     console.error('[App] Activate error:', err);
   } finally {
@@ -272,10 +362,10 @@ async function handleDeactivate() {
   const roles = roleManager.getSelectedActiveRoles().filter(r => r.endDateTime);
   if (!roles.length) { showToast('Select at least one PIM-managed active role.', 'warning'); return; }
 
-  showProgress('Deactivating ' + roles.length + ' role' + (roles.length !== 1 ? 's' : '') + '…');
+  const deactivateLabel = 'Deactivating ' + roles.length + ' role' + (roles.length !== 1 ? 's' : '') + '…';
+  _opOverlay.open(deactivateLabel, roles);
   try {
-    const outcome = await batchClient.bulkDeactivate(roles);
-    hideProgress();
+    const outcome = await batchClient.bulkDeactivate(roles, { onProgress: r => _opOverlay.update(r) });
     const ok   = outcome.summary?.succeeded ?? outcome.results?.filter(r => r.success).length ?? 0;
     const fail = outcome.summary?.failed    ?? outcome.results?.filter(r => !r.success).length ?? 0;
 
@@ -286,6 +376,7 @@ async function handleDeactivate() {
       .map(r => r.uid);
     if (succeededUids.length) roleManager.removeActiveRoles(succeededUids);
 
+    _opOverlay.close(fail > 0 ? 2500 : 1400);
     if (fail === 0) {
       showToast('Successfully deactivated ' + ok + ' role' + (ok !== 1 ? 's' : '') + '.', 'success');
     } else {
@@ -295,7 +386,7 @@ async function handleDeactivate() {
     // before we re-fetch, preventing the role from briefly reappearing.
     setTimeout(() => _refresh(), 3000);
   } catch (err) {
-    hideProgress();
+    _opOverlay.close(0);
     showToast('Deactivation error: ' + err.message, 'error', 10000);
     console.error('[App] Deactivate error:', err);
   }
