@@ -22,6 +22,8 @@ class RoleManager {
     this.selectedEligible = new Set();
     this.selectedActive   = new Set();
     this._timers          = [];
+    /** uid → expiry timestamp; recently deactivated roles are suppressed from reappearing on reload */
+    this._suppressedUids  = new Map();
   }
 
   // ── Load ──────────────────────────────────────────────────────────────────
@@ -58,6 +60,7 @@ class RoleManager {
 
     this.eligibleRoles = [...toArr(entraElig), ...toArr(groupElig)];
     this.activeRoles   = [...toArr(entraActive), ...toArr(groupActive)];
+    this._removeSuppressed();
 
     this._pendingRequests = Array.isArray(pending) ? pending : [];
     this._annotatePending(pending);
@@ -85,6 +88,7 @@ class RoleManager {
       const dedupAzureActive = _deduplicateAzureActive(azureActive);
       this.eligibleRoles = [...this.eligibleRoles, ...dedupAzureElig];
       this.activeRoles   = [...this.activeRoles,   ...dedupAzureActive];
+      this._removeSuppressed();
       // Merge Azure pending into the global pending list and re-render
       this._pendingRequests = [...this._pendingRequests, ...azurePending];
       this.renderEligible();
@@ -467,11 +471,30 @@ class RoleManager {
    * @param {string[]} uids
    */
   removeActiveRoles(uids) {
+    const expiry = Date.now() + 60_000; // 60 s — covers ARM propagation lag
+    uids.forEach(uid => this._suppressedUids.set(uid, expiry));
     const set = new Set(uids);
     this.activeRoles = this.activeRoles.filter(r => !set.has(r.uid || r.id));
     uids.forEach(uid => this.selectedActive.delete(uid));
     this.renderActive();
     this._updateBars();
+  }
+
+  /**
+   * Filter out any recently-deactivated UIDs that are still within their
+   * suppression window. Called after every API reload of activeRoles.
+   * Expired entries are pruned automatically.
+   */
+  _removeSuppressed() {
+    if (!this._suppressedUids.size) return;
+    const now = Date.now();
+    this.activeRoles = this.activeRoles.filter(r => {
+      const uid = r.uid || r.id;
+      const exp = this._suppressedUids.get(uid);
+      if (exp === undefined) return true;           // not suppressed
+      if (now > exp) { this._suppressedUids.delete(uid); return true; } // TTL expired, allow through
+      return false;                                 // still within suppression window
+    });
   }
 
   // ── Internal helpers ──────────────────────────────────────────────────────

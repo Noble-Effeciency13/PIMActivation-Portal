@@ -207,7 +207,39 @@
     }
     .product-link:hover { border-color: var(--primary); color: var(--primary); text-decoration: none; }
 
-    /* ── Trust section ───────────────────────────────────────────────────── */
+    /* ── Product screenshot ──────────────────────────────────────────────── */
+    .product-screenshot {
+      display:       block;
+      width:         100%;
+      aspect-ratio:  16 / 9;
+      border-radius: 6px;
+      border:        1px solid var(--border);
+      overflow:      hidden;
+      margin-bottom: 18px;
+      background:    var(--bg-card);
+    }
+    .product-screenshot img {
+      width:      100%;
+      height:     100%;
+      object-fit: cover;
+      object-position: top left;
+      display:    block;
+      transition: transform 0.3s ease;
+    }
+    .product-card:hover .product-screenshot img {
+      transform: scale(1.02);
+    }
+    /* Shown when no image is provided yet */
+    .product-screenshot-placeholder {
+      width:           100%;
+      height:          100%;
+      display:         flex;
+      align-items:     center;
+      justify-content: center;
+      color:           var(--text-faint);
+      font-size:       12px;
+      letter-spacing:  0.04em;
+    }
     .trust-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -298,6 +330,10 @@
 
         <!-- PowerShell module -->
         <article class="product-card">
+          <a href="https://github.com/Noble-Effeciency13/PIMActivation" class="product-screenshot" target="_blank" rel="noopener noreferrer" aria-label="PowerShell Module screenshot">
+            <img src="images/screenshot-powershell.webp" alt="PIMActivation PowerShell module in a terminal" loading="lazy"
+              onerror="this.style.display='none';this.parentElement.innerHTML='<span class=&quot;product-screenshot-placeholder&quot;>screenshot coming soon</span>';">
+          </a>
           <div class="product-icon" aria-hidden="true">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0078D4" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
           </div>
@@ -317,6 +353,10 @@
 
         <!-- Self-hosted web app -->
         <article class="product-card">
+          <a href="https://github.com/Noble-Effeciency13/PIMActivation-Web" class="product-screenshot" target="_blank" rel="noopener noreferrer" aria-label="Self-Hosted Web App screenshot">
+            <img src="images/screenshot-web.webp" alt="PIMActivation self-hosted web app" loading="lazy"
+              onerror="this.style.display='none';this.parentElement.innerHTML='<span class=&quot;product-screenshot-placeholder&quot;>screenshot coming soon</span>';">
+          </a>
           <div class="product-icon" aria-hidden="true">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0078D4" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
           </div>
@@ -336,6 +376,10 @@
 
         <!-- Hosted Portal -->
         <article class="product-card">
+          <a href="https://portal.pimactivation.com" class="product-screenshot" target="_blank" rel="noopener noreferrer" aria-label="Hosted Portal screenshot">
+            <img src="images/screenshot-portal.webp" alt="PIMActivation hosted browser portal" loading="lazy"
+              onerror="this.style.display='none';this.parentElement.innerHTML='<span class=&quot;product-screenshot-placeholder&quot;>screenshot coming soon</span>';">
+          </a>
           <div class="product-icon" aria-hidden="true">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0078D4" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
           </div>
