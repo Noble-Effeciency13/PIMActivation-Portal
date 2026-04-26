@@ -12,8 +12,7 @@ const ARM_BASE    = 'https://management.azure.com';
 const ARM_VERSION_ELIG   = '2020-10-01-preview';
 const ARM_VERSION_ACTIVE = '2020-10-01-preview';
 const ARM_VERSION_REQ    = '2020-10-01-preview';
-const ARM_VERSION_RESOURCES  = '2021-04-01';
-const ARM_VERSION_MGMT_GROUP = '2020-05-01';
+const ARM_VERSION_CHILD_RESOURCES = '2020-10-01';
 
 async function armGet(path, apiVersion) {
   const token = await portalAuth.getArmToken();
@@ -143,65 +142,63 @@ async function getAzureChildScopes(parentScopeId) {
 }
 
 async function _fetchAzureChildScopes(parentScopeId) {
-  const mg = parentScopeId.match(/^\/providers\/Microsoft\.Management\/managementGroups\/([^/]+)$/i);
-  if (mg) {
-    const groupId = encodeURIComponent(mg[1]);
+  if (/^\/providers\/Microsoft\.Management\/managementGroups\/[^/]+$/i.test(parentScopeId)) {
     const items = await armGetPagedUrl(
-      `${ARM_BASE}/providers/Microsoft.Management/managementGroups/${groupId}/children?api-version=${ARM_VERSION_MGMT_GROUP}`,
-      'ARM management group children'
+      _eligibleChildResourcesUrl(parentScopeId, { getAllChildren: true }),
+      'ARM eligible child resources'
     );
-    return items.map(_mapManagementGroupChild).filter(Boolean);
+    return items.map(_mapEligibleChildResource).filter(Boolean);
   }
 
-  const sub = parentScopeId.match(/^\/subscriptions\/([^/]+)$/i);
-  if (sub) {
-    const subscriptionId = encodeURIComponent(sub[1]);
+  if (/^\/subscriptions\/[^/]+$/i.test(parentScopeId)) {
     const items = await armGetPagedUrl(
-      `${ARM_BASE}/subscriptions/${subscriptionId}/resourcegroups?api-version=${ARM_VERSION_RESOURCES}`,
-      'ARM resource groups'
+      _eligibleChildResourcesUrl(parentScopeId, { filter: "resourceType eq 'resourcegroup'" }),
+      'ARM eligible child resources'
     );
-    return items.map(item => ({
-      scopeId:     _normalizeScopeId(item.id),
-      displayName: item.name || _formatScope(item.id),
-      type:        'Resource Group'
-    })).filter(s => s.scopeId);
+    return items.map(_mapEligibleChildResource).filter(Boolean);
   }
 
   if (/^\/subscriptions\/[^/]+\/resourceGroups\/[^/]+$/i.test(parentScopeId)) {
     const items = await armGetPagedUrl(
-      `${ARM_BASE}${parentScopeId}/resources?api-version=${ARM_VERSION_RESOURCES}`,
-      'ARM resources'
+      _eligibleChildResourcesUrl(parentScopeId),
+      'ARM eligible child resources'
     );
-    return items.map(item => ({
-      scopeId:     _normalizeScopeId(item.id),
-      displayName: item.name || _formatScope(item.id),
-      type:        item.type || 'Resource'
-    })).filter(s => s.scopeId);
+    return items.map(_mapEligibleChildResource).filter(Boolean);
   }
 
   return [];
 }
 
-function _mapManagementGroupChild(item) {
-  const rawType = item.type || item.properties?.type || '';
-  const id      = _normalizeScopeId(item.id || item.properties?.id || '');
-  const name    = item.name || item.properties?.name || (id ? id.split('/').pop() : '');
-  const displayName = item.displayName || item.properties?.displayName || name || id;
+function _eligibleChildResourcesUrl(scopeId, options = {}) {
+  const query = [`api-version=${ARM_VERSION_CHILD_RESOURCES}`];
+  if (options.filter) query.push(`$filter=${encodeURIComponent(options.filter).replace(/%20/g, '+')}`);
+  if (options.getAllChildren) query.push('getAllChildren=true');
+  return `${ARM_BASE}${scopeId}/providers/Microsoft.Authorization/eligibleChildResources?${query.join('&')}`;
+}
 
-  if (/managementGroups/i.test(rawType) || /\/providers\/Microsoft\.Management\/managementGroups\//i.test(id)) {
-    const scopeId = id && /\/providers\/Microsoft\.Management\/managementGroups\//i.test(id)
-      ? id
-      : `/providers/Microsoft.Management/managementGroups/${name}`;
-    return { scopeId: _normalizeScopeId(scopeId), displayName, type: 'Management Group' };
-  }
+function _mapEligibleChildResource(item) {
+  const scopeId = _normalizeEligibleChildScopeId(item.id || item.properties?.id || '');
+  if (!scopeId) return null;
 
-  if (/subscriptions/i.test(rawType) || /^\/subscriptions\//i.test(id)) {
-    const subscriptionId = id.match(/^\/subscriptions\/([^/]+)/i)?.[1] || name;
-    if (!subscriptionId) return null;
-    return { scopeId: `/subscriptions/${subscriptionId}`, displayName, type: 'Subscription' };
-  }
+  return {
+    scopeId,
+    displayName: item.displayName || item.properties?.displayName || item.name || _formatScope(scopeId),
+    type:        _formatEligibleChildType(item.type || item.properties?.type || '', scopeId)
+  };
+}
 
-  return null;
+function _normalizeEligibleChildScopeId(scopeId) {
+  const normalized = _normalizeScopeId(scopeId);
+  const providerSubscription = normalized.match(/^\/providers\/Microsoft\.Subscription\/subscriptions\/([^/]+)$/i);
+  return providerSubscription ? `/subscriptions/${providerSubscription[1]}` : normalized;
+}
+
+function _formatEligibleChildType(type, scopeId) {
+  const raw = String(type || '').toLowerCase();
+  if (raw === 'subscription' || /^\/subscriptions\/[^/]+$/i.test(scopeId)) return 'Subscription';
+  if (raw === 'resourcegroup' || /^\/subscriptions\/[^/]+\/resourceGroups\/[^/]+$/i.test(scopeId)) return 'Resource Group';
+  if (raw === 'managementgroup' || /\/providers\/Microsoft\.Management\/managementGroups\//i.test(scopeId)) return 'Management Group';
+  return type || 'Resource';
 }
 
 function _dedupeScopes(scopes) {

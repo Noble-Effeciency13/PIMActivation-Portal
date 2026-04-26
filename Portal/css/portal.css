@@ -181,10 +181,11 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
   background:  var(--bg);
   color:       var(--text);
+  height:      100dvh;
   min-height:  100dvh;
   display:     flex;
   flex-direction: column;
-  overflow-x:  hidden;
+  overflow:    hidden;
 }
 a { color: var(--primary); text-decoration: none; }
 a:hover { text-decoration: underline; }
@@ -217,7 +218,13 @@ a:hover { text-decoration: underline; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ── App shell ────────────────────────────────────────────────────────────── */
-#app { display: flex; flex-direction: column; min-height: 100dvh; }
+#app {
+  display:        flex;
+  flex-direction: column;
+  height:         100dvh;
+  min-height:     0;
+  overflow:       hidden;
+}
 
 /* ── Main ─────────────────────────────────────────────────────────────────── */
 .app-main {
@@ -240,8 +247,7 @@ a:hover { text-decoration: underline; }
   height:          54px;
   background:      var(--header-bg);
   border-bottom:   1px solid var(--border);
-  position:        sticky;
-  top:             0;
+  position:        relative;
   z-index:         100;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
@@ -336,7 +342,14 @@ a:hover { text-decoration: underline; }
 .sign-out-btn:hover { color: var(--danger); background: var(--danger-dim); }
 
 /* ── Main ─────────────────────────────────────────────────────────────────── */
-.app-main { flex: 1; display: flex; flex-direction: column; }
+.app-main {
+  flex:           1;
+  display:        flex;
+  flex-direction: column;
+  min-height:     0;
+  overflow-x:     hidden;
+  overflow-y:     auto;
+}
 
 /* Progress bar */
 .progress-bar {
@@ -1011,13 +1024,13 @@ a:hover { text-decoration: underline; }
 
 /* ── Footer ───────────────────────────────────────────────────────────────── */
 .app-footer {
-  position:   sticky;
-  bottom:     0;
+  position:   relative;
   z-index:    10;
   padding:    14px 24px;
   background: var(--bg-surface);
   border-top: 1px solid var(--border);
   text-align: center;
+  flex-shrink: 0;
 }
 .footer-tagline {
   font-size:  12px;
