@@ -224,6 +224,7 @@ a:hover { text-decoration: underline; }
   height:         100dvh;
   min-height:     0;
   overflow:       hidden;
+  padding-top:    54px;
 }
 
 /* ── Main ─────────────────────────────────────────────────────────────────── */
@@ -247,8 +248,10 @@ a:hover { text-decoration: underline; }
   height:          54px;
   background:      var(--header-bg);
   border-bottom:   1px solid var(--border);
-  position:        sticky;
+  position:        fixed;
   top:             0;
+  left:            0;
+  right:           0;
   z-index:         100;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
@@ -1098,6 +1101,7 @@ a:hover { text-decoration: underline; }
 
 /* ── Responsive ───────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
+  #app { padding-top: 50px; }
   .app-header { padding: 0 12px; height: 50px; }
   .brand-name { font-size: 13px; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .user-name  { display: none; }
