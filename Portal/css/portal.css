@@ -247,11 +247,13 @@ a:hover { text-decoration: underline; }
   height:          54px;
   background:      var(--header-bg);
   border-bottom:   1px solid var(--border);
-  position:        relative;
+  position:        sticky;
+  top:             0;
   z-index:         100;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   flex-shrink:     0;
+  box-shadow:      var(--shadow-sm);
 }
 .header-brand { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .brand-icon   { color: var(--primary); flex-shrink: 0; }
@@ -349,6 +351,8 @@ a:hover { text-decoration: underline; }
   min-height:     0;
   overflow-x:     hidden;
   overflow-y:     auto;
+  padding-top:    10px;
+  scroll-padding-top: 10px;
 }
 
 /* Progress bar */
@@ -903,8 +907,23 @@ a:hover { text-decoration: underline; }
   transition:    border-color 0.15s;
 }
 .form-select {
-  height:      32px;
-  padding:     0 10px;
+  height:       32px;
+  padding:      0 10px;
+  color-scheme: dark;
+}
+:root[data-theme="light"] .form-select {
+  color-scheme: light;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) .form-select { color-scheme: light; }
+}
+.form-select option {
+  background-color: var(--bg-surface);
+  color:            var(--text);
+}
+.form-select option:checked {
+  background-color: var(--primary);
+  color:            #ffffff;
 }
 .form-textarea:focus, .form-input:focus, .form-select:focus { border-color: var(--primary); }
 .form-select:disabled { opacity: 0.5; cursor: not-allowed; }
