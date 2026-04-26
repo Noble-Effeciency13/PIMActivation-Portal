@@ -204,9 +204,12 @@
     /* ── Trust section ───────────────────────────────────────────────────── */
     .trust-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      grid-template-columns: repeat(2, 1fr);
       gap: var(--gap);
       margin-top: 40px;
+    }
+    @media (max-width: 480px) {
+      .trust-grid { grid-template-columns: 1fr; }
     }
     .trust-item { text-align: center; }
     .trust-item svg { color: var(--primary); margin-bottom: 10px; }
@@ -385,9 +388,9 @@
     <div class="container">
       <p class="footer-copy">© 2026 Sebastian Flæng Markdanner</p>
       <nav class="footer-links" aria-label="Footer navigation">
-        <a href="https://github.com/l-gosling/PIMActivation-Web" target="_blank" rel="noopener noreferrer">GitHub</a>
+        <a href="https://github.com/Noble-Effeciency13/PIMActivation-Portal" target="_blank" rel="noopener noreferrer">GitHub</a>
         <a href="https://www.powershellgallery.com/packages/PIMActivation" target="_blank" rel="noopener noreferrer">PSGallery</a>
-        <a href="https://github.com/l-gosling/PIMActivation-Web/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">MIT License</a>
+        <a href="https://github.com/Noble-Effeciency13/PIMActivation-Portal/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">MIT License</a>
       </nav>
     </div>
   </footer>
