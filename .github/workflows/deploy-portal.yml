@@ -13,13 +13,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Inject client ID
-        run: sed -i "s/__PORTAL_CLIENT_ID__/${{ secrets.PORTAL_CLIENT_ID }}/g" Portal/js/msal-config.js
-
-      - name: Verify client ID placeholder replaced
+      - name: Inject client ID and tenant authority
         run: |
-          if grep -q '__PORTAL_CLIENT_ID__' Portal/js/msal-config.js; then
-            echo "ERROR: placeholder was not replaced" && exit 1
+          sed -i "s/__PORTAL_CLIENT_ID__/${{ secrets.PORTAL_CLIENT_ID }}/g" Portal/js/msal-config.js
+          sed -i "s/__PORTAL_TENANT_ID__/organizations/g" Portal/js/msal-config.js
+
+      - name: Verify placeholders replaced
+        run: |
+          if grep -q '__PORTAL_CLIENT_ID__\|__PORTAL_TENANT_ID__' Portal/js/msal-config.js; then
+            echo "ERROR: one or more placeholders were not replaced" && exit 1
           fi
 
       - name: Deploy to Azure Static Web Apps

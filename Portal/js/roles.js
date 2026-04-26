@@ -4,7 +4,7 @@
  *
  * Features:
  *  - Grouped sort: [Entra] → [Group] → [Azure], alpha within each group
- *  - Azure scope deduplication (highest scope wins per role definition GUID)
+ *  - Azure scope deduplication (ancestor scope wins per role definition GUID)
  *  - Policy matrix columns: Max, MFA, Justification, Ticket, Approval
  *  - Pending approval indicator on eligible roles requiring approval
  *  - Select All active: only selects PIM-activated roles (endDateTime set)
@@ -91,6 +91,7 @@ class RoleManager {
       this._removeSuppressed();
       // Merge Azure pending into the global pending list and re-render
       this._pendingRequests = [...this._pendingRequests, ...azurePending];
+      this._annotatePending(this._pendingRequests);
       this.renderEligible();
       this.renderActive();
       // Enrich Azure eligible roles with PIM policies (fire-and-forget, same as Entra)
@@ -175,7 +176,10 @@ class RoleManager {
       role._hasPendingApproval = requests.some(r =>
         (r.type === 'User'  && r.roleId  === role.id) ||
         (r.type === 'Group' && r.groupId === (role.groupId || role.id) &&
-                               r.accessId === (role.accessId || 'member'))
+                               r.accessId === (role.accessId || 'member')) ||
+        (r.type === 'AzureResource' && role.type === 'AzureResource' &&
+                               _roleKey(r.roleDefinitionId) === _roleKey(role.id) &&
+                               (!r.scopeId || _sameScope(r.scopeId, role.scopeId) || _scopeCovers(role.scopeId, r.scopeId)))
       );
     }
   }
@@ -301,21 +305,34 @@ class RoleManager {
     const pendingRoles = [];
     for (const req of (this._pendingRequests || [])) {
       let match;
+      let displayRole;
+      let key;
       if (req.type === 'AzureResource') {
         // Azure: match on roleDefinitionId GUID + scopeId
-        const reqGuid = (req.roleDefinitionId || '').split('/').pop().toLowerCase();
+        const reqGuid = _roleKey(req.roleDefinitionId);
         match = this.eligibleRoles.find(r =>
           r.type === 'AzureResource' &&
-          (r.id || '').split('/').pop().toLowerCase() === reqGuid &&
-          (!req.scopeId || r.scopeId === req.scopeId)
+          _roleKey(r.id) === reqGuid &&
+          (!req.scopeId || _sameScope(r.scopeId, req.scopeId))
         );
-        // Fallback: match on GUID only (scope-agnostic) if no scope match
-        if (!match && reqGuid) {
+        // Reduced-scope requests can sit under a parent eligible assignment.
+        if (!match && reqGuid && req.scopeId) {
           match = this.eligibleRoles.find(r =>
             r.type === 'AzureResource' &&
-            (r.id || '').split('/').pop().toLowerCase() === reqGuid
+            _roleKey(r.id) === reqGuid &&
+            _scopeCovers(r.scopeId, req.scopeId)
           );
         }
+        if (!match && reqGuid && !req.scopeId) {
+          match = this.eligibleRoles.find(r =>
+            r.type === 'AzureResource' &&
+            _roleKey(r.id) === reqGuid
+          );
+        }
+        displayRole = req.scopeId
+          ? { uid: (req.roleDefinitionId || reqGuid) + ':' + req.scopeId, type: req.type, name: req.name || match?.name || 'Unknown', scope: req.scope || req.scopeId, scopeId: req.scopeId }
+          : match;
+        key = 'AzureResource:' + reqGuid + ':' + (req.scopeId || match?.scopeId || '');
       } else if (req.type === 'User') {
         // Entra: match on roleDefinitionId + directoryScopeId when available
         match = this.eligibleRoles.find(r =>
@@ -334,13 +351,10 @@ class RoleManager {
           (r.accessId || 'member') === (req.accessId || 'member')
         );
       }
-      const key = match && (match.uid || match.id) + ':' + (match.scopeId || match.directoryScopeId || '');
-      if (match && key && !seenPending.has(key)) {
+      if (!displayRole) displayRole = match;
+      if (!key && match) key = (match.uid || match.id) + ':' + (match.scopeId || match.directoryScopeId || '');
+      if (displayRole && key && !seenPending.has(key)) {
         seenPending.add(key);
-        // Build a display object — for Azure pending we have name/scope directly on req
-        const displayRole = req.type === 'AzureResource' && !match
-          ? { uid: req.roleDefinitionId + ':' + req.scopeId, type: req.type, name: req.name, scope: req.scope, scopeId: req.scopeId }
-          : match;
         pendingRoles.push(displayRole);
       }
     }
@@ -588,19 +602,34 @@ function _filter(roles, query) {
 
 /**
  * Azure scope deduplication.
- * Groups by role definition GUID; keeps the assignment at the highest scope.
- * Higher in hierarchy = lower scopeRank number.
+ * Groups by role definition GUID and collapses true parent/child duplicates,
+ * while keeping sibling scopes such as the same role on two subscriptions.
  */
 function _deduplicateAzure(roles) {
-  const map = new Map();
+  const groups = new Map();
   for (const role of roles) {
-    const key  = _roleGuid(role.id);
-    const prev = map.get(key);
-    if (!prev || _scopeRank(role.scopeId) < _scopeRank(prev.scopeId)) {
-      map.set(key, role);
-    }
+    const key = _roleKey(role.id) || role.uid || role.id || '';
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(role);
   }
-  return [...map.values()];
+
+  const deduped = [];
+  for (const group of groups.values()) {
+    const kept = [];
+    const sorted = [...group].sort((a, b) => {
+      const rankDiff = _scopeRank(a.scopeId) - _scopeRank(b.scopeId);
+      if (rankDiff !== 0) return rankDiff;
+      return _normalizeScopeId(a.scopeId).length - _normalizeScopeId(b.scopeId).length;
+    });
+    for (const role of sorted) {
+      const isCovered = kept.some(existing =>
+        _sameScope(existing.scopeId, role.scopeId) || _scopeCovers(existing.scopeId, role.scopeId)
+      );
+      if (!isCovered) kept.push(role);
+    }
+    deduped.push(...kept);
+  }
+  return deduped;
 }
 
 /**
@@ -624,6 +653,10 @@ function _roleGuid(id) {
   return parts[parts.length - 1];
 }
 
+function _roleKey(id) {
+  return String(_roleGuid(id) || '').toLowerCase();
+}
+
 /** Lower rank = higher in Azure hierarchy */
 function _scopeRank(scopeId) {
   if (!scopeId || scopeId === '/') return 0;
@@ -631,6 +664,24 @@ function _scopeRank(scopeId) {
   if (/^\/subscriptions\/[^/]+$/.test(scopeId)) return 2;
   if (/\/resourceGroups\//i.test(scopeId) && !/\/providers\//i.test(scopeId.split('/resourceGroups/')[1] || '')) return 3;
   return 4;
+}
+
+function _sameScope(a, b) {
+  return _normalizeScopeId(a).toLowerCase() === _normalizeScopeId(b).toLowerCase();
+}
+
+function _scopeCovers(parentScopeId, childScopeId) {
+  const parent = _normalizeScopeId(parentScopeId).toLowerCase();
+  const child  = _normalizeScopeId(childScopeId).toLowerCase();
+  if (!parent || !child || parent === child) return false;
+  if (parent === '/') return true;
+  return child.startsWith(parent + '/');
+}
+
+function _normalizeScopeId(scopeId) {
+  const scope = String(scopeId || '').trim();
+  if (scope === '/') return '/';
+  return scope.replace(/\/+$/, '');
 }
 
 function _scopeDisplay(role) {

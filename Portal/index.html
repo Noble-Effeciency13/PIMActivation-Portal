@@ -242,6 +242,11 @@
             <label class="form-label" for="ticket-input">Ticket number <span class="req-mark" aria-hidden="true">*</span></label>
             <input type="text" id="ticket-input" class="form-input" maxlength="100" placeholder="e.g. INC-12345">
           </div>
+          <div class="form-row azure-scope-row" id="azure-scope-row" hidden>
+            <div class="form-label">Azure resource scope</div>
+            <div class="scope-hint">Use reduced scope for Azure Resource roles when you only need access lower in the hierarchy.</div>
+            <div class="azure-scope-list" id="azure-scope-list"></div>
+          </div>
         </form>
       </div>
       <div class="modal-footer">

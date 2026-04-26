@@ -3,7 +3,7 @@
  * Copyright © 2026 Sebastian Flæng Markdanner — MIT License
  */
 
-/* global msal, portalAuth, roleManager, batchClient */
+/* global msal, portalAuth, roleManager, batchClient, armClient */
 
 // ── Globals exposed for roles.js / templates ──────────────────────────────────
 
@@ -113,7 +113,7 @@ const _opOverlay = {
     this._fillEl.classList.remove('op-fill-done');
 
     this._listEl.innerHTML = roles.map(r => {
-      const scope = r.scopeDisplay || r.scopeId || r.directoryScopeId || '';
+      const scope = r._activationScopeDisplay || r.scopeDisplay || r.scope || r.scopeId || r.directoryScopeId || '';
       return '<li class="op-role-item" data-uid="' + escapeHtml(r.uid || r.id) + '">' +
         '<span class="op-status-icon" aria-label="In progress"></span>' +
         '<span class="op-role-info">' +
@@ -189,9 +189,11 @@ function applyTheme(theme) {
 // ── Activation modal ──────────────────────────────────────────────────────────
 
 let _pendingRoles = [];
+let _azureScopeSelections = new Map();
 
 function showActivationModal(roles) {
   _pendingRoles = roles;
+  _initAzureScopeSelections(roles);
   const modal = document.getElementById('activation-modal');
   if (!modal) return;
 
@@ -238,6 +240,8 @@ function showActivationModal(roles) {
   if (justInput)   justInput.value   = '';
   if (ticketInput) ticketInput.value = '';
 
+  _renderAzureScopeControls();
+
   modal.hidden = false;
   if (justInput && needsJust) justInput.focus();
   else if (hoursInput) hoursInput.focus();
@@ -247,6 +251,7 @@ function hideActivationModal() {
   const modal = document.getElementById('activation-modal');
   if (modal) modal.hidden = true;
   _pendingRoles = [];
+  _azureScopeSelections.clear();
 }
 
 function _scopeDisplayForModal(role) {
@@ -254,6 +259,231 @@ function _scopeDisplayForModal(role) {
   if (role.type === 'Group')         return role.scope || 'Group membership';
   const s = role.scope || role.directoryScopeId || '';
   return (s === '/' || s === 'Directory') ? 'Directory' : s;
+}
+
+function _initAzureScopeSelections(roles) {
+  _azureScopeSelections = new Map();
+  roles.filter(r => r.type === 'AzureResource').forEach(role => {
+    const uid = role.uid || role.id;
+    const baseScopeId = _normalizeScopeId(role.scopeId || role.scope);
+    const baseDisplayName = role.scope || role.scopeId || 'Original scope';
+    _azureScopeSelections.set(uid, {
+      uid,
+      enabled: false,
+      baseScopeId,
+      baseDisplayName,
+      selectedScopeId: baseScopeId,
+      selectedDisplayName: baseDisplayName,
+      selectedType: 'Original scope',
+      currentParentScopeId: baseScopeId,
+      currentParentDisplayName: baseDisplayName,
+      path: [{ scopeId: baseScopeId, displayName: baseDisplayName, type: 'Original scope' }],
+      children: [],
+      loading: false,
+      error: '',
+      requestId: 0
+    });
+  });
+}
+
+function _renderAzureScopeControls() {
+  const row = document.getElementById('azure-scope-row');
+  const list = document.getElementById('azure-scope-list');
+  if (!row || !list) return;
+
+  const azureRoles = _pendingRoles.filter(r => r.type === 'AzureResource');
+  row.hidden = azureRoles.length === 0;
+  if (!azureRoles.length) {
+    list.innerHTML = '';
+    return;
+  }
+
+  list.innerHTML = azureRoles.map(role => {
+    const uid = role.uid || role.id;
+    const state = _azureScopeSelections.get(uid);
+    if (!state) return '';
+
+    const pathText = state.path.map(p => p.displayName || p.scopeId).join(' / ');
+    const selectedText = state.enabled
+      ? (state.selectedDisplayName || state.selectedScopeId || state.baseDisplayName)
+      : state.baseDisplayName;
+    const controlsHidden = state.enabled ? '' : ' hidden';
+    const backDisabled = state.path.length <= 1 || state.loading ? ' disabled' : '';
+    const resetDisabled = state.path.length <= 1 || state.loading ? ' disabled' : '';
+    const selectDisabled = state.loading || state.children.length === 0 ? ' disabled' : '';
+    const childOptions = state.children.map(scope =>
+      '<option value="' + escapeHtml(scope.scopeId) + '">' +
+        escapeHtml((scope.type ? scope.type + ': ' : '') + (scope.displayName || scope.scopeId)) +
+      '</option>'
+    ).join('');
+
+    let hint = 'Activate at the original Azure scope unless a reduced scope is selected.';
+    if (state.loading) hint = 'Loading child scopes...';
+    else if (state.error) hint = state.error;
+    else if (state.enabled && state.children.length === 0) hint = 'No child scopes were found below the selected scope.';
+    else if (state.enabled) hint = 'Select a child scope, or drill down by selecting another scope from the list.';
+
+    return '<div class="azure-scope-item" data-uid="' + escapeHtml(uid) + '">' +
+      '<div class="azure-scope-head">' +
+        '<div class="azure-scope-role">' +
+          '<span class="azure-scope-name">' + escapeHtml(role.name || role.id) + '</span>' +
+          '<span class="azure-scope-current">' + escapeHtml(selectedText) + '</span>' +
+        '</div>' +
+        '<label class="azure-scope-toggle">' +
+          '<input type="checkbox" class="azure-scope-toggle-input" data-uid="' + escapeHtml(uid) + '" ' + (state.enabled ? 'checked' : '') + '>' +
+          '<span>Reduced scope</span>' +
+        '</label>' +
+      '</div>' +
+      '<div class="azure-scope-controls"' + controlsHidden + '>' +
+        '<div class="azure-scope-path" title="' + escapeHtml(pathText) + '">' + escapeHtml(pathText) + '</div>' +
+        '<div class="azure-scope-picker-row">' +
+          '<select class="form-select azure-scope-select" data-uid="' + escapeHtml(uid) + '"' + selectDisabled + '>' +
+            '<option value="">Select child scope...</option>' + childOptions +
+          '</select>' +
+          '<button type="button" class="btn btn-ghost btn-sm azure-scope-back" data-uid="' + escapeHtml(uid) + '"' + backDisabled + '>Back</button>' +
+          '<button type="button" class="btn btn-ghost btn-sm azure-scope-reset" data-uid="' + escapeHtml(uid) + '"' + resetDisabled + '>Reset</button>' +
+        '</div>' +
+        '<div class="scope-hint ' + (state.error ? 'scope-hint-error' : '') + '">' + escapeHtml(hint) + '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+
+  list.querySelectorAll('.azure-scope-toggle-input').forEach(input => {
+    input.addEventListener('change', () => _toggleAzureReducedScope(input.dataset.uid, input.checked));
+  });
+  list.querySelectorAll('.azure-scope-select').forEach(select => {
+    select.addEventListener('change', () => _selectAzureChildScope(select.dataset.uid, select.value));
+  });
+  list.querySelectorAll('.azure-scope-back').forEach(btn => {
+    btn.addEventListener('click', () => _stepAzureScopeBack(btn.dataset.uid));
+  });
+  list.querySelectorAll('.azure-scope-reset').forEach(btn => {
+    btn.addEventListener('click', () => _resetAzureScopeSelection(btn.dataset.uid, true));
+  });
+}
+
+function _toggleAzureReducedScope(uid, enabled) {
+  const state = _azureScopeSelections.get(uid);
+  if (!state) return;
+  if (!enabled) {
+    _resetAzureScopeSelection(uid, false);
+    return;
+  }
+  state.enabled = true;
+  _renderAzureScopeControls();
+  _loadAzureScopeChildren(uid);
+}
+
+function _selectAzureChildScope(uid, scopeId) {
+  const state = _azureScopeSelections.get(uid);
+  if (!state || !scopeId) return;
+  const selected = state.children.find(scope => _sameScopeId(scope.scopeId, scopeId));
+  if (!selected) return;
+  state.selectedScopeId = selected.scopeId;
+  state.selectedDisplayName = selected.displayName || selected.scopeId;
+  state.selectedType = selected.type || 'Scope';
+  state.currentParentScopeId = selected.scopeId;
+  state.currentParentDisplayName = state.selectedDisplayName;
+  state.path.push({ scopeId: selected.scopeId, displayName: state.selectedDisplayName, type: state.selectedType });
+  state.children = [];
+  state.error = '';
+  _renderAzureScopeControls();
+  _loadAzureScopeChildren(uid);
+}
+
+function _stepAzureScopeBack(uid) {
+  const state = _azureScopeSelections.get(uid);
+  if (!state || state.path.length <= 1) return;
+  state.path.pop();
+  const previous = state.path[state.path.length - 1];
+  state.selectedScopeId = previous.scopeId;
+  state.selectedDisplayName = previous.displayName;
+  state.selectedType = previous.type;
+  state.currentParentScopeId = previous.scopeId;
+  state.currentParentDisplayName = previous.displayName;
+  state.children = [];
+  state.error = '';
+  _renderAzureScopeControls();
+  _loadAzureScopeChildren(uid);
+}
+
+function _resetAzureScopeSelection(uid, keepEnabled) {
+  const state = _azureScopeSelections.get(uid);
+  if (!state) return;
+  state.requestId++;
+  state.enabled = keepEnabled;
+  state.selectedScopeId = state.baseScopeId;
+  state.selectedDisplayName = state.baseDisplayName;
+  state.selectedType = 'Original scope';
+  state.currentParentScopeId = state.baseScopeId;
+  state.currentParentDisplayName = state.baseDisplayName;
+  state.path = [{ scopeId: state.baseScopeId, displayName: state.baseDisplayName, type: 'Original scope' }];
+  state.children = [];
+  state.loading = false;
+  state.error = '';
+  _renderAzureScopeControls();
+  if (keepEnabled) _loadAzureScopeChildren(uid);
+}
+
+async function _loadAzureScopeChildren(uid) {
+  const state = _azureScopeSelections.get(uid);
+  if (!state || !state.enabled || !state.currentParentScopeId) return;
+  const requestId = ++state.requestId;
+  state.loading = true;
+  state.error = '';
+  _renderAzureScopeControls();
+  try {
+    const children = await armClient.getAzureChildScopes(state.currentParentScopeId);
+    if (state.requestId !== requestId) return;
+    state.children = children;
+    state.loading = false;
+  } catch (err) {
+    if (state.requestId !== requestId) return;
+    state.children = [];
+    state.loading = false;
+    state.error = _scopeDiscoveryError(err);
+  }
+  _renderAzureScopeControls();
+}
+
+function _scopeDiscoveryError(err) {
+  const message = err?.message || 'Unable to list child scopes.';
+  if (/403|AuthorizationFailed|Forbidden/i.test(message)) return 'Child scopes could not be listed with your current permissions.';
+  return 'Child scopes could not be loaded. Same-scope activation is still available.';
+}
+
+function _applyAzureScopeSelection(role, clone) {
+  if (role.type !== 'AzureResource') return clone;
+  const uid = role.uid || role.id;
+  const state = _azureScopeSelections.get(uid);
+  if (!state || !state.enabled) {
+    clone.scopeDisplay = role.scope || role.scopeId || '';
+    return clone;
+  }
+  const hasReducedSelection = state.selectedScopeId && !_sameScopeId(state.selectedScopeId, state.baseScopeId);
+  if (!hasReducedSelection && state.loading) throw new Error('Wait for scopes to finish loading for ' + (role.name || 'the Azure role') + '.');
+  if (!hasReducedSelection && state.error) throw new Error('Scope discovery failed for ' + (role.name || 'the Azure role') + '. Turn off reduced scope or retry.');
+  if (!hasReducedSelection) {
+    throw new Error('Select a reduced scope for ' + (role.name || 'the Azure role') + ', or turn off reduced scope.');
+  }
+  if (!state.path.some(p => _sameScopeId(p.scopeId, state.selectedScopeId))) {
+    throw new Error('Selected reduced scope is no longer valid for ' + (role.name || 'the Azure role') + '.');
+  }
+  clone._activationScopeId = state.selectedScopeId;
+  clone._activationScopeDisplay = state.selectedDisplayName || state.selectedScopeId;
+  clone._linkedRoleEligibilityScheduleId = role.roleEligibilityScheduleId || null;
+  clone.scopeDisplay = clone._activationScopeDisplay;
+  return clone;
+}
+
+function _sameScopeId(a, b) {
+  return _normalizeScopeId(a).toLowerCase() === _normalizeScopeId(b).toLowerCase();
+}
+
+function _normalizeScopeId(scopeId) {
+  const scope = String(scopeId || '').trim();
+  if (scope === '/') return '/';
+  return scope.replace(/\/+$/, '');
 }
 
 // ── Activation handler ────────────────────────────────────────────────────────
@@ -290,13 +520,20 @@ async function handleActivate() {
     return;
   }
 
-  // Cap per-role duration
-  const cappedRoles = _pendingRoles.map(role => {
-    const maxMins = (role.maxDurationHours || 24) * 60;
-    return Object.assign({}, role, {
-      _effectiveDurationMinutes: Math.min(requestedTotal, maxMins)
+  // Cap per-role duration and apply Azure-only reduced scope choices.
+  let cappedRoles;
+  try {
+    cappedRoles = _pendingRoles.map(role => {
+      const maxMins = (role.maxDurationHours || 24) * 60;
+      const clone = Object.assign({}, role, {
+        _effectiveDurationMinutes: Math.min(requestedTotal, maxMins)
+      });
+      return _applyAzureScopeSelection(role, clone);
     });
-  });
+  } catch (err) {
+    showToast(err.message, 'warning', 8000);
+    return;
+  }
 
   hideActivationModal();
 

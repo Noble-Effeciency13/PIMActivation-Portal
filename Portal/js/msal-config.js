@@ -2,9 +2,11 @@
  * MSAL Public Client Configuration
  * Copyright © 2026 Sebastian Flæng Markdanner — MIT License
  *
- * CLIENT_ID is injected at CI/CD deploy time via sed replacement.
- * The placeholder __PORTAL_CLIENT_ID__ is replaced by the GitHub secret
- * PORTAL_CLIENT_ID in .github/workflows/deploy-portal.yml before publishing.
+ * CLIENT_ID and TENANT_ID are injected at deploy time via sed replacement.
+ * __PORTAL_CLIENT_ID__  → GitHub secret PORTAL_CLIENT_ID  (hosted CI)
+ *                        → Bicep parameter clientId          (self-hosted ARM)
+ * __PORTAL_TENANT_ID__  → 'organizations'                   (hosted CI, multi-tenant)
+ *                        → Bicep parameter tenantId          (self-hosted ARM, single-tenant)
  *
  * Scopes requested on first sign-in (delegated, user-consented).
  * We request the minimal set; additional scopes are acquired silently on demand.
@@ -15,7 +17,7 @@
 window.msalConfig = {
   auth: {
     clientId:    '__PORTAL_CLIENT_ID__',
-    authority:   'https://login.microsoftonline.com/organizations',
+    authority:   'https://login.microsoftonline.com/__PORTAL_TENANT_ID__',
     redirectUri: window.location.origin,
     postLogoutRedirectUri: window.location.origin
   },

@@ -12,6 +12,8 @@ const ARM_BASE    = 'https://management.azure.com';
 const ARM_VERSION_ELIG   = '2020-10-01-preview';
 const ARM_VERSION_ACTIVE = '2020-10-01-preview';
 const ARM_VERSION_REQ    = '2020-10-01-preview';
+const ARM_VERSION_RESOURCES  = '2021-04-01';
+const ARM_VERSION_MGMT_GROUP = '2020-05-01';
 
 async function armGet(path, apiVersion) {
   const token = await portalAuth.getArmToken();
@@ -75,6 +77,22 @@ async function armGetAll(path, apiVersion) {
   return items;
 }
 
+async function armGetPagedUrl(url, label) {
+  const items = [];
+  while (url) {
+    const token = await portalAuth.getArmToken();
+    const resp  = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (!resp.ok) {
+      const body = await resp.text();
+      throw new Error(`${label} → ${resp.status}: ${body}`);
+    }
+    const page = await resp.json();
+    if (Array.isArray(page.value)) items.push(...page.value);
+    url = page.nextLink || null;
+  }
+  return items;
+}
+
 // ── Eligible Azure roles ──────────────────────────────────────────────────────
 
 /**
@@ -100,10 +118,99 @@ function _mapEligibleAzureItem(item) {
     name:             item.properties?.expandedProperties?.roleDefinition?.displayName || item.properties?.roleDefinitionId || 'Unknown',
     scope:            scopeDisplay,
     scopeId:          scope,
+    roleEligibilityScheduleId: item.properties?.roleEligibilityScheduleId || null,
+    condition:        item.properties?.condition || null,
+    conditionVersion: item.properties?.conditionVersion || null,
     memberType:       item.properties?.memberType || 'Direct',
     scheduleInfo:     item.properties?.scheduleInfo,
     maxDurationHours: null // fetched from policy on demand
   };
+}
+
+// ── Azure child scopes ───────────────────────────────────────────────────────
+
+const _azureChildScopeCache = new Map();
+
+async function getAzureChildScopes(parentScopeId) {
+  const normalized = _normalizeScopeId(parentScopeId);
+  if (!normalized) return [];
+  if (_azureChildScopeCache.has(normalized)) return _azureChildScopeCache.get(normalized);
+
+  const scopes = _dedupeScopes(await _fetchAzureChildScopes(normalized))
+    .sort((a, b) => (a.type || '').localeCompare(b.type || '') || (a.displayName || '').localeCompare(b.displayName || ''));
+  _azureChildScopeCache.set(normalized, scopes);
+  return scopes;
+}
+
+async function _fetchAzureChildScopes(parentScopeId) {
+  const mg = parentScopeId.match(/^\/providers\/Microsoft\.Management\/managementGroups\/([^/]+)$/i);
+  if (mg) {
+    const groupId = encodeURIComponent(mg[1]);
+    const items = await armGetPagedUrl(
+      `${ARM_BASE}/providers/Microsoft.Management/managementGroups/${groupId}/children?api-version=${ARM_VERSION_MGMT_GROUP}`,
+      'ARM management group children'
+    );
+    return items.map(_mapManagementGroupChild).filter(Boolean);
+  }
+
+  const sub = parentScopeId.match(/^\/subscriptions\/([^/]+)$/i);
+  if (sub) {
+    const subscriptionId = encodeURIComponent(sub[1]);
+    const items = await armGetPagedUrl(
+      `${ARM_BASE}/subscriptions/${subscriptionId}/resourcegroups?api-version=${ARM_VERSION_RESOURCES}`,
+      'ARM resource groups'
+    );
+    return items.map(item => ({
+      scopeId:     _normalizeScopeId(item.id),
+      displayName: item.name || _formatScope(item.id),
+      type:        'Resource Group'
+    })).filter(s => s.scopeId);
+  }
+
+  if (/^\/subscriptions\/[^/]+\/resourceGroups\/[^/]+$/i.test(parentScopeId)) {
+    const items = await armGetPagedUrl(
+      `${ARM_BASE}${parentScopeId}/resources?api-version=${ARM_VERSION_RESOURCES}`,
+      'ARM resources'
+    );
+    return items.map(item => ({
+      scopeId:     _normalizeScopeId(item.id),
+      displayName: item.name || _formatScope(item.id),
+      type:        item.type || 'Resource'
+    })).filter(s => s.scopeId);
+  }
+
+  return [];
+}
+
+function _mapManagementGroupChild(item) {
+  const rawType = item.type || item.properties?.type || '';
+  const id      = _normalizeScopeId(item.id || item.properties?.id || '');
+  const name    = item.name || item.properties?.name || (id ? id.split('/').pop() : '');
+  const displayName = item.displayName || item.properties?.displayName || name || id;
+
+  if (/managementGroups/i.test(rawType) || /\/providers\/Microsoft\.Management\/managementGroups\//i.test(id)) {
+    const scopeId = id && /\/providers\/Microsoft\.Management\/managementGroups\//i.test(id)
+      ? id
+      : `/providers/Microsoft.Management/managementGroups/${name}`;
+    return { scopeId: _normalizeScopeId(scopeId), displayName, type: 'Management Group' };
+  }
+
+  if (/subscriptions/i.test(rawType) || /^\/subscriptions\//i.test(id)) {
+    const subscriptionId = id.match(/^\/subscriptions\/([^/]+)/i)?.[1] || name;
+    if (!subscriptionId) return null;
+    return { scopeId: `/subscriptions/${subscriptionId}`, displayName, type: 'Subscription' };
+  }
+
+  return null;
+}
+
+function _dedupeScopes(scopes) {
+  const map = new Map();
+  for (const scope of scopes) {
+    const key = _normalizeScopeId(scope.scopeId).toLowerCase();
+    if (key && !map.has(key)) map.set(key, { ...scope, scopeId: _normalizeScopeId(scope.scopeId) });
+  }
+  return [...map.values()];
 }
 
 // ── Active Azure roles ────────────────────────────────────────────────────────
@@ -142,24 +249,30 @@ async function getActiveAzureRoles() {
  */
 async function activateAzureRole(scopeId, roleId, options = {}) {
   const requestName = crypto.randomUUID();
+  const properties = {
+    requestType:      'SelfActivate',
+    roleDefinitionId: roleId,
+    principalId:      portalAuth.getUserId(),
+    justification:    options.justification || 'Activated via PIM Portal',
+    ticketInfo:       options.ticketNumber ? { ticketNumber: options.ticketNumber, ticketSystem: '' } : undefined,
+    scheduleInfo: {
+      startDateTime: new Date().toISOString(),
+      expiration: {
+        type:     'AfterDuration',
+        duration: `PT${options.durationMinutes || 60}M`
+      }
+    }
+  };
+  if (options.linkedRoleEligibilityScheduleId) {
+    properties.linkedRoleEligibilityScheduleId = options.linkedRoleEligibilityScheduleId;
+  }
+  if (options.condition) {
+    properties.condition = options.condition;
+    if (options.conditionVersion) properties.conditionVersion = options.conditionVersion;
+  }
   return armPut(
     `${scopeId}/providers/Microsoft.Authorization/roleAssignmentScheduleRequests/${requestName}`,
-    {
-      properties: {
-        requestType:      'SelfActivate',
-        roleDefinitionId: roleId,
-        principalId:      portalAuth.getUserId(),
-        justification:    options.justification || 'Activated via PIM Portal',
-        ticketInfo:       options.ticketNumber ? { ticketNumber: options.ticketNumber, ticketSystem: '' } : undefined,
-        scheduleInfo: {
-          startDateTime: new Date().toISOString(),
-          expiration: {
-            type:     'AfterDuration',
-            duration: `PT${options.durationMinutes || 60}M`
-          }
-        }
-      }
-    },
+    { properties },
     ARM_VERSION_REQ
   );
 }
@@ -318,9 +431,16 @@ function _formatScope(scopePath, displayName) {
   return scopePath;
 }
 
+function _normalizeScopeId(scopeId) {
+  const scope = String(scopeId || '').trim();
+  if (scope === '/') return '/';
+  return scope.replace(/\/+$/, '');
+}
+
 window.armClient = {
   getEligibleAzureRoles,
   getActiveAzureRoles,
+  getAzureChildScopes,
   getAzureRolePolicy,
   getPendingAzureRequests,
   activateAzureRole,

@@ -22,106 +22,6 @@
   --text-faint:    #475569;
   --border:        rgba(148,163,184,0.15);
   --border-strong: rgba(148,163,184,0.30);
-  --primary:       #3b82f6;
-  --primary-dim:   rgba(59,130,246,0.18);
-  --danger:        #ef4444;
-  --danger-dim:    rgba(239,68,68,0.18);
-  --success:       #10b981;
-  --success-dim:   rgba(16,185,129,0.18);
-  --warning:       #f59e0b;
-  --warning-dim:   rgba(245,158,11,0.18);
-  --purple:        #a78bfa;
-  --purple-dim:    rgba(167,139,250,0.18);
-  --badge-entra-bg:  #1e3a5f;
-  --badge-entra-fg:  #93c5fd;
-  --badge-group-bg:  #2d1b69;
-  --badge-group-fg:  #c4b5fd;
-  --badge-azure-bg:  #134e4a;
-  --badge-azure-fg:  #5eead4;
-  --header-bg:     rgba(15,23,42,0.97);
-  --shadow:        0 4px 24px rgba(0,0,0,0.40);
-  --shadow-sm:     0 2px 8px  rgba(0,0,0,0.25);
-  --radius:        8px;
-  --radius-sm:     5px;
-  --radius-xs:     3px;
-  --focus-ring:    0 0 0 2px rgba(59,130,246,0.55);
-  --modal-overlay: rgba(0,0,0,0.65);
-  --input-bg:      rgba(255,255,255,0.06);
-  --input-border:  rgba(148,163,184,0.22);
-  --scroll-thumb:  rgba(148,163,184,0.30);
-  color-scheme: dark;
-}
-
-/* ── Light theme ──────────────────────────────────────────────────────────── */
-:root[data-theme="light"] {
-  --bg:            #f1f5f9;
-  --bg-surface:    #ffffff;
-  --bg-raised:     #f8fafc;
-  --bg-hover:      rgba(0,0,0,0.03);
-  --bg-selected:   rgba(37,99,235,0.07);
-  --text:          #0f172a;
-  --text-muted:    #475569;
-  --text-faint:    #94a3b8;
-  --border:        rgba(15,23,42,0.10);
-  --border-strong: rgba(15,23,42,0.22);
-  --primary:       #2563eb;
-  --primary-dim:   rgba(37,99,235,0.12);
-  --danger:        #dc2626;
-  --danger-dim:    rgba(220,38,38,0.12);
-  --success:       #059669;
-  --success-dim:   rgba(5,150,105,0.12);
-  --warning:       #d97706;
-  --warning-dim:   rgba(217,119,6,0.12);
-  --purple:        #7c3aed;
-  --purple-dim:    rgba(124,58,237,0.12);
-  --badge-entra-bg:  #dbeafe;
-  --badge-entra-fg:  #1d4ed8;
-  --badge-group-bg:  #ede9fe;
-  --badge-group-fg:  #6d28d9;
-  --badge-azure-bg:  #ccfbf1;
-  --badge-azure-fg:  #0f766e;
-  --header-bg:     rgba(255,255,255,0.97);
-  --shadow:        0 4px 24px rgba(0,0,0,0.08);
-  --shadow-sm:     0 2px 8px  rgba(0,0,0,0.05);
-  --modal-overlay: rgba(0,0,0,0.40);
-  --input-bg:      #ffffff;
-  --input-border:  rgba(15,23,42,0.16);
-  --scroll-thumb:  rgba(15,23,42,0.20);
-  --focus-ring:    0 0 0 2px rgba(37,99,235,0.45);
-  color-scheme: light;
-}
-
-/* ── High Contrast theme ──────────────────────────────────────────────────── */
-:root[data-theme="hc"] {
-  --bg:            #000000;
-  --bg-surface:    #0a0a0a;
-  --bg-raised:     #111111;
-  --bg-hover:      rgba(255,255,0,0.07);
-  --bg-selected:   rgba(255,255,0,0.12);
-  --text:          #ffffff;
-  --text-muted:    #dddddd;
-  --text-faint:    #aaaaaa;
-  --border:        #ffffff;
-  --border-strong: #ffffff;
-  --primary:       #ffff00;
-  --primary-dim:   rgba(255,255,0,0.15);
-  --danger:        #ff4444;
-  --danger-dim:    rgba(255,68,68,0.15);
-  --success:       #00ff88;
-  --success-dim:   rgba(0,255,136,0.15);
-  --warning:       #ffaa00;
-  --warning-dim:   rgba(255,170,0,0.15);
-  --purple:        #ff80ff;
-  --purple-dim:    rgba(255,128,255,0.15);
-  --badge-entra-bg:  #003080;
-  --badge-entra-fg:  #ffffff;
-  --badge-group-bg:  #500050;
-  --badge-group-fg:  #ffffff;
-  --badge-azure-bg:  #005040;
-  --badge-azure-fg:  #ffffff;
-  --header-bg:     #000000;
-  --shadow:        none;
-  --shadow-sm:     none;
   --radius:        4px;
   --radius-sm:     2px;
   --radius-xs:     1px;
@@ -877,7 +777,7 @@ a:hover { text-decoration: underline; }
 .duration-num:focus { border-color: var(--primary); }
 .duration-sep  { color: var(--text-muted); font-size: 13px; padding: 0 2px; }
 .duration-hint { font-size: 11px; color: var(--warning); margin-left: 4px; }
-.form-textarea, .form-input {
+.form-textarea, .form-input, .form-select {
   width:         100%;
   padding:       8px 10px;
   background:    var(--input-bg);
@@ -889,8 +789,95 @@ a:hover { text-decoration: underline; }
   outline:       none;
   transition:    border-color 0.15s;
 }
-.form-textarea:focus, .form-input:focus { border-color: var(--primary); }
+.form-select {
+  height:      32px;
+  padding:     0 10px;
+}
+.form-textarea:focus, .form-input:focus, .form-select:focus { border-color: var(--primary); }
+.form-select:disabled { opacity: 0.5; cursor: not-allowed; }
 .form-textarea { resize: vertical; min-height: 72px; }
+.scope-hint { font-size: 11px; color: var(--text-muted); }
+.scope-hint-error { color: var(--danger); }
+
+.azure-scope-row { gap: 8px; }
+.azure-scope-list {
+  display:        flex;
+  flex-direction: column;
+  gap:            8px;
+}
+.azure-scope-item {
+  border:        1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background:    var(--bg-raised);
+  padding:       10px 12px;
+  display:       flex;
+  flex-direction: column;
+  gap:           8px;
+}
+.azure-scope-head {
+  display:         flex;
+  align-items:     flex-start;
+  justify-content: space-between;
+  gap:             10px;
+}
+.azure-scope-role { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.azure-scope-name {
+  font-size:     13px;
+  font-weight:   500;
+  white-space:   nowrap;
+  overflow:      hidden;
+  text-overflow: ellipsis;
+}
+.azure-scope-current {
+  margin-top:    2px;
+  color:         var(--text-muted);
+  font-size:     11px;
+  font-style:    italic;
+  white-space:   nowrap;
+  overflow:      hidden;
+  text-overflow: ellipsis;
+}
+.azure-scope-toggle {
+  display:     flex;
+  align-items: center;
+  gap:         6px;
+  color:       var(--text-muted);
+  font-size:   12px;
+  white-space: nowrap;
+  cursor:      pointer;
+}
+.azure-scope-toggle input { margin: 0; }
+.azure-scope-controls {
+  border-top:     1px solid var(--border);
+  display:        flex;
+  flex-direction: column;
+  gap:            7px;
+  padding-top:    8px;
+}
+.azure-scope-path {
+  color:         var(--text-faint);
+  font-size:     11px;
+  overflow:      hidden;
+  text-overflow: ellipsis;
+  white-space:   nowrap;
+}
+.azure-scope-picker-row {
+  display:     flex;
+  align-items: center;
+  gap:         6px;
+}
+.azure-scope-picker-row .form-select { min-width: 0; flex: 1; }
+.scope-hint.scope-warning { color: var(--warning); }
+.scope-hint.scope-error   { color: var(--danger); }
+
+@media (max-width: 560px) {
+  .azure-scope-head,
+  .azure-scope-picker-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .azure-scope-toggle { align-self: flex-start; }
+}
 
 /* ── Toast notifications ──────────────────────────────────────────────────── */
 #toast-container {

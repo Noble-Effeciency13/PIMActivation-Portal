@@ -157,10 +157,17 @@ async function _bulkActivateAzure(roles, options) {
   if (roles.length === 0) return [];
   return _runWithLimit(roles, AZURE_PARALLEL_LIMIT, async role => {
     try {
-      await armClient.activateAzureRole(role.scopeId || role.scope, role.id, {
+      const activationScopeId = role._activationScopeId || role.scopeId || role.scope;
+      const azureOptions = {
         ...options,
         durationMinutes: role._effectiveDurationMinutes || options.durationMinutes || 480
-      });
+      };
+      const eligibilityScheduleId = role._linkedRoleEligibilityScheduleId || role.roleEligibilityScheduleId;
+      if (eligibilityScheduleId) azureOptions.linkedRoleEligibilityScheduleId = eligibilityScheduleId;
+      if (role.condition) azureOptions.condition = role.condition;
+      if (role.conditionVersion) azureOptions.conditionVersion = role.conditionVersion;
+
+      await armClient.activateAzureRole(activationScopeId, role.id, azureOptions);
       const r = { uid: role.uid, type: role.type, success: true, activatedAt: new Date().toISOString() };
       options.onProgress && options.onProgress(r);
       return r;
