@@ -204,7 +204,11 @@ body {
   min-height:  100dvh;
 }
 a { color: var(--primary); text-decoration: none; }
-a:hover { text-decoration: underline; }
+@media (hover: hover) and (pointer: fine) {
+
+  a:hover { text-decoration: underline; }
+
+}
 :focus-visible { outline: none; box-shadow: var(--focus-ring); }
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -287,9 +291,11 @@ a:hover { text-decoration: underline; }
 .header-quick-actions .icon-btn {
   color: var(--text-muted);
 }
-.header-quick-actions .icon-btn:hover {
-  color: var(--primary);
-  background: var(--bg-hover);
+@media (hover: hover) and (pointer: fine) {
+
+  .header-quick-actions .icon-btn:hover { color: var(--primary);
+  background: var(--bg-hover); }
+
 }
 
 /* Quick Actions Dropdown */
@@ -330,9 +336,11 @@ a:hover { text-decoration: underline; }
   border-radius: var(--radius-xs);
   transition:    background 0.1s;
 }
-.quick-dropdown-item:hover {
-  background: var(--bg-hover);
-  color:      var(--primary);
+@media (hover: hover) and (pointer: fine) {
+
+  .quick-dropdown-item:hover { background: var(--bg-hover);
+  color:      var(--primary); }
+
 }
 
 /* Icon button */
@@ -349,8 +357,16 @@ a:hover { text-decoration: underline; }
   transition:      background 0.15s, color 0.15s;
   flex-shrink:     0;
 }
-.icon-btn:hover           { background: var(--bg-hover); color: var(--text); }
-.icon-btn-signout:hover   { background: var(--danger-dim); color: var(--danger); }
+@media (hover: hover) and (pointer: fine) {
+
+  .icon-btn:hover { background: var(--bg-hover); color: var(--text); }
+
+}
+@media (hover: hover) and (pointer: fine) {
+
+  .icon-btn-signout:hover { background: var(--danger-dim); color: var(--danger); }
+
+}
 
 /* ── User context card ────────────────────────────────────────────────────── */
 .user-context-card {
@@ -396,7 +412,11 @@ a:hover { text-decoration: underline; }
   text-align: left;
   transition: background 0.1s;
 }
-.theme-option:hover  { background: var(--bg-hover); }
+@media (hover: hover) and (pointer: fine) {
+
+  .theme-option:hover { background: var(--bg-hover); }
+
+}
 .theme-option.active { color: var(--primary); font-weight: 500; }
 
 
@@ -415,8 +435,9 @@ a:hover { text-decoration: underline; }
 .icon-btn[data-status] {
   position: relative;
 }
-.icon-btn[data-status]:hover::after {
-  content: attr(data-status);
+@media (hover: hover) and (pointer: fine) {
+
+  .icon-btn[data-status]:hover::after { content: attr(data-status);
   position: absolute;
   top: 100%;
   right: 0;
@@ -432,7 +453,8 @@ a:hover { text-decoration: underline; }
   margin-top: 6px;
   box-shadow: var(--shadow-md);
   pointer-events: none;
-  animation: fade-in 0.15s ease-out;
+  animation: fade-in 0.15s ease-out; }
+
 }
 
 /* ── Roles sections ───────────────────────────────────────────────────────── */
@@ -515,7 +537,11 @@ a:hover { text-decoration: underline; }
   vertical-align: middle;
 }
 .roles-table tbody tr:last-child td { border-bottom: none; }
-.roles-table tbody tr:hover td      { background: var(--bg-hover); }
+@media (hover: hover) and (pointer: fine) {
+
+  .roles-table tbody tr:hover td { background: var(--bg-hover); }
+
+}
 .roles-table tbody tr.row-selected td { background: var(--bg-selected); }
 
 /* Column widths */
@@ -542,7 +568,11 @@ a:hover { text-decoration: underline; }
   cursor:          pointer;
   transition:      color 0.15s;
 }
-.expand-btn:hover  { color: var(--primary); }
+@media (hover: hover) and (pointer: fine) {
+
+  .expand-btn:hover { color: var(--primary); }
+
+}
 .expand-btn svg    { transition: transform 0.2s ease; }
 .expand-btn.open svg { transform: rotate(180deg); }
 
@@ -719,12 +749,24 @@ a:hover { text-decoration: underline; }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
 .btn-sm { font-size: 12px; padding: 5px 12px; min-height: 28px; }
 .btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
-.btn-primary:not(:disabled):hover { background: var(--primary-hover); }
+@media (hover: hover) and (pointer: fine) {
+
+  .btn-primary:not(:disabled):hover { background: var(--primary-hover); }
+
+}
 .btn-primary:not(:disabled):active { background: var(--primary-active); }
 .btn-danger  { background: var(--danger);  color: #fff; border-color: var(--danger); }
-.btn-danger:not(:disabled):hover  { filter: brightness(1.12); }
+@media (hover: hover) and (pointer: fine) {
+
+  .btn-danger:not(:disabled):hover { filter: brightness(1.12); }
+
+}
 .btn-ghost   { background: transparent; color: var(--text-muted); border-color: transparent; }
-.btn-ghost:not(:disabled):hover   { background: var(--bg-hover); color: var(--text); border-color: var(--border); }
+@media (hover: hover) and (pointer: fine) {
+
+  .btn-ghost:not(:disabled):hover { background: var(--bg-hover); color: var(--text); border-color: var(--border); }
+
+}
 
 /* ── Operation overlay ────────────────────────────────────────────────────── */
 .op-overlay {
@@ -912,7 +954,11 @@ a:hover { text-decoration: underline; }
 }
 .modal-title  { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
 .modal-close  { color: var(--text-muted); }
-.modal-close:hover { color: var(--text); background: var(--bg-hover); }
+@media (hover: hover) and (pointer: fine) {
+
+  .modal-close:hover { color: var(--text); background: var(--bg-hover); }
+
+}
 
 .modal-body   {
   flex:           1;
@@ -1130,7 +1176,11 @@ a:hover { text-decoration: underline; }
   border-radius: var(--radius-xs);
   transition:   opacity 0.15s;
 }
-.toast-dismiss:hover { opacity: 1; }
+@media (hover: hover) and (pointer: fine) {
+
+  .toast-dismiss:hover { opacity: 1; }
+
+}
 @keyframes toast-in { from { opacity: 0; transform: translateY(6px); } }
 .toast-info    { background: var(--bg-surface); border-color: var(--border-strong); color: var(--text); }
 .toast-success { background: var(--success-dim); border-color: var(--success); color: var(--success); }
@@ -1189,7 +1239,11 @@ a:hover { text-decoration: underline; }
   color:       var(--text-faint);
   transition:  color 0.15s;
 }
-.footer-person-links a:hover { color: var(--primary); }
+@media (hover: hover) and (pointer: fine) {
+
+  .footer-person-links a:hover { color: var(--primary); }
+
+}
 .footer-dot   { color: var(--text-faint); font-size: 14px; flex-shrink: 0; }
 .footer-products {
   display:         flex;
@@ -1200,7 +1254,11 @@ a:hover { text-decoration: underline; }
   min-width:       0;
 }
 .footer-products a { font-size: 12px; color: var(--text-muted); transition: color 0.15s; flex-shrink: 0; }
-.footer-products a:hover { color: var(--primary); text-decoration: none; }
+@media (hover: hover) and (pointer: fine) {
+
+  .footer-products a:hover { color: var(--primary); text-decoration: none; }
+
+}
 .footer-copy  { margin: 0; font-size: 11px; color: var(--text-faint); flex-shrink: 0; }
 .footer-landing { display: none; }
 .footer-short { display: none; }
@@ -1293,7 +1351,11 @@ a:hover { text-decoration: underline; }
     flex-shrink: 0;
   }
   .footer-landing:hover,
-  .footer-website:hover { color: var(--primary); text-decoration: none; }
+  @media (hover: hover) and (pointer: fine) {
+
+    .footer-website:hover { color: var(--primary); text-decoration: none; }
+
+  }
   .footer-dot { font-size: 10px; }
   #toast-container { bottom: calc(var(--footer-height) + 10px); right: 10px; left: 10px; max-width: none; }
   .section-action-bar { padding: 8px 12px; }
@@ -1386,7 +1448,11 @@ a:hover { text-decoration: underline; }
   white-space:   nowrap;
   transition:    all 0.15s;
 }
-.flag-pill:hover  { border-color: var(--primary); color: var(--primary); background: var(--primary-dim); }
+@media (hover: hover) and (pointer: fine) {
+
+  .flag-pill:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-dim); }
+
+}
 .flag-pill.active { border-color: var(--primary); background: var(--primary); color: #fff; }
 .flag-dot {
   width:         7px;
@@ -1455,7 +1521,11 @@ a:hover { text-decoration: underline; }
   transition:    all 0.15s;
   white-space:   nowrap;
 }
-.theme-card:hover  { border-color: var(--primary); color: var(--primary); background: var(--primary-dim); }
+@media (hover: hover) and (pointer: fine) {
+
+  .theme-card:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-dim); }
+
+}
 .theme-card.active { border-color: var(--primary); background: var(--primary); color: #fff; }
 
 /* Flags list (legacy — kept for compat) */
@@ -1476,7 +1546,11 @@ a:hover { text-decoration: underline; }
   background: var(--bg-surface);
   cursor: pointer;
 }
-.flag-item:hover { background: var(--bg-hover); }
+@media (hover: hover) and (pointer: fine) {
+
+  .flag-item:hover { background: var(--bg-hover); }
+
+}
 .flag-info { display: flex; flex-direction: column; gap: 2px; }
 .flag-name { font-size: 13px; font-weight: 500; color: var(--text); }
 .flag-desc { font-size: 11px; color: var(--text-muted); }
@@ -1491,7 +1565,11 @@ a:hover { text-decoration: underline; }
   transition: all 0.15s;
   overflow: hidden;
 }
-.profile-item:hover { border-color: var(--primary); background: var(--bg-hover); }
+@media (hover: hover) and (pointer: fine) {
+
+  .profile-item:hover { border-color: var(--primary); background: var(--bg-hover); }
+
+}
 .profile-main {
   display: flex;
   align-items: center;
@@ -1511,7 +1589,11 @@ a:hover { text-decoration: underline; }
   border-top: 1px solid var(--border);
   background: var(--bg-raised);
 }
-.profile-item:hover .profile-roles-peek { display: block; }
+@media (hover: hover) and (pointer: fine) {
+
+  .profile-item:hover .profile-roles-peek { display: block; }
+
+}
 .peek-list { list-style: none; display: flex; flex-direction: column; gap: 4px; }
 .peek-item { font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
 .peek-item.missing { color: var(--text-faint); text-decoration: line-through; }
@@ -1623,7 +1705,11 @@ a:hover { text-decoration: underline; }
   transition:     border-color 0.15s, background 0.15s;
   position:       relative;
 }
-.notif-item:hover { border-color: #334155; background: #111b2d; }
+@media (hover: hover) and (pointer: fine) {
+
+  .notif-item:hover { border-color: #334155; background: #111b2d; }
+
+}
 
 .notif-icon-wrap {
   flex-shrink:  0;
@@ -1663,7 +1749,11 @@ a:hover { text-decoration: underline; }
   cursor:        pointer;
   transition:    all 0.15s ease;
 }
-.notif-copy-btn:hover { background: #1e293b; color: #f8fafc; border-color: #475569; }
+@media (hover: hover) and (pointer: fine) {
+
+  .notif-copy-btn:hover { background: #1e293b; color: #f8fafc; border-color: #475569; }
+
+}
 .notif-copy-btn svg { opacity: 0.7; }
 
 .notif-debug {
@@ -1704,7 +1794,11 @@ a:hover { text-decoration: underline; }
   box-shadow:  0 1px 3px rgba(0,0,0,0.3);
   transition:  transform 0.1s;
 }
-.duration-slider::-webkit-slider-thumb:hover { transform: scale(1.15); }
+@media (hover: hover) and (pointer: fine) {
+
+  .duration-slider::-webkit-slider-thumb:hover { transform: scale(1.15); }
+
+}
 .duration-slider::-moz-range-thumb {
   width:       16px;
   height:      16px;
@@ -1741,7 +1835,11 @@ a:hover { text-decoration: underline; }
   transition:    all 0.15s;
   white-space:   nowrap;
 }
-.preset-btn:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-dim); }
+@media (hover: hover) and (pointer: fine) {
+
+  .preset-btn:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-dim); }
+
+}
 .preset-btn.active { border-color: var(--primary); background: var(--primary); color: #fff; }
 
 /* ── Desktop zoom ─────────────────────────────────────────────────────────── */
@@ -1783,7 +1881,11 @@ a:hover { text-decoration: underline; }
   border-radius: var(--radius-sm);
   transition:    border-color 0.15s;
 }
-.profile-item:hover { border-color: var(--border-strong); }
+@media (hover: hover) and (pointer: fine) {
+
+  .profile-item:hover { border-color: var(--border-strong); }
+
+}
 .profile-info    { flex: 1; min-width: 0; }
 .profile-name    {
   font-weight:   500;

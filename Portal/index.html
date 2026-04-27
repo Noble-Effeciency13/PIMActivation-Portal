@@ -4,8 +4,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <title>PIM Activation Portal</title>
   <link rel="icon" type="image/svg+xml" href="images/logo.svg">
+  <link rel="apple-touch-icon" href="images/logo.svg">
+  <link rel="manifest" href="manifest.json">
   <!-- MSAL 2.x from jsDelivr (must be synchronous — app scripts depend on it) -->
   <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.39.0/lib/msal-browser.min.js"
     crossorigin="anonymous"></script>

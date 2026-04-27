@@ -1,0 +1,17 @@
+{
+  "name": "PIM Activation Portal",
+  "short_name": "PIM Portal",
+  "description": "Microsoft Entra PIM Activation Portal",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "images/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
