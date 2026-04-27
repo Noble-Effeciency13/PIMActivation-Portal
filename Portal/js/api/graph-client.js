@@ -222,7 +222,7 @@ async function getAllEntraRolePolicies() {
  */
 async function getGroupPolicy(groupId, accessId = 'member') {
   const assignments = await graphGetAll(
-    `/identityGovernance/privilegedAccess/group/policyAssignments?$filter=groupId eq '${groupId}' and accessId eq '${accessId}'&$expand=policy($expand=rules)`,
+    `/policies/roleManagementPolicyAssignments?$filter=scopeId eq '${groupId}' and scopeType eq 'Group' and roleDefinitionId eq '${accessId}'&$expand=policy($expand=rules)`,
     false
   );
   return assignments[0]?.policy || null;
