@@ -1,4 +1,4 @@
-﻿/**
+/**
  * app.js — Bootstrap & UI orchestration
  * Copyright © 2026 Sebastian Flæng Markdanner — MIT License
  */
@@ -6,6 +6,18 @@
 /* global msal, portalAuth, roleManager, batchClient, armClient */
 
 // ── Globals exposed for roles.js / templates ──────────────────────────────────
+
+// ── Settings & Feature Flags ──────────────────────────────────────────────────
+const FLAGS_KEY = 'pim-portal-flags';
+const _flags = {
+  entra:               true,
+  azure:               true,
+  group:               true,
+  defaultDuration:     8,
+  showActiveInEligible: false,
+  swapSections:         false,
+  ...JSON.parse(localStorage.getItem(FLAGS_KEY) || '{}')
+};
 
 function escapeHtml(str) {
   if (str == null) return '';
@@ -42,42 +54,185 @@ function formatExpiryDateTime(dateString) {
   return hh + ':' + mm + ' ' + dd + '-' + mo + '-' + yyyy;
 }
 
-// ── Toast ─────────────────────────────────────────────────────────────────────
+// ── Toast & notification history ──────────────────────────────────────────────
 
-function showToast(msg, type = 'info', duration = 5000) {
-  const container = document.getElementById('toast-container');
-  if (!container) return;
-  const el = document.createElement('div');
-  el.className = 'toast toast-' + type;
-  el.textContent = msg;
-  container.appendChild(el);
-  setTimeout(() => el.remove(), duration);
+const _toastHistory = [];
+let _unreadCount = 0;
+
+const _TOAST_ICONS = {
+  success: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+  error:   '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+  warning: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+  info:    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
+};
+
+function _updateNotificationsBadge() {
+  const badge = document.getElementById('notifications-badge');
+  if (badge) badge.hidden = _unreadCount === 0;
 }
 
-// ── Progress bar (used during initial role load only) ─────────────────────────
+/**
+ * Show a toast notification.
+ * Accepts either:
+ *   showToast({ title, description?, type?, duration?, debugInfo?, noHistory? })
+ *   showToast(title, type?, duration?)   ← legacy positional form
+ */
+function showToast(msgOrOpts, type = 'info', duration = 5000) {
+  let title, description, actualType, actualDuration, debugInfo, noHistory;
 
-let _progressEl   = null;
-let _progressFill = null;
-let _progressLbl  = null;
+  if (msgOrOpts && typeof msgOrOpts === 'object') {
+    title         = msgOrOpts.title       || '';
+    description   = msgOrOpts.description || '';
+    actualType    = msgOrOpts.type        || msgOrOpts.tone || 'info';
+    actualDuration = msgOrOpts.duration   || 5000;
+    debugInfo     = msgOrOpts.debugInfo;
+    noHistory     = !!msgOrOpts.noHistory;
+  } else {
+    title         = msgOrOpts || '';
+    description   = '';
+    actualType    = type;
+    actualDuration = duration;
+    debugInfo     = undefined;
+    noHistory     = false;
+  }
+
+  if (!noHistory) {
+    _toastHistory.push({ title, description, type: actualType, time: new Date(), debugInfo });
+    _unreadCount++;
+    _updateNotificationsBadge();
+  }
+
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+
+  const el = document.createElement('div');
+  el.className = 'toast toast-' + actualType + ' fade-in';
+
+  const iconWrap = document.createElement('div');
+  iconWrap.className = 'toast-icon-wrap';
+  iconWrap.innerHTML = _TOAST_ICONS[actualType] || _TOAST_ICONS.info;
+
+  const body = document.createElement('div');
+  body.className = 'toast-body';
+  const titleEl = document.createElement('div');
+  titleEl.className = 'toast-title';
+  titleEl.textContent = title;
+  body.appendChild(titleEl);
+  if (description) {
+    const descEl = document.createElement('div');
+    descEl.className = 'toast-desc';
+    descEl.textContent = description;
+    body.appendChild(descEl);
+  }
+
+  const dismissBtn = document.createElement('button');
+  dismissBtn.className = 'toast-dismiss';
+  dismissBtn.setAttribute('aria-label', 'Dismiss');
+  dismissBtn.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+
+  el.appendChild(iconWrap);
+  el.appendChild(body);
+  el.appendChild(dismissBtn);
+  container.appendChild(el);
+
+  const timer = setTimeout(() => el.remove(), actualDuration);
+  dismissBtn.addEventListener('click', () => { el.remove(); clearTimeout(timer); }, { once: true });
+}
+
+// ── Notifications modal ───────────────────────────────────────────────────────
+
+function showNotificationsModal() {
+  const modal = document.getElementById('notifications-modal');
+  if (!modal) return;
+  _unreadCount = 0;
+  _updateNotificationsBadge();
+  _renderNotificationsList();
+  modal.hidden = false;
+  modal.querySelector('.modal')?.classList.add('fade-in');
+}
+
+function hideNotificationsModal() {
+  const modal = document.getElementById('notifications-modal');
+  if (modal) modal.hidden = true;
+}
+
+function _renderNotificationsList() {
+  const body = document.getElementById('notifications-modal-body');
+  if (!body) return;
+
+  if (_toastHistory.length === 0) {
+    body.innerHTML = '<p class="notif-empty">No activity in this session yet.</p>';
+    return;
+  }
+
+  const items = [..._toastHistory].reverse().map((n, idx) => {
+    const timeStr = n.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const dateStr = n.time.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    const icon = _TOAST_ICONS[n.type] || _TOAST_ICONS.info;
+    const debugId = 'notif-debug-' + idx;
+
+    return '<div class="notif-item">' +
+      '<div class="notif-icon-wrap notif-icon-' + escapeHtml(n.type) + '">' + icon + '</div>' +
+      '<div class="notif-content">' +
+        '<div class="notif-row-top">' +
+          '<span class="notif-title">' + escapeHtml(n.title) + '</span>' +
+          '<span class="notif-time">' + escapeHtml(timeStr) + '</span>' +
+        '</div>' +
+        (n.description ? '<div class="notif-desc">' + escapeHtml(n.description) + '</div>' : '') +
+        '<div class="notif-date">' + escapeHtml(dateStr) + '</div>' +
+        (n.debugInfo
+          ? '<button class="notif-copy-btn" data-debug-id="' + escapeHtml(debugId) + '">' +
+              '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>' +
+              'Copy details' +
+            '</button>' +
+            '<pre class="notif-debug" id="' + escapeHtml(debugId) + '" hidden>' + escapeHtml(JSON.stringify(n.debugInfo, null, 2)) + '</pre>'
+          : '') +
+      '</div>' +
+    '</div>';
+  }).join('');
+
+  body.innerHTML = '<div class="notif-list">' + items + '</div>';
+
+  // Wire copy buttons
+  body.querySelectorAll('.notif-copy-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const pre = document.getElementById(btn.dataset.debugId);
+      if (pre) navigator.clipboard?.writeText(pre.textContent).then(() => {
+        const original = btn.innerHTML;
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.innerHTML = original; }, 2000);
+      });
+    });
+  });
+}
+
+// ── Progress status (spinning refresh button) ────────────────────────────────
 
 function showProgress(label) {
-  _progressEl   = document.getElementById('progress-bar');
-  _progressFill = document.getElementById('progress-fill');
-  _progressLbl  = document.getElementById('progress-label');
-  if (_progressEl) _progressEl.hidden = false;
-  updateProgress(0, label || 'Loading…');
+  const btn = document.getElementById('refresh-btn');
+  if (btn) {
+    btn.classList.add('spinning');
+    const status = label || 'Loading…';
+    btn.dataset.status = status;
+    btn.setAttribute('aria-label', status);
+  }
 }
 
 function updateProgress(pct, label) {
-  if (_progressFill) _progressFill.style.width = Math.min(100, pct) + '%';
-  if (_progressLbl && label !== undefined) _progressLbl.textContent = label;
+  const btn = document.getElementById('refresh-btn');
+  if (btn && label) {
+    btn.dataset.status = label;
+    btn.setAttribute('aria-label', label);
+  }
 }
 
 function hideProgress() {
-  updateProgress(100);
-  setTimeout(() => {
-    if (_progressEl) _progressEl.hidden = true;
-  }, 300);
+  const btn = document.getElementById('refresh-btn');
+  if (btn) {
+    btn.classList.remove('spinning');
+    delete btn.dataset.status;
+    btn.setAttribute('aria-label', 'Refresh roles');
+  }
 }
 
 // ── Operation overlay (activation / deactivation) ─────────────────────────────
@@ -113,7 +268,7 @@ const _opOverlay = {
     this._fillEl.classList.remove('op-fill-done');
 
     this._listEl.innerHTML = roles.map(r => {
-      const scope = r._activationScopeDisplay || r.scopeDisplay || r.scope || r.scopeId || r.directoryScopeId || '';
+      const scope = r._activationScopeDisplay || roleManager.getScopeDisplay(r);
       return '<li class="op-role-item" data-uid="' + escapeHtml(r.uid || r.id) + '">' +
         '<span class="op-status-icon" aria-label="In progress"></span>' +
         '<span class="op-role-info">' +
@@ -164,6 +319,38 @@ const _opOverlay = {
   }
 };
 
+// ── Section order ─────────────────────────────────────────────────────────────
+
+function _applySectionOrder() {
+  document.querySelector('.app-main')?.classList.toggle('sections-swapped', !!_flags.swapSections);
+}
+
+// ── Consent banner ────────────────────────────────────────────────────────────
+
+function showConsentBanner(err) {
+  const msg = err?.message || '';
+  const isConsentError = /AADSTS65001|interaction_required|consent_required|invalid_grant|unauthorized|forbidden|401|403/i.test(msg);
+  if (!isConsentError) return;
+  const banner = document.getElementById('consent-banner');
+  if (banner) banner.hidden = false;
+}
+
+async function _grantAzureAccess() {
+  const btn = document.getElementById('consent-grant-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Signing in\u2026'; }
+  try {
+    await portalAuth.grantArmConsent();
+    const banner = document.getElementById('consent-banner');
+    if (banner) banner.hidden = true;
+    showToast({ title: 'Access granted', description: 'Azure roles will now be loaded.', type: 'success' });
+    await _refresh();
+  } catch (err) {
+    showToast({ title: 'Consent failed', description: err.message, type: 'error' });
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Grant Access'; }
+  }
+}
+
 // ── Theme ─────────────────────────────────────────────────────────────────────
 
 const THEME_KEY = 'pim-portal-theme';
@@ -180,10 +367,57 @@ function applyTheme(theme) {
   } else {
     root.dataset.theme = theme;
   }
-  document.querySelectorAll('.theme-option').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.theme === theme);
+  
+  // Update Settings UI
+  document.querySelectorAll('#settings-modal .theme-card').forEach(card => {
+    card.classList.toggle('active', card.dataset.theme === theme);
   });
+  
   localStorage.setItem(THEME_KEY, theme);
+}
+
+function showSettingsModal() {
+  const modal = document.getElementById('settings-modal');
+  if (!modal) return;
+
+  // Sync pill buttons
+  modal.querySelectorAll('.flag-pill').forEach(btn => {
+    const active = _flags[btn.dataset.flag] !== false;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', active);
+  });
+
+  // Sync default duration
+  const durInput = document.getElementById('settings-default-duration');
+  if (durInput) durInput.value = _flags.defaultDuration ?? 8;
+
+  // Sync toggle switches
+  [
+    ['flag-show-active',   'showActiveInEligible'],
+    ['flag-swap-sections', 'swapSections'],
+  ].forEach(([id, key]) => {
+    const btn = document.getElementById(id);
+    if (btn) {
+      const on = !!_flags[key];
+      btn.classList.toggle('active', on);
+      btn.setAttribute('aria-checked', on);
+    }
+  });
+
+  modal.hidden = false;
+  modal.querySelector('.modal')?.classList.add('fade-in');
+}
+
+function hideSettingsModal() {
+  const modal = document.getElementById('settings-modal');
+  if (modal) modal.hidden = true;
+}
+
+function _saveFlag(key, checked) {
+  _flags[key] = checked;
+  localStorage.setItem(FLAGS_KEY, JSON.stringify(_flags));
+  showToast({ title: 'Settings saved', description: 'Refreshing roles…', type: 'info', noHistory: true, duration: 2000 });
+  _refresh();
 }
 
 // ── Activation modal ──────────────────────────────────────────────────────────
@@ -191,7 +425,7 @@ function applyTheme(theme) {
 let _pendingRoles = [];
 let _azureScopeSelections = new Map();
 
-function showActivationModal(roles) {
+function showActivationModal(roles, opts = {}) {
   _pendingRoles = roles;
   _initAzureScopeSelections(roles);
   const modal = document.getElementById('activation-modal');
@@ -208,13 +442,30 @@ function showActivationModal(roles) {
     ).join('');
   }
 
-  // Duration defaults: 8h 0m, capped to lowest role max
+  // Duration: use pre-filled opts if provided, else default 8h 0m
   const hoursInput = document.getElementById('duration-hours');
   const minsInput  = document.getElementById('duration-mins');
   const hint       = document.getElementById('duration-hint');
 
-  if (hoursInput) hoursInput.value = 8;
-  if (minsInput)  minsInput.value  = 0;
+  const defaultH   = Math.floor(_flags.defaultDuration || 8);
+  const defaultM   = Math.round(((_flags.defaultDuration || 8) - defaultH) * 60);
+  const fillHours  = opts.durationHours != null ? opts.durationHours : defaultH;
+  const fillMins   = opts.durationMins  != null ? opts.durationMins  : defaultM;
+  if (hoursInput) hoursInput.value = fillHours;
+  if (minsInput)  minsInput.value  = fillMins;
+
+  // Slider: max = longest policy max across selected roles (so the full range is usable)
+  const sliderMax = Math.max(...roles.map(r => (r.maxDurationHours || 24) * 60).filter(m => m > 0));
+  const slider = document.getElementById('duration-slider');
+  if (slider) {
+    slider.max   = isFinite(sliderMax) ? sliderMax : 1440;
+    slider.value = fillHours * 60 + fillMins;
+  }
+
+  // Highlight matching preset button (if any)
+  document.querySelectorAll('.preset-btn').forEach(b => {
+    b.classList.toggle('active', Number(b.dataset.h) === fillHours && Number(b.dataset.m) === fillMins);
+  });
 
   if (hint) {
     const minMax = Math.min(...roles.map(r => r.maxDurationHours || 24).filter(h => h > 0));
@@ -234,16 +485,28 @@ function showActivationModal(roles) {
   if (justRow)   justRow.hidden   = !needsJust;
   if (ticketRow) ticketRow.hidden = !needsTicket;
 
-  // Clear previous values
+  // Pre-fill or clear values
   const justInput   = document.getElementById('justification-input');
   const ticketInput = document.getElementById('ticket-input');
-  if (justInput)   justInput.value   = '';
-  if (ticketInput) ticketInput.value = '';
+  if (justInput)   justInput.value   = opts.justification || '';
+  if (ticketInput) ticketInput.value = opts.ticketNumber || '';
+
+  // Profile save checkbox
+  const saveCb = document.getElementById('save-profile-checkbox');
+  const nameRow = document.getElementById('profile-name-row');
+  const nameInput = document.getElementById('profile-name-input');
+  if (saveCb) saveCb.checked = false;
+  if (nameRow) nameRow.hidden = true;
+  if (nameInput) nameInput.value = '';
+
+  // Clear any lingering validation errors
+  _clearValidationErrors();
 
   _renderAzureScopeControls();
 
   modal.hidden = false;
-  if (justInput && needsJust) justInput.focus();
+  modal.querySelector('.modal')?.classList.add('fade-in');
+  if (justInput && needsJust && !opts.justification) justInput.focus();
   else if (hoursInput) hoursInput.focus();
 }
 
@@ -255,10 +518,7 @@ function hideActivationModal() {
 }
 
 function _scopeDisplayForModal(role) {
-  if (role.type === 'AzureResource') return role.scope || role.scopeId || '';
-  if (role.type === 'Group')         return role.scope || 'Group membership';
-  const s = role.scope || role.directoryScopeId || '';
-  return (s === '/' || s === 'Directory') ? 'Directory' : s;
+  return roleManager.getScopeDisplay(role);
 }
 
 function _initAzureScopeSelections(roles) {
@@ -486,6 +746,27 @@ function _normalizeScopeId(scopeId) {
   return scope.replace(/\/+$/, '');
 }
 
+// ── Inline validation helpers ─────────────────────────────────────────────────
+
+function _setFieldError(inputId, errorId, message) {
+  const input = document.getElementById(inputId);
+  const errEl = document.getElementById(errorId);
+  if (input)  input.classList.add('input-error');
+  if (errEl)  { errEl.textContent = message; errEl.hidden = false; }
+}
+
+function _clearFieldError(inputId, errorId) {
+  const input = document.getElementById(inputId);
+  const errEl = document.getElementById(errorId);
+  if (input)  input.classList.remove('input-error');
+  if (errEl)  { errEl.textContent = ''; errEl.hidden = true; }
+}
+
+function _clearValidationErrors() {
+  _clearFieldError('justification-input', 'justification-error');
+  _clearFieldError('ticket-input', 'ticket-error');
+}
+
 // ── Activation handler ────────────────────────────────────────────────────────
 
 async function handleActivate() {
@@ -494,12 +775,14 @@ async function handleActivate() {
   const justInput  = document.getElementById('justification-input');
   const ticketInput= document.getElementById('ticket-input');
 
+  _clearValidationErrors();
+
   const hours          = parseInt(hoursInput?.value || '8', 10)  || 0;
   const mins           = parseInt(minsInput?.value  || '0', 10)  || 0;
   const requestedTotal = hours * 60 + mins;
 
   if (requestedTotal < 1) {
-    showToast('Duration must be at least 1 minute.', 'warning');
+    showToast({ title: 'Invalid duration', description: 'Duration must be at least 1 minute.', type: 'warning' });
     return;
   }
 
@@ -509,15 +792,35 @@ async function handleActivate() {
   const anyNeedsJust   = _pendingRoles.some(r => r.requiresJustification);
   const anyNeedsTicket = _pendingRoles.some(r => r.requiresTicket);
 
+  let hasError = false;
   if (anyNeedsJust && !justification) {
-    showToast('Justification is required.', 'warning');
+    _setFieldError('justification-input', 'justification-error', 'Justification is required.');
     justInput?.focus();
-    return;
+    hasError = true;
   }
   if (anyNeedsTicket && !ticketNumber) {
-    showToast('Ticket number is required.', 'warning');
-    ticketInput?.focus();
-    return;
+    _setFieldError('ticket-input', 'ticket-error', 'Ticket number is required.');
+    if (!hasError) ticketInput?.focus();
+    hasError = true;
+  }
+  if (hasError) return;
+
+  // Profile saving
+  const saveCb = document.getElementById('save-profile-checkbox');
+  const nameInput = document.getElementById('profile-name-input');
+  if (saveCb?.checked) {
+    const pName = nameInput?.value.trim();
+    if (!pName) {
+      _setFieldError('profile-name-input', null, 'Profile name is required');
+      nameInput?.focus();
+      return;
+    }
+    await profileManager.saveProfile(pName, _pendingRoles, {
+      justification,
+      durationHours: hours,
+      durationMins: mins,
+      ticketNumber
+    }).catch(e => console.error('Failed to save profile:', e));
   }
 
   // Cap per-role duration and apply Azure-only reduced scope choices.
@@ -531,7 +834,7 @@ async function handleActivate() {
       return _applyAzureScopeSelection(role, clone);
     });
   } catch (err) {
-    showToast(err.message, 'warning', 8000);
+    showToast({ title: 'Scope error', description: err.message, type: 'warning', duration: 8000 });
     return;
   }
 
@@ -555,7 +858,7 @@ async function handleActivate() {
       portalAuth.setAuthContextClaims(authContextIds[0]);
     } catch (err) {
       hideProgress();
-      showToast('Authentication step-up failed: ' + err.message, 'error', 10000);
+      showToast({ title: 'Authentication failed', description: 'Step-up failed: ' + err.message, type: 'error', duration: 10000 });
       console.error('[App] Auth context step-up error:', err);
       return;
     }
@@ -575,18 +878,19 @@ async function handleActivate() {
     const pendingApproval = (outcome.results || []).filter(r => r.pendingApproval).length;
     _opOverlay.close(fail > 0 ? 2500 : 1400);
     if (fail === 0 && pendingApproval === 0) {
-      showToast('Successfully activated ' + ok + ' role' + (ok !== 1 ? 's' : '') + '.', 'success');
+      showToast({ title: 'Successfully activated', description: ok + ' role' + (ok !== 1 ? 's' : ''), type: 'success', debugInfo: outcome.results });
     } else if (pendingApproval > 0 && fail === 0) {
-      showToast(ok + ' activated. ' + pendingApproval + ' awaiting approval.', 'info', 8000);
+      showToast({ title: ok + ' activated', description: pendingApproval + ' awaiting approval', type: 'info', duration: 8000, debugInfo: outcome.results });
     } else if (ok === 0 && pendingApproval === 0) {
-      showToast('Activation failed for all ' + fail + ' role' + (fail !== 1 ? 's' : '') + '. Check console.', 'error');
+      const firstError = outcome.results?.find(r => r.error)?.error || 'Activation failed';
+      showToast({ title: 'Activation failed', description: firstError, type: 'error', debugInfo: outcome.results });
     } else {
-      showToast(ok + ' role' + (ok !== 1 ? 's' : '') + ' activated. ' + fail + ' failed. Check console.', 'warning');
+      showToast({ title: ok + ' role' + (ok !== 1 ? 's' : '') + ' activated', description: fail + ' failed. ' + (outcome.results?.find(r => r.error)?.error || ''), type: 'warning', debugInfo: outcome.results });
     }
     await _refresh();
   } catch (err) {
     _opOverlay.close(0);
-    showToast('Activation error: ' + err.message, 'error', 10000);
+    showToast({ title: 'Activation error', description: err.message, type: 'error', duration: 10000 });
     console.error('[App] Activate error:', err);
   } finally {
     portalAuth.setAuthContextClaims(null);
@@ -597,7 +901,7 @@ async function handleActivate() {
 
 async function handleDeactivate() {
   const roles = roleManager.getSelectedActiveRoles().filter(r => r.endDateTime);
-  if (!roles.length) { showToast('Select at least one PIM-managed active role.', 'warning'); return; }
+  if (!roles.length) { showToast({ title: 'No roles selected', description: 'Select at least one PIM-managed active role.', type: 'warning' }); return; }
 
   const deactivateLabel = 'Deactivating ' + roles.length + ' role' + (roles.length !== 1 ? 's' : '') + '…';
   _opOverlay.open(deactivateLabel, roles);
@@ -615,27 +919,38 @@ async function handleDeactivate() {
 
     _opOverlay.close(fail > 0 ? 2500 : 1400);
     if (fail === 0) {
-      showToast('Successfully deactivated ' + ok + ' role' + (ok !== 1 ? 's' : '') + '.', 'success');
+      showToast({ title: 'Successfully deactivated', description: ok + ' role' + (ok !== 1 ? 's' : ''), type: 'success', debugInfo: outcome.results });
     } else {
-      showToast(ok + ' deactivated, ' + fail + ' failed.', 'warning');
+      const firstError = outcome.results?.find(r => r.error)?.error || 'Deactivation failed';
+      showToast({ title: ok + ' deactivated', description: fail + ' failed. ' + firstError, type: 'warning', debugInfo: outcome.results });
     }
     // Background sync — small delay gives the API time to propagate the deactivation
     // before we re-fetch, preventing the role from briefly reappearing.
     setTimeout(() => _refresh(), 3000);
   } catch (err) {
     _opOverlay.close(0);
-    showToast('Deactivation error: ' + err.message, 'error', 10000);
+    showToast({ title: 'Deactivation error', description: err.message, type: 'error', duration: 10000 });
     console.error('[App] Deactivate error:', err);
   }
 }
 
 // ── Refresh ───────────────────────────────────────────────────────────────────
 
-async function _refresh() {
+async function _refresh(manual = false) {
+  if (manual) showToast({ title: 'Refreshing roles...', type: 'info', noHistory: true, duration: 2000 });
   try {
-    await roleManager.loadRoles();
+    await roleManager.loadRoles(_flags);
+    if (manual) {
+      showToast({
+        title: 'Roles refreshed',
+        description: `${roleManager.activeRoles.length} active, ${roleManager.eligibleRoles.length} eligible`,
+        type: 'info',
+        noHistory: true
+      });
+    }
   } catch (err) {
-    showToast('Failed to refresh roles: ' + err.message, 'error');
+    console.error('[App] Refresh error:', err);
+    showToast({ title: 'Refresh failed', description: err.message, type: 'error' });
   }
 }
 
@@ -646,6 +961,7 @@ function showProfilesModal(focusSave = false) {
   if (!modal) return;
   _renderProfilesList();
   modal.hidden = false;
+  modal.querySelector('.modal')?.classList.add('fade-in');
   if (focusSave) setTimeout(() => document.getElementById('profile-name-input')?.focus(), 50);
 }
 
@@ -664,12 +980,22 @@ async function _renderProfilesList() {
   let html = '';
 
   // Save-new-profile row
-  html += '<div class="form-row profile-save-row">' +
-    '<input type="text" id="profile-name-input" class="form-input" placeholder="Profile name…" maxlength="60" style="flex:1">' +
-    '<button class="btn btn-primary btn-sm" id="profile-save-confirm-btn"' +
-      (selected.length === 0 ? ' disabled title="Select eligible roles first"' : '') + '>' +
-      'Save (' + selected.length + ' role' + (selected.length !== 1 ? 's' : '') + ')' +
-    '</button>' +
+  html += '<div class="form-row profile-save-section">' +
+    '<div class="profile-save-row">' +
+      '<input type="text" id="profile-name-input" class="form-input" placeholder="Profile name…" maxlength="60" style="flex:1">' +
+      '<button class="btn btn-primary btn-sm" id="profile-save-confirm-btn"' +
+        (selected.length === 0 ? ' disabled title="Select eligible roles first"' : '') + '>' +
+        'Save (' + selected.length + ' role' + (selected.length !== 1 ? 's' : '') + ')' +
+      '</button>' +
+    '</div>' +
+    '<div class="profile-save-extras">' +
+      '<textarea id="profile-justification-input" class="form-textarea profile-justification" rows="2" maxlength="500" placeholder="Default justification (optional)…"></textarea>' +
+      '<div class="profile-duration-row">' +
+        '<span class="form-label" style="font-size:12px;white-space:nowrap">Default duration:</span>' +
+        '<input type="number" id="profile-hours-input" class="duration-num" min="0" max="999" value="8" aria-label="Hours"> h' +
+        '<input type="number" id="profile-mins-input"  class="duration-num" min="0" max="59"  value="0"  aria-label="Minutes"> m' +
+      '</div>' +
+    '</div>' +
   '</div>';
 
   // Profile list
@@ -684,20 +1010,36 @@ async function _renderProfilesList() {
     html += '<div class="profile-list">';
     for (const p of profiles) {
       const lastUsed = p.lastUsedAt ? _timeAgo(p.lastUsedAt) : 'Never used';
+      
+      // Peek roles
+      const peekItems = p.roles.map(pr => {
+        const found = roleManager.eligibleRoles.find(r => (r.uid || r.id) === (pr.uid || pr.id));
+        const scope = found ? roleManager.getScopeDisplay(found) : (pr.scope || pr.directoryScopeId || '');
+        return '<li class="peek-item ' + (found ? '' : 'missing') + '">' +
+          '<span class="peek-dot"></span>' +
+          '<div style="flex:1; min-width:0; display:flex; flex-direction:column;">' +
+            '<span>' + escapeHtml(pr.name) + '</span>' +
+            '<span style="font-size:9px; opacity:0.7;">' + escapeHtml(scope) + '</span>' +
+          '</div>' +
+          (found ? '' : ' (unavailable)') + '</li>';
+      }).join('');
+
       html +=
         '<div class="profile-item">' +
-          '<div class="profile-info">' +
-            '<div class="profile-name">' + escapeHtml(p.name) + '</div>' +
-            '<div class="profile-meta">' + p.roles.length + ' role' + (p.roles.length !== 1 ? 's' : '') + ' · ' + lastUsed + '</div>' +
+          '<div class="profile-main" onclick="_handleActivateProfile(\'' + escapeHtml(p.id) + '\')">' +
+            '<div class="profile-info">' +
+              '<div class="profile-name">' + escapeHtml(p.name) + '</div>' +
+              '<div class="profile-meta">' + p.roles.length + ' role' + (p.roles.length !== 1 ? 's' : '') + ' · ' + lastUsed + '</div>' +
+            '</div>' +
+            '<div class="profile-actions">' +
+              '<button class="btn btn-danger btn-sm profile-delete-btn" data-profile-id="' + escapeHtml(p.id) + '" aria-label="Delete profile" onclick="event.stopPropagation()">' +
+                '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">' +
+                  '<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>' +
+                '</svg>' +
+              '</button>' +
+            '</div>' +
           '</div>' +
-          '<div class="profile-actions">' +
-            '<button class="btn btn-primary btn-sm profile-activate-btn" data-profile-id="' + escapeHtml(p.id) + '">Activate</button>' +
-            '<button class="btn btn-danger btn-sm profile-delete-btn" data-profile-id="' + escapeHtml(p.id) + '" aria-label="Delete profile">' +
-              '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">' +
-                '<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>' +
-              '</svg>' +
-            '</button>' +
-          '</div>' +
+          '<div class="profile-roles-peek"><ul class="peek-list">' + peekItems + '</ul></div>' +
         '</div>';
     }
     html += '</div>';
@@ -705,39 +1047,45 @@ async function _renderProfilesList() {
 
   body.innerHTML = html;
 
-  // Wire save
-  const saveBtn = document.getElementById('profile-save-confirm-btn');
-  const nameInput = document.getElementById('profile-name-input');
-  saveBtn?.addEventListener('click', _handleSaveProfile);
-  nameInput?.addEventListener('keydown', e => { if (e.key === 'Enter') _handleSaveProfile(); });
-
-  // Wire activate
-  body.querySelectorAll('.profile-activate-btn').forEach(btn => {
-    btn.addEventListener('click', () => _handleActivateProfile(btn.dataset.profileId));
-  });
-
   // Wire delete
   body.querySelectorAll('.profile-delete-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
       if (!confirm('Delete this profile?')) return;
-      await profileManager.deleteProfile(btn.dataset.profileId).catch(() => {});
-      _renderProfilesList();
+      try {
+        const profileId = btn.dataset.profileId;
+        const profiles = await profileManager.getProfiles();
+        const profile = profiles.find(p => p.id === profileId);
+        await profileManager.deleteProfile(profileId);
+        showToast({ title: 'Profile deleted', description: profile?.name || 'Profile removed', type: 'info' });
+        _renderProfilesList();
+      } catch (err) {
+        showToast({ title: 'Delete failed', description: err.message, type: 'error' });
+      }
     });
   });
 }
 
 async function _handleSaveProfile() {
-  const nameInput = document.getElementById('profile-name-input');
+  const nameInput  = document.getElementById('profile-name-input');
+  const justInput  = document.getElementById('profile-justification-input');
+  const hrsInput   = document.getElementById('profile-hours-input');
+  const minsInput  = document.getElementById('profile-mins-input');
   const name = nameInput?.value.trim();
-  if (!name) { nameInput?.focus(); showToast('Enter a profile name.', 'warning'); return; }
+  if (!name) { nameInput?.focus(); showToast({ title: 'Missing name', description: 'Enter a profile name.', type: 'warning' }); return; }
   const roles = roleManager.getSelectedEligibleRoles();
-  if (!roles.length) { showToast('Select eligible roles first.', 'warning'); return; }
+  if (!roles.length) { showToast({ title: 'No roles', description: 'Select eligible roles first.', type: 'warning' }); return; }
+  const opts = {
+    justification: justInput?.value.trim() || '',
+    durationHours: parseInt(hrsInput?.value  || '8', 10) || 0,
+    durationMins:  parseInt(minsInput?.value || '0', 10) || 0
+  };
   try {
-    await profileManager.saveProfile(name, roles);
-    showToast('Profile "' + name + '" saved.', 'success');
+    await profileManager.saveProfile(name, roles, opts);
+    showToast({ title: 'Profile saved', description: name, type: 'success' });
     _renderProfilesList();
   } catch (err) {
-    showToast('Failed to save profile: ' + err.message, 'error');
+    showToast({ title: 'Save failed', description: err.message, type: 'error' });
   }
 }
 
@@ -753,15 +1101,25 @@ async function _handleActivateProfile(profileId) {
     .filter(Boolean);
 
   if (!resolved.length) {
-    showToast('No matching eligible roles found. Try refreshing roles first.', 'warning', 8000);
+    showToast({ title: 'No eligible roles', description: 'None of the roles in this profile are currently eligible.', type: 'error' });
     return;
   }
   const skipped = profile.roles.length - resolved.length;
-  if (skipped > 0) showToast(skipped + ' role(s) are no longer eligible and were skipped.', 'warning', 6000);
+  if (skipped > 0) {
+    showToast({
+      title: `Profile "${profile.name}"`,
+      description: `${skipped} role(s) are no longer eligible and were skipped.`,
+      type: 'warning'
+    });
+  }
 
   await profileManager.touchProfile(profileId).catch(() => {});
   hideProfilesModal();
-  showActivationModal(resolved);
+  showActivationModal(resolved, {
+    justification: profile.justification || '',
+    durationHours: profile.durationHours ?? 8,
+    durationMins:  profile.durationMins  ?? 0
+  });
 }
 
 function _timeAgo(dateString) {
@@ -778,6 +1136,7 @@ function _timeAgo(dateString) {
 
 async function bootstrap() {
   initTheme();
+  _applySectionOrder();
 
   // Update loading message while MSAL processes the redirect token exchange
   const loadingMsg = document.getElementById('loading-msg');
@@ -833,58 +1192,119 @@ async function bootstrap() {
   // Initialise profile DB (non-blocking — it'll be ready long before the user clicks Save)
   profileManager.init().catch(err => console.warn('[App] ProfileManager init failed:', err));
 
-  // Populate user info
-  const userName = document.getElementById('user-name');
-  if (userName) {
-    userName.textContent =
-      account.name ||
-      account.username ||
-      account.idTokenClaims?.preferred_username ||
-      'User';
-  }
+  // Populate user context card
+  const nameEl   = document.getElementById('user-name');
+  const emailEl  = document.getElementById('user-email');
+  const tenantEl = document.getElementById('user-tenant');
+  if (nameEl)   nameEl.textContent   = account.name || account.username || account.idTokenClaims?.preferred_username || 'User';
+  if (emailEl)  emailEl.textContent  = account.username || account.idTokenClaims?.email || account.idTokenClaims?.preferred_username || '';
+  if (tenantEl) tenantEl.textContent = account.tenantId || account.idTokenClaims?.tid || '';
 
   // ── Event wiring ──────────────────────────────────────────────────────────
 
-  // Theme picker
-  const themeToggle = document.getElementById('theme-btn');
-  const themeDropdown = document.getElementById('theme-dropdown');
-
-  if (themeToggle && themeDropdown) {
-    themeToggle.addEventListener('click', e => {
-      e.stopPropagation();
-      themeDropdown.hidden = !themeDropdown.hidden;
-    });
-    themeDropdown.querySelectorAll('.theme-option').forEach(btn => {
-      btn.addEventListener('click', () => {
-        applyTheme(btn.dataset.theme);
-        themeDropdown.hidden = true;
-      });
-    });
-    document.addEventListener('click', e => {
-      if (!themeDropdown.contains(e.target) && e.target !== themeToggle) {
-        themeDropdown.hidden = true;
-      }
-    });
-    document.addEventListener('keydown', e => {
-      if (e.key === 'Escape') themeDropdown.hidden = true;
-    });
-  }
-
   // Sign out
   document.getElementById('sign-out-btn')
-    ?.addEventListener('click', () => portalAuth.signOut());
+    ?.addEventListener('click', () => {
+      portalAuth.signOut().catch(err => {
+        showToast({ title: 'Sign-out failed', description: err.message, type: 'error' });
+      });
+    });
+
+  // Help modal
+  const _showHelp = () => {
+    const m = document.getElementById('help-modal');
+    if (m) { m.hidden = false; m.querySelector('.modal')?.classList.add('fade-in'); }
+  };
+  const _hideHelp = () => { const m = document.getElementById('help-modal'); if (m) m.hidden = true; };
+  document.getElementById('help-btn')?.addEventListener('click', _showHelp);
+  document.getElementById('help-modal-close-btn')?.addEventListener('click', _hideHelp);
+  document.getElementById('help-modal-close-footer')?.addEventListener('click', _hideHelp);
+  document.getElementById('help-modal')?.addEventListener('click', e => { if (e.target === e.currentTarget) _hideHelp(); });
 
   // Refresh button
   document.getElementById('refresh-btn')
-    ?.addEventListener('click', () => _refresh());
+    ?.addEventListener('click', () => _refresh(true));
+
+  // Notifications bell
+  document.getElementById('notifications-btn')
+    ?.addEventListener('click', () => showNotificationsModal());
+  document.getElementById('notifications-modal-close-btn')
+    ?.addEventListener('click', hideNotificationsModal);
+  document.getElementById('notifications-modal-close-footer')
+    ?.addEventListener('click', hideNotificationsModal);
+  document.getElementById('notifications-modal')
+    ?.addEventListener('click', e => { if (e.target === e.currentTarget) hideNotificationsModal(); });
+
+  // Consent banner
+  document.getElementById('consent-grant-btn')
+    ?.addEventListener('click', _grantAzureAccess);
+  document.getElementById('consent-dismiss-btn')
+    ?.addEventListener('click', () => {
+      const banner = document.getElementById('consent-banner');
+      if (banner) banner.hidden = true;
+    });
 
   // Profiles button (header)
   document.getElementById('profiles-btn')
     ?.addEventListener('click', () => showProfilesModal());
 
-  // Save as profile (eligible action bar)
-  document.getElementById('save-profile-btn')
-    ?.addEventListener('click', () => showProfilesModal(true));
+  // Settings button (header)
+  document.getElementById('settings-btn')
+    ?.addEventListener('click', () => showSettingsModal());
+
+  document.getElementById('settings-modal-close-btn')
+    ?.addEventListener('click', hideSettingsModal);
+  document.getElementById('settings-modal-close-footer')
+    ?.addEventListener('click', hideSettingsModal);
+
+  document.querySelectorAll('#settings-modal .theme-card').forEach(card => {
+    card.addEventListener('click', () => applyTheme(card.dataset.theme));
+  });
+
+  // PIM surface pills
+  document.querySelectorAll('#settings-modal .flag-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const key    = btn.dataset.flag;
+      const active = !_flags[key];
+      _saveFlag(key, active);
+      btn.classList.toggle('active', active);
+      btn.setAttribute('aria-pressed', active);
+    });
+  });
+
+  // Default duration
+  document.getElementById('settings-default-duration')?.addEventListener('change', e => {
+    const val = Math.min(24, Math.max(0.5, parseFloat(e.target.value) || 8));
+    _flags.defaultDuration = val;
+    e.target.value = val;
+    localStorage.setItem(FLAGS_KEY, JSON.stringify(_flags));
+  });
+
+  // Show active in eligible toggle
+  document.getElementById('flag-show-active')?.addEventListener('click', () => {
+    const on = !_flags.showActiveInEligible;
+    _flags.showActiveInEligible = on;
+    localStorage.setItem(FLAGS_KEY, JSON.stringify(_flags));
+    const btn = document.getElementById('flag-show-active');
+    if (btn) { btn.classList.toggle('active', on); btn.setAttribute('aria-checked', on); }
+    _refresh();
+  });
+
+  // Swap sections toggle
+  document.getElementById('flag-swap-sections')?.addEventListener('click', () => {
+    const on = !_flags.swapSections;
+    _flags.swapSections = on;
+    localStorage.setItem(FLAGS_KEY, JSON.stringify(_flags));
+    const btn = document.getElementById('flag-swap-sections');
+    if (btn) { btn.classList.toggle('active', on); btn.setAttribute('aria-checked', on); }
+    _applySectionOrder();
+  });
+
+  // Activation modal profile save toggle
+  document.getElementById('save-profile-checkbox')?.addEventListener('change', e => {
+    document.getElementById('profile-name-row').hidden = !e.target.checked;
+    if (e.target.checked) document.getElementById('profile-name-input')?.focus();
+  });
 
   // Profiles modal close
   document.getElementById('profiles-modal-close-btn')
@@ -940,11 +1360,63 @@ async function bootstrap() {
   // Keyboard shortcuts
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
-    const actModal  = document.getElementById('activation-modal');
-    const profModal = document.getElementById('profiles-modal');
-    if (actModal  && !actModal.hidden)  { hideActivationModal();  return; }
-    if (profModal && !profModal.hidden) { hideProfilesModal();    return; }
+    const actModal   = document.getElementById('activation-modal');
+    const profModal  = document.getElementById('profiles-modal');
+    const notifModal = document.getElementById('notifications-modal');
+    const setModal   = document.getElementById('settings-modal');
+    const helpModal  = document.getElementById('help-modal');
+    if (actModal   && !actModal.hidden)   { hideActivationModal();    return; }
+    if (profModal  && !profModal.hidden)  { hideProfilesModal();      return; }
+    if (notifModal && !notifModal.hidden) { hideNotificationsModal(); return; }
+    if (setModal   && !setModal.hidden)   { hideSettingsModal();      return; }
+    if (helpModal  && !helpModal.hidden)  { _hideHelp?.();            return; }
   });
+
+  // Duration preset buttons
+  document.getElementById('duration-presets')?.addEventListener('click', e => {
+    const btn = e.target.closest('.preset-btn');
+    if (!btn) return;
+    document.getElementById('duration-hours').value = btn.dataset.h;
+    document.getElementById('duration-mins').value  = btn.dataset.m;
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+  // Slider ↔ inputs sync
+  const slider = document.getElementById('duration-slider');
+  const hrsEl  = document.getElementById('duration-hours');
+  const minsEl = document.getElementById('duration-mins');
+  const _syncSliderFromInputs = () => {
+    if (!slider) return;
+    const total = (parseInt(hrsEl?.value || '0', 10) || 0) * 60 + (parseInt(minsEl?.value || '0', 10) || 0);
+    slider.value = Math.min(total, Number(slider.max));
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  };
+  slider?.addEventListener('input', () => {
+    const total = parseInt(slider.value, 10) || 0;
+    if (hrsEl)  hrsEl.value  = Math.floor(total / 60);
+    if (minsEl) minsEl.value = total % 60;
+    const h = Math.floor(total / 60), m = total % 60;
+    document.querySelectorAll('.preset-btn').forEach(b => {
+      b.classList.toggle('active', Number(b.dataset.h) === h && Number(b.dataset.m) === m);
+    });
+  });
+  hrsEl?.addEventListener('input',  _syncSliderFromInputs);
+  minsEl?.addEventListener('input', _syncSliderFromInputs);
+
+  // Select-all text on focus so typing replaces the value
+  hrsEl?.addEventListener('focus',  () => hrsEl.select());
+  minsEl?.addEventListener('focus', () => minsEl.select());
+
+  // Clear preset active state when inputs are manually changed
+  const _clearPresets = () => document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('duration-hours')?.addEventListener('input', _clearPresets);
+  document.getElementById('duration-mins')?.addEventListener('input', _clearPresets);
+
+  // Clear inline validation errors on input
+  document.getElementById('justification-input')
+    ?.addEventListener('input', () => _clearFieldError('justification-input', 'justification-error'));
+  document.getElementById('ticket-input')
+    ?.addEventListener('input', () => _clearFieldError('ticket-input', 'ticket-error'));
 
   // Duration clamp: hours [0..999], mins [0..59]
   document.getElementById('duration-hours')?.addEventListener('input', e => {
@@ -958,12 +1430,11 @@ async function bootstrap() {
     if (v > 59)               e.target.value = 59;
   });
 
-  // ── Load roles (renders progressively; Azure appended when ready) ─────────
-  roleManager.loadRoles().catch(err => {
-    console.error('[App] loadRoles error:', err);
-    showToast('Failed to load roles: ' + err.message, 'error', 10000);
-  });
+  // ── Load roles ─────────────────────────────────────────────────────────────
+  _refresh();
 }
+
+// No-op (removed duplicate definition)
 
 // Start
 bootstrap().catch(err => {

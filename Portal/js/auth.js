@@ -171,5 +171,15 @@ async function stepUpForAuthContexts(authContextIds, roles) {
   // Returns normally — caller continues with activation
 }
 
+/**
+ * Request ARM consent interactively via a popup (used by the consent banner).
+ * Unlike getArmToken(), this always uses a popup so the user doesn't navigate away.
+ * @returns {Promise<void>}
+ */
+async function grantArmConsent() {
+  if (!_account) throw new Error('Not signed in');
+  await msalInstance.acquireTokenPopup({ scopes: [window.ARM_SCOPE], account: _account });
+}
+
 // Expose globally for other modules
-window.portalAuth = { initAuth, signIn, signOut, getGraphToken, getArmToken, getGraphTokenWithAuthContext, stepUpForAuthContexts, setAuthContextClaims, getAccount, getUserId };
+window.portalAuth = { initAuth, signIn, signOut, getGraphToken, getArmToken, getGraphTokenWithAuthContext, stepUpForAuthContexts, grantArmConsent, setAuthContextClaims, getAccount, getUserId };

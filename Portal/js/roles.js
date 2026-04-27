@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Role renderer — Portal
  * Copyright © 2026 Sebastian Flæng Markdanner — MIT License
  *
@@ -28,7 +28,7 @@ class RoleManager {
 
   // ── Load ──────────────────────────────────────────────────────────────────
 
-  async loadRoles() {
+  async loadRoles(flags = { entra: true, azure: true, group: true }) {
     this.eligibleRoles    = [];
     this.activeRoles      = [];
     this._pendingRequests = [];
@@ -37,26 +37,31 @@ class RoleManager {
     this._stopTimers();
     this._resetSelectAll();
 
-    if (typeof showProgress === 'function') showProgress('Loading Entra & Group roles\u2026');
+    if (typeof showProgress === 'function') showProgress('Loading roles\u2026');
 
-    // Phase 1: Entra + Group (usually fast)
-    const [entraElig, groupElig, entraActive, groupActive, pending] = await Promise.all([
-      graphClient.getEligibleEntraRoles().catch(e => { console.error('[Roles] Entra elig:', e); return e; }),
-      graphClient.getEligibleGroupRoles().catch(e => { console.error('[Roles] Group elig:', e); return e; }),
-      graphClient.getActiveEntraRoles().catch(e  => { console.error('[Roles] Entra act:', e);  return e; }),
-      graphClient.getActiveGroupRoles().catch(e  => { console.error('[Roles] Group act:', e);   return e; }),
-      graphClient.getPendingActivationRequests().catch(() => [])
-    ]);
+    // Phase 1: Entra + Group
+    const tasks = [];
+    if (flags.entra) {
+      tasks.push(graphClient.getEligibleEntraRoles().catch(e => { console.error('[Roles] Entra elig:', e); return e; }));
+      tasks.push(graphClient.getActiveEntraRoles().catch(e => { console.error('[Roles] Entra act:', e); return e; }));
+    } else {
+      tasks.push(Promise.resolve([]), Promise.resolve([]));
+    }
 
-    const all    = [entraElig, groupElig, entraActive, groupActive];
+    if (flags.group) {
+      tasks.push(graphClient.getEligibleGroupRoles().catch(e => { console.error('[Roles] Group elig:', e); return e; }));
+      tasks.push(graphClient.getActiveGroupRoles().catch(e => { console.error('[Roles] Group act:', e); return e; }));
+    } else {
+      tasks.push(Promise.resolve([]), Promise.resolve([]));
+    }
+
+    tasks.push(graphClient.getPendingActivationRequests().catch(() => []));
+
+    const [entraElig, entraActive, groupElig, groupActive, pending] = await Promise.all(tasks);
+
+    const all    = [entraElig, entraActive, groupElig, groupActive];
     const errors = all.filter(r => r instanceof Error);
     const toArr  = r => (r instanceof Error ? [] : r);
-
-    if (errors.length === 4) {
-      showToast('Failed to load roles: ' + errors[0].message, 'error', 12000);
-    } else if (errors.length > 0) {
-      showToast('Some role sources failed. Check the browser console.', 'warning', 8000);
-    }
 
     this.eligibleRoles = [...toArr(entraElig), ...toArr(groupElig)];
     this.activeRoles   = [...toArr(entraActive), ...toArr(groupActive)];
@@ -65,43 +70,58 @@ class RoleManager {
     this._pendingRequests = Array.isArray(pending) ? pending : [];
     this._annotatePending(pending);
 
-    // Render immediately — policy columns show "—" until background enrichment finishes
+    // Render immediately
     this.renderEligible();
     this.renderActive();
 
-    // Policy enrichment runs in background; re-renders both tables when done
-    // (active table also needs re-render so AU display names are applied)
+    // Policy enrichment
     this._enrichPolicy().then(() => { this.renderEligible(); this.renderActive(); }).catch(() => {});
 
-    if (typeof updateProgress === 'function') updateProgress(60, 'Loading Azure roles\u2026');
-
-    // Phase 2: Azure (may take longer — ARM cold start / MFA step-up)
-    try {
-      const [azureElig, azureActive, azurePending] = await Promise.all([
-        armClient.getEligibleAzureRoles(),
-        armClient.getActiveAzureRoles(),
-        armClient.getPendingAzureRequests().catch(e => { console.warn('[Roles] Azure pending:', e.message); return []; })
-      ]);
-      const dedupAzureElig   = _deduplicateAzure(azureElig);
-      // Active roles: dedup on role+scope so the same assignment doesn't appear
-      // twice, but Owner@MG and Owner@Subscription remain separate entries.
-      const dedupAzureActive = _deduplicateAzureActive(azureActive);
-      this.eligibleRoles = [...this.eligibleRoles, ...dedupAzureElig];
-      this.activeRoles   = [...this.activeRoles,   ...dedupAzureActive];
-      this._removeSuppressed();
-      // Merge Azure pending into the global pending list and re-render
-      this._pendingRequests = [...this._pendingRequests, ...azurePending];
-      this._annotatePending(this._pendingRequests);
-      this.renderEligible();
-      this.renderActive();
-      // Enrich Azure eligible roles with PIM policies (fire-and-forget, same as Entra)
-      this._enrichAzurePolicy(dedupAzureElig).then(() => this.renderEligible()).catch(() => {});
-    } catch (err) {
-      console.warn('[Roles] Azure roles unavailable:', err.message);
+    // Phase 2: Azure
+    if (flags.azure) {
+      if (typeof updateProgress === 'function') updateProgress(60, 'Loading Azure roles\u2026');
+      try {
+        const [azureElig, azureActive, azurePending] = await Promise.all([
+          armClient.getEligibleAzureRoles(),
+          armClient.getActiveAzureRoles(),
+          armClient.getPendingAzureRequests().catch(e => { console.warn('[Roles] Azure pending:', e.message); return []; })
+        ]);
+        const dedupAzureElig   = _deduplicateAzure(azureElig);
+        const dedupAzureActive = _deduplicateAzureActive(azureActive);
+        this.eligibleRoles = [...this.eligibleRoles, ...dedupAzureElig];
+        this.activeRoles   = [...this.activeRoles,   ...dedupAzureActive];
+        this._removeSuppressed();
+        this._pendingRequests = [...this._pendingRequests, ...azurePending];
+        this._annotatePending(this._pendingRequests);
+        this.renderEligible();
+        this.renderActive();
+        this._enrichAzurePolicy(dedupAzureElig).then(() => this.renderEligible()).catch(() => {});
+      } catch (err) {
+        console.warn('[Roles] Azure roles unavailable:', err.message);
+        if (typeof showConsentBanner === 'function') showConsentBanner(err);
+      }
     }
 
     if (typeof hideProgress === 'function') hideProgress();
     this._startTimers();
+    document.getElementById('section-active')?.classList.add('fade-in');
+    document.getElementById('section-eligible')?.classList.add('fade-in');
+  }
+
+  /** Resolve Administrative Unit GUIDs to human-readable names */
+  getScopeDisplay(role) {
+    if (role.type === 'AzureResource') return role.scope || role.scopeId || '';
+    if (role.type === 'Group')         return role.scope || 'Group membership';
+    const s = role.scope || role.directoryScopeId || '';
+    if (s === '/' || s === 'Directory') return 'Directory';
+    
+    // Resolve AU GUIDs
+    const auMatch = typeof s === 'string' && s.match(/\/administrativeUnits\/([a-f0-9-]{36})/i);
+    if (auMatch) {
+      const name = _auNames.get(auMatch[1]);
+      return 'Administrative Unit: ' + (name || auMatch[1]);
+    }
+    return s;
   }
 
   // ── Policy enrichment ─────────────────────────────────────────────────────
@@ -191,7 +211,19 @@ class RoleManager {
     if (!tbody) return;
 
     const query = (document.getElementById('eligible-search')?.value || '').toLowerCase();
-    const roles = _sort(_filter(this.eligibleRoles, query));
+
+    // When "show active in eligible" is off, hide eligible roles that are already active
+    let source = this.eligibleRoles;
+    if (typeof _flags !== 'undefined' && !_flags.showActiveInEligible) {
+      const activeKeys = new Set(this.activeRoles.map(r =>
+        _roleKey(r.id) + '|' + _normalizeScopeId(r.scopeId || r.directoryScopeId || '').toLowerCase() + '|' + (r.type || '')
+      ));
+      source = this.eligibleRoles.filter(r =>
+        !activeKeys.has(_roleKey(r.id) + '|' + _normalizeScopeId(r.scopeId || r.directoryScopeId || '').toLowerCase() + '|' + (r.type || ''))
+      );
+    }
+
+    const roles = _sort(_filter(source, query));
 
     const n = roles.length;
     document.getElementById('eligible-count').textContent = n + ' role' + (n !== 1 ? 's' : '');
@@ -230,7 +262,7 @@ class RoleManager {
           '<td class="col-type" data-label="Type">' + badge + '</td>' +
           '<td class="col-role" data-label="Role"><div class="role-cell">' +
             '<span class="role-name">' + escapeHtml(role.name) + pending + '</span>' +
-            '<span class="role-scope">' + escapeHtml(_scopeDisplay(role)) + '</span>' +
+            '<span class="role-scope">' + escapeHtml(this.getScopeDisplay(role)) + '</span>' +
           '</div></td>' +
           '<td class="col-policy" data-label="Max"><span class="pol-max">' + maxDisp + '</span></td>' +
           '<td class="col-policy" data-label="MFA">'    + _polMfa(role)                                     + '</td>' +
@@ -399,7 +431,7 @@ class RoleManager {
         '<td class="col-type" data-label="Type">' + badge + '</td>' +
         '<td class="col-role" data-label="Role"><div class="role-cell">' +
           '<span class="role-name">' + escapeHtml(role.name) + '</span>' +
-          '<span class="role-scope">' + escapeHtml(_scopeDisplay(role)) + '</span>' +
+          '<span class="role-scope">' + escapeHtml(this.getScopeDisplay(role)) + '</span>' +
         '</div></td>' +
         '<td class="col-expires" data-label="Expires">' + expiryHtml + '</td>' +
       '</tr>';
@@ -517,19 +549,17 @@ class RoleManager {
     const ne = this.selectedEligible.size;
     const na = this.selectedActive.size;
 
-    const eligBar = document.getElementById('eligible-action-bar');
-    const actBar  = document.getElementById('active-action-bar');
-    const eligLbl = document.getElementById('eligible-selection-label');
-    const actLbl  = document.getElementById('active-selection-label');
     const eligBtn = document.getElementById('activate-btn');
     const actBtn  = document.getElementById('deactivate-btn');
 
-    if (eligBar) eligBar.hidden = ne === 0;
-    if (actBar)  actBar.hidden  = na === 0;
-    if (eligLbl) eligLbl.textContent = ne + ' role' + (ne !== 1 ? 's' : '') + ' selected';
-    if (actLbl)  actLbl.textContent  = na + ' role' + (na !== 1 ? 's' : '') + ' selected';
-    if (eligBtn) eligBtn.disabled = ne === 0;
-    if (actBtn)  actBtn.disabled  = na === 0;
+    if (eligBtn) {
+      eligBtn.disabled    = ne === 0;
+      eligBtn.textContent = ne > 0 ? 'Activate (' + ne + ')' : 'Activate';
+    }
+    if (actBtn) {
+      actBtn.disabled    = na === 0;
+      actBtn.textContent = na > 0 ? 'Deactivate (' + na + ')' : 'Deactivate';
+    }
   }
 
   _syncHeader(which) {
@@ -685,17 +715,7 @@ function _normalizeScopeId(scopeId) {
 }
 
 function _scopeDisplay(role) {
-  if (role.type === 'AzureResource') return role.scope || role.scopeId || '';
-  if (role.type === 'Group')         return role.scope || 'Group membership';
-  const s = role.scope || role.directoryScopeId || '';
-  if (s === '/' || s === 'Directory') return 'Directory';
-  // Resolve Administrative Unit GUIDs to human-readable names
-  const auMatch = typeof s === 'string' && s.match(/\/administrativeUnits\/([a-f0-9-]{36})/i);
-  if (auMatch) {
-    const name = _auNames.get(auMatch[1]);
-    return 'Administrative Unit: ' + (name || auMatch[1]);
-  }
-  return s;
+  return window.roleManager ? window.roleManager.getScopeDisplay(role) : (role.scope || role.directoryScopeId || '');
 }
 
 function _typeBadge(type) {
