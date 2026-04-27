@@ -59,6 +59,7 @@ The application uses delegated Microsoft Graph and ARM permissions exclusively. 
 | `RoleAssignmentSchedule.ReadWrite.Directory` | Graph | Activate / deactivate Entra ID roles |
 | `PrivilegedEligibilitySchedule.ReadWrite.AzureResources` | ARM | Activate / deactivate Azure Resource roles |
 | `PrivilegedAccess.ReadWrite.AzureADGroup` | Graph | Activate / deactivate PIM for Groups |
+| `RoleManagementPolicy.Read.AzureADGroup` | Graph | Read PIM for Groups policy settings |
 
 ### Content Security Policy
 `staticwebapp.config.json` enforces a strict CSP header on every response:

@@ -17,7 +17,8 @@ targetScope = 'resourceGroup'
 //       Redirect URI: https://<swa-default-hostname>
 //       API permissions (delegated):
 //         User.Read, RoleManagement.ReadWrite.Directory,
-//         PrivilegedAccess.ReadWrite.AzureADGroup, Policy.Read.All,
+//         PrivilegedAccess.ReadWrite.AzureADGroup,
+//         RoleManagementPolicy.Read.AzureADGroup, Policy.Read.All,
 //         AdministrativeUnit.Read.All, AuditLog.Read.All
 //   - Copy the Application (client) ID and your Tenant ID into the parameters below
 

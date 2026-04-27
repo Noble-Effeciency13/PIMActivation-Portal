@@ -1118,6 +1118,7 @@ a:hover { text-decoration: underline; }
 .footer-products a { font-size: 12px; color: var(--text-muted); transition: color 0.15s; flex-shrink: 0; }
 .footer-products a:hover { color: var(--primary); text-decoration: none; }
 .footer-copy  { margin: 0; font-size: 11px; color: var(--text-faint); flex-shrink: 0; }
+.footer-landing { display: none; }
 .footer-short { display: none; }
 
 /* ── Responsive ───────────────────────────────────────────────────────────── */
@@ -1130,7 +1131,7 @@ a:hover { text-decoration: underline; }
 }
 
 @media (max-width: 640px) {
-  :root { --footer-height: 32px; }
+  :root { --footer-height: 50px; }
   #app { padding-top: 50px; }
   .app-header { padding: 0 12px; height: 50px; }
   .brand-name { font-size: 13px; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1149,29 +1150,65 @@ a:hover { text-decoration: underline; }
   .roles-table    { table-layout: auto; }
   /* Constrain the detail panel to the actual viewport width */
   .policy-detail  { max-width: calc(100vw - 32px); }
-  /* Slim footer on mobile — keep the same info in compact, single-line form */
+  /* Mobile footer: compact three-zone layout with full contributor names */
   .app-footer          { padding: 0 8px; }
-  .footer-inner        { gap: 6px; justify-content: space-between; }
-  .footer-people,
-  .footer-products     { gap: 5px; }
-  .footer-person       { gap: 3px; }
-  .footer-person span,
+  .footer-inner {
+    display: grid;
+    grid-template-columns: 20px minmax(0, 1fr) auto;
+    align-items: center;
+    justify-content: stretch;
+    gap: 8px;
+  }
+  .footer-full         { display: inline; }
+  .footer-short        { display: none; }
+  .footer-copy {
+    grid-column: 1;
+    justify-self: start;
+    font-size: 14px;
+    line-height: 1;
+  }
+  .footer-copy .footer-full { display: none; }
+  .footer-copy .footer-short { display: inline; }
+  .footer-people {
+    grid-column: 2;
+    flex-direction: column;
+    align-items: center;
+    justify-self: center;
+    gap: 2px;
+    overflow: hidden;
+  }
+  .footer-people > .footer-dot,
   .footer-tagline,
-  .footer-products a   { font-size: 10px; }
-  .footer-copy         { font-size: 10px; }
-  .footer-dot          { font-size: 10px; }
-  .footer-person-links { gap: 2px; }
+  .footer-products { display: none; }
+  .footer-person {
+    justify-content: center;
+    gap: 4px;
+    max-width: 100%;
+  }
+  .footer-person span { font-size: 10px; line-height: 1.15; }
+  .footer-person-links { gap: 3px; }
   .footer-person-links svg { width: 12px; height: 12px; }
+  .footer-landing {
+    grid-column: 3;
+    display: inline-flex;
+    justify-self: end;
+    color: var(--text-muted);
+    font-size: 10px;
+    line-height: 1;
+    transition: color 0.15s;
+    white-space: nowrap;
+  }
+  .footer-landing:hover { color: var(--primary); text-decoration: none; }
   #toast-container { bottom: calc(var(--footer-height) + 10px); right: 10px; left: 10px; max-width: none; }
   .section-action-bar { padding: 8px 12px; }
 }
 @media (max-width: 380px) {
   .col-type { display: none; }
   .app-footer { padding: 0 6px; }
-  .footer-inner { gap: 4px; }
-  .footer-people,
-  .footer-products { gap: 4px; }
-  .footer-dot { display: none; }
+  .footer-inner { gap: 6px; grid-template-columns: 16px minmax(0, 1fr) auto; }
+  .footer-person span,
+  .footer-landing { font-size: 9px; }
+  .footer-person-links svg { width: 11px; height: 11px; }
 }
 
 /* ── Desktop zoom ─────────────────────────────────────────────────────────── */

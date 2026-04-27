@@ -43,6 +43,7 @@ window.GRAPH_SCOPES = [
   'User.Read',
   'RoleManagement.ReadWrite.Directory',
   'PrivilegedAccess.ReadWrite.AzureADGroup',
+  'RoleManagementPolicy.Read.AzureADGroup',
   'Policy.Read.All',
   'AdministrativeUnit.Read.All',
   'AuditLog.Read.All',
