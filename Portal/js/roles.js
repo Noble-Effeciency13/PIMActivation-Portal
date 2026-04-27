@@ -306,6 +306,18 @@ class RoleManager {
       });
     });
 
+    // Row click selection
+    tbody.querySelectorAll('tr:not(.row-detail)').forEach(tr => {
+      tr.addEventListener('click', e => {
+        if (e.target.closest('button') || e.target.closest('.cb-wrap')) return;
+        const cb = tr.querySelector('.elig-cb');
+        if (cb) {
+          cb.checked = !cb.checked;
+          cb.dispatchEvent(new Event('change'));
+        }
+      });
+    });
+
     // Wire expand buttons — tap to reveal policy panel on mobile
     tbody.querySelectorAll('.expand-btn').forEach(btn => {
       btn.addEventListener('click', e => {
@@ -423,9 +435,12 @@ class RoleManager {
           '<span class="expiry-abs">' + formatExpiryDateTime(role.endDateTime) + '</span>';
       }
 
+      const disabledAttr = !isPim ? 'disabled' : '';
+      const tooltip      = !isPim ? 'Permanent roles cannot be deactivated.' : '';
+
       return '<tr class="' + selCls + '" data-uid="' + escapeHtml(uid) + '">' +
-        '<td class="col-cb"><label class="cb-wrap">' +
-          '<input type="checkbox" class="active-cb" data-uid="' + escapeHtml(uid) + '" ' + checked +
+        '<td class="col-cb"><label class="cb-wrap ' + (!isPim ? 'cb-disabled' : '') + '" title="' + escapeHtml(tooltip) + '">' +
+          '<input type="checkbox" class="active-cb" data-uid="' + escapeHtml(uid) + '" ' + checked + ' ' + disabledAttr +
           ' aria-label="' + escapeHtml(role.name) + '">' +
         '</label></td>' +
         '<td class="col-type" data-label="Type">' + badge + '</td>' +
@@ -463,6 +478,39 @@ class RoleManager {
         cb.closest('tr').classList.toggle('row-selected', cb.checked);
         this._updateBars();
         this._syncHeader('active');
+      });
+    });
+
+    tbody.querySelectorAll('.cb-disabled').forEach(wrap => {
+      wrap.addEventListener('mouseup', (e) => {
+        // Since input is disabled, click falls through to label/wrap
+        if (typeof showToast === 'function') {
+          showToast({ 
+            title: 'Permanent role', 
+            description: 'Permanent roles cannot be deactivated.', 
+            type: 'info', 
+            duration: 3000,
+            noHistory: true 
+          });
+        }
+      });
+    });
+
+    // Row click selection
+    tbody.querySelectorAll('tr:not(.row-detail):not(.row-awaiting-approval)').forEach(tr => {
+      tr.addEventListener('click', e => {
+        if (e.target.closest('button') || e.target.closest('.cb-wrap')) return;
+        const cb = tr.querySelector('.active-cb');
+        if (cb && !cb.disabled) {
+          cb.checked = !cb.checked;
+          cb.dispatchEvent(new Event('change'));
+        } else if (cb && cb.disabled) {
+          // Trigger the permanent role toast
+          const wrap = tr.querySelector('.cb-disabled');
+          if (wrap) {
+            wrap.dispatchEvent(new Event('mouseup', { bubbles: true }));
+          }
+        }
       });
     });
 
@@ -721,7 +769,7 @@ function _scopeDisplay(role) {
 function _typeBadge(type) {
   const cls = type === 'AzureResource' ? 'badge-azure' : type === 'Group' ? 'badge-group' : 'badge-entra';
   const lbl = type === 'AzureResource' ? 'Azure'       : type === 'Group' ? 'Group'       : 'Entra';
-  return '<span class="type-badge ' + cls + '">[' + lbl + ']</span>';
+  return '<span class="type-badge ' + cls + '">' + lbl + '</span>';
 }
 
 function _maxDuration(hours) {

@@ -11,7 +11,7 @@
  */
 
 const http = require('http');
-const fs   = require('fs');
+const fs = require('fs');
 const path = require('path');
 
 // ── Load .env ────────────────────────────────────────────────────────────────
@@ -40,13 +40,13 @@ const PORT = 3000;
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
-  '.css':  'text/css',
-  '.js':   'application/javascript',
+  '.css': 'text/css',
+  '.js': 'application/javascript',
   '.json': 'application/json',
-  '.png':  'image/png',
+  '.png': 'image/png',
   '.webp': 'image/webp',
-  '.svg':  'image/svg+xml',
-  '.ico':  'image/x-icon',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon',
 };
 
 const server = http.createServer((req, res) => {

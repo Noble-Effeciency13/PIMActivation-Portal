@@ -237,7 +237,7 @@ a:hover { text-decoration: underline; }
 #app {
   max-width:  1080px;
   margin:     0 auto;
-  padding:    24px 20px;
+  padding:    24px 20px 0; /* No bottom padding here, we use margin on main */
   min-height: 100dvh;
   display:    flex;
   flex-direction: column;
@@ -249,6 +249,7 @@ a:hover { text-decoration: underline; }
   flex-direction: column;
   gap:            16px;
   flex:           1;
+  padding-bottom: 24px; /* Ensure space before sticky footer */
 }
 
 /* ── Header ───────────────────────────────────────────────────────────────── */
@@ -277,6 +278,62 @@ a:hover { text-decoration: underline; }
   white-space:    nowrap;
 }
 .header-right { display: flex; align-items: center; gap: 6px; }
+.header-quick-actions {
+  display:      flex;
+  align-items:  center;
+  gap:          4px;
+  margin-right: 4px;
+}
+.header-quick-actions .icon-btn {
+  color: var(--text-muted);
+}
+.header-quick-actions .icon-btn:hover {
+  color: var(--primary);
+  background: var(--bg-hover);
+}
+
+/* Quick Actions Dropdown */
+.quick-action-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.quick-dropdown {
+  position:       absolute;
+  top:            100%;
+  right:          0;
+  margin-top:     8px;
+  background:     var(--bg-surface);
+  border:         1px solid var(--border-strong);
+  border-radius:  var(--radius-sm);
+  box-shadow:     var(--shadow);
+  z-index:        1100; /* Above header */
+  min-width:      150px;
+  padding:        6px;
+  display:        flex;
+  flex-direction: column;
+  gap:            2px;
+}
+.quick-dropdown[hidden] {
+  display: none;
+}
+.quick-dropdown-item {
+  width:         100%;
+  text-align:    left;
+  padding:       8px 12px;
+  background:    none;
+  border:        none;
+  color:         var(--text);
+  font-size:     13px;
+  font-family:   inherit;
+  cursor:        pointer;
+  border-radius: var(--radius-xs);
+  transition:    background 0.1s;
+}
+.quick-dropdown-item:hover {
+  background: var(--bg-hover);
+  color:      var(--primary);
+}
 
 /* Icon button */
 .icon-btn {
@@ -516,6 +573,12 @@ a:hover { text-decoration: underline; }
   cursor:          pointer;
   padding:         6px;
   height:          100%;
+}
+.cb-disabled {
+  cursor: not-allowed;
+}
+.cb-disabled input {
+  pointer-events: none;
 }
 .cb-wrap input[type="checkbox"] {
   width: 15px; height: 15px;
@@ -823,46 +886,49 @@ a:hover { text-decoration: underline; }
   align-items:     center;
   justify-content: center;
   padding:         16px;
-  z-index:         300;
-  backdrop-filter: blur(4px);
+  z-index:         1300;
+  backdrop-filter: blur(8px);
 }
 .modal {
   background:     var(--bg-surface);
   border:         1px solid var(--border-strong);
   border-radius:  var(--radius);
-  box-shadow:     var(--shadow);
+  box-shadow:     0 20px 48px -12px rgba(0,0,0,0.5);
   display:        flex;
   flex-direction: column;
   width:          100%;
   max-width:      520px;
   max-height:     90dvh;
   overflow:       hidden;
+  animation:      fade-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .modal-header {
   display:         flex;
   align-items:     center;
   justify-content: space-between;
-  padding:         14px 20px;
+  padding:         16px 24px;
   border-bottom:   1px solid var(--border);
   flex-shrink:     0;
 }
-.modal-title  { font-size: 16px; font-weight: 600; }
+.modal-title  { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
 .modal-close  { color: var(--text-muted); }
-.modal-close:hover { color: var(--text); }
+.modal-close:hover { color: var(--text); background: var(--bg-hover); }
+
 .modal-body   {
   flex:           1;
   overflow-y:     auto;
-  padding:        20px;
+  padding:        24px;
   display:        flex;
   flex-direction: column;
-  gap:            16px;
+  gap:            20px;
 }
 .modal-footer {
   display:         flex;
   justify-content: flex-end;
-  gap:             8px;
-  padding:         12px 20px;
+  gap:             10px;
+  padding:         14px 24px;
   border-top:      1px solid var(--border);
+  background:      var(--bg-surface);
   flex-shrink:     0;
 }
 .modal-role-list {
@@ -1075,10 +1141,14 @@ a:hover { text-decoration: underline; }
 .app-footer {
   display:     flex;
   align-items: center;
-  padding:     16px 0 8px;
+  padding:     12px 0;
   margin-top:  auto;
   border-top:  1px solid var(--border);
   text-align:  center;
+  position:    sticky;
+  bottom:      0;
+  background:  var(--bg);
+  z-index:     50;
 }
 .footer-tagline {
   font-size:  12px;
@@ -1089,14 +1159,13 @@ a:hover { text-decoration: underline; }
 .footer-inner {
   display:         flex;
   flex-direction:  row;
+  flex-wrap:       wrap;
   align-items:     center;
   justify-content: center;
   gap:             10px;
   width:           100%;
   min-width:       0;
   margin-bottom:   0;
-  overflow:        hidden;
-  white-space:     nowrap;
 }
 .footer-people {
   display:         flex;
@@ -1161,14 +1230,14 @@ a:hover { text-decoration: underline; }
   /* Constrain the detail panel to the actual viewport width */
   .policy-detail  { max-width: calc(100vw - 32px); }
   /* Mobile footer: one-line credit strip */
-  .app-footer          { padding: 0 8px; }
+  .app-footer          { padding: 8px 8px; position: sticky; bottom: 0; background: var(--bg); z-index: 50; }
   .footer-inner {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
     gap: 6px;
     min-width: 0;
-    overflow: hidden;
   }
   .footer-full         { display: inline; }
   .footer-short        { display: none; }
@@ -1576,7 +1645,7 @@ a:hover { text-decoration: underline; }
 .notif-row-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 2px; }
 .notif-title { font-weight: 600; color: #f8fafc; font-size: 14px; }
 .notif-time  { font-size: 11px; color: #64748b; white-space: nowrap; margin-top: 2px; }
-.notif-desc  { color: #94a3b8; font-size: 13px; margin-bottom: 12px; word-break: break-word; }
+.notif-desc  { color: #94a3b8; font-size: 13px; margin-bottom: 12px; word-break: break-word; white-space: pre-line; }
 .notif-date  { display: none; } /* Hide the separate date line for a cleaner look like the reference */
 
 .notif-copy-btn {

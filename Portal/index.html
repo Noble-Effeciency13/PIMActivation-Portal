@@ -33,6 +33,7 @@
         <span class="brand-name">PIM Activation Portal</span>
       </div>
       <div class="header-right">
+        <div class="header-quick-actions" id="header-quick-actions"></div>
         <button class="icon-btn" id="refresh-btn" aria-label="Refresh roles" title="Refresh roles">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
         </button>
@@ -45,9 +46,17 @@
         <button class="icon-btn" id="settings-btn" aria-label="Settings" title="Settings">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         </button>
-        <button class="icon-btn" id="help-btn" aria-label="Help" title="How to use">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-        </button>
+        <div class="quick-action-wrap">
+          <button class="icon-btn" id="help-btn" aria-label="Manual" title="Manual">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </button>
+          <div class="quick-dropdown" id="help-dropdown" hidden>
+            <button class="quick-dropdown-item" data-help="guide">Manual</button>
+            <button class="quick-dropdown-item" data-help="how-it-works">How it works</button>
+            <button class="quick-dropdown-item" data-help="features">Features</button>
+            <button class="quick-dropdown-item" data-help="faq">FAQ</button>
+          </div>
+        </div>
         <button class="icon-btn icon-btn-signout" id="sign-out-btn" aria-label="Sign out" title="Sign out">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         </button>
@@ -249,9 +258,9 @@
             <span class="footer-short">Self</span>
           </a>
         </div>
-        <p class="footer-copy" title="© 2026 PIMActivation - Sebastian Flæng Markdanner.">
+        <p class="footer-copy" title="&copy; 2026 PIMActivation - Sebastian Flæng Markdanner.">
           <span class="footer-full">&copy; 2026 PIMActivation - Sebastian Flæng Markdanner.</span>
-          <span class="footer-short">&copy;</span>
+          <span class="footer-short">&copy; 2026</span>
         </p>
         <a class="footer-landing" href="https://pimactivation.com/" target="_blank" rel="noopener noreferrer"
           aria-label="PIMActivation landing page">pimactivation.com</a>
@@ -379,6 +388,22 @@
           </div>
         </div>
 
+        <hr class="settings-hr">
+
+        <!-- Quick Actions -->
+        <div class="settings-row">
+          <div class="settings-info">
+            <div class="settings-title">Quick Actions</div>
+            <div class="settings-desc">Choose which settings are available in the header.</div>
+          </div>
+          <div class="settings-column">
+            <label class="cb-wrap" style="justify-content: flex-start; gap: 8px;">
+              <input type="checkbox" id="flag-quick-appearance">
+              <span class="form-label" style="margin:0">Appearance</span>
+            </label>
+          </div>
+        </div>
+
       </div>
       <div class="modal-footer">
         <button class="btn btn-primary btn-sm" id="settings-modal-close-footer">OK</button>
@@ -500,35 +525,73 @@
     </div>
   </div>
 
-  <!-- ── Help modal ──────────────────────────────────────────────────────── -->
+  <!-- ── Manual modal ────────────────────────────────────────────────────── -->
   <div id="help-modal" class="modal-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="help-modal-title">
     <div class="modal">
       <div class="modal-header">
-        <h2 class="modal-title" id="help-modal-title">How to use</h2>
+        <h2 class="modal-title" id="help-modal-title">Manual</h2>
         <button class="icon-btn modal-close" id="help-modal-close-btn" aria-label="Close">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
       <div class="modal-body help-body">
-        <div class="help-section">
-          <div class="help-section-title">Quick start</div>
-          <p>Select one or more eligible roles in the <strong>Eligible Roles</strong> table, then click <strong>Activate</strong>. Fill in the duration and any required justification or ticket number, then confirm.</p>
+        <!-- Manual / Guide -->
+        <div id="help-content-guide">
+          <div class="help-section">
+            <span class="help-eyebrow">Basics</span>
+            <div class="help-section-title">Quick start</div>
+            <p>Select one or more eligible roles in the <strong>Eligible Roles</strong> table, then click <strong>Activate</strong>. Fill in the duration and any required justification or ticket number, then confirm.</p>
+          </div>
+          <div class="help-section">
+            <span class="help-eyebrow">Advanced</span>
+            <div class="help-section-title">Bulk operations</div>
+            <p>You can select multiple roles at once across Entra, Azure, and Groups. All selected roles are submitted in a single batch — each role's policy (max duration, MFA, approval) is respected individually.</p>
+          </div>
+          <div class="help-section">
+            <span class="help-eyebrow">Profiles</span>
+            <div class="help-section-title">Activation profiles</div>
+            <p>Click <strong>Profiles</strong> to save your current selection. Profiles store role IDs, durations, and justifications in your browser's IndexedDB for one-click reuse.</p>
+          </div>
         </div>
-        <div class="help-section">
-          <div class="help-section-title">Bulk activation</div>
-          <p>You can select multiple roles at once using the checkboxes. All selected roles are submitted in a single operation — each role's policy (max duration, MFA, approval) is respected individually.</p>
+
+        <!-- How it works -->
+        <div id="help-content-how-it-works" hidden>
+          <div class="help-section">
+            <span class="help-eyebrow">Architecture</span>
+            <div class="help-section-title">Zero-Backend SPA</div>
+            <p>This portal is a fully static single-page application. It talks directly to Microsoft Graph and Azure Resource Manager API endpoints using your delegated user token. No backend, no proxy, and no secrets are stored on any server.</p>
+          </div>
+          <div class="help-section">
+            <span class="help-eyebrow">Logic</span>
+            <div class="help-section-title">Direct Integration</div>
+            <p>By using the MSAL library, we authenticate you directly against Entra ID. The portal then orchestrates the PIM API calls on your behalf, ensuring your credentials never leave your browser session.</p>
+          </div>
         </div>
-        <div class="help-section">
-          <div class="help-section-title">Activation profiles</div>
-          <p>Click <strong>Profiles</strong> in the Eligible Roles header to save your current role selection as a named profile. Use profiles to activate your most common combinations in one click.</p>
+
+        <!-- Features -->
+        <div id="help-content-features" hidden>
+          <div class="help-section">
+            <span class="help-eyebrow">Capabilities</span>
+            <div class="help-section-title">Core Features</div>
+            <ul>
+              <li><strong>Multi-Surface</strong> — Bulk activation across Entra, Azure Resource roles, and PIM for Groups.</li>
+              <li><strong>Policy Enforcement</strong> — Automatic duration capping, justification validation, and ticket field handling.</li>
+              <li><strong>Step-up MFA</strong> — Full support for Conditional Access auth-context step-up when policies require it.</li>
+              <li><strong>Expiry Tracking</strong> — Real-time countdown timers and colour-coded warnings for active roles.</li>
+              <li><strong>Smart Filtering</strong> — Instant search and grouping by surface type.</li>
+            </ul>
+          </div>
         </div>
-        <div class="help-section">
-          <div class="help-section-title">Settings</div>
-          <p>Use the <strong>⚙ Settings</strong> button to toggle PIM surfaces (Entra / Azure / Groups), set your default activation duration, and choose a theme.</p>
-        </div>
-        <div class="help-section">
-          <div class="help-section-title">Azure resources</div>
-          <p>If Azure roles fail to load, a banner appears. Click <strong>Grant Access</strong> to consent to ARM permissions. You can also use <strong>Reduce scope</strong> in the activation form to activate at a lower resource hierarchy level.</p>
+
+        <!-- FAQ -->
+        <div id="help-content-faq" hidden>
+          <div class="help-section">
+            <span class="help-eyebrow">Q&A</span>
+            <div class="help-section-title">Frequently Asked Questions</div>
+            <p><strong>Does it store my tokens?</strong> No, tokens are kept in browser memory and handled by MSAL.</p>
+            <p><strong>Does it need admin consent?</strong> Only if your tenant requires it for delegated permissions like reading role eligibility.</p>
+            <p><strong>Can I use it with my own app?</strong> Yes, the self-hosted version allows providing your own Client ID and Tenant ID.</p>
+          </div>
         </div>
       </div>
       <div class="modal-footer">

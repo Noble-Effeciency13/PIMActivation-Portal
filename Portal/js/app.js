@@ -16,6 +16,7 @@ const _flags = {
   defaultDuration:     8,
   showActiveInEligible: false,
   swapSections:         false,
+  quickAppearance:      true,
   ...JSON.parse(localStorage.getItem(FLAGS_KEY) || '{}')
 };
 
@@ -149,6 +150,34 @@ function showNotificationsModal() {
   _renderNotificationsList();
   modal.hidden = false;
   modal.querySelector('.modal')?.classList.add('fade-in');
+}
+
+function _formatRoleOutcomeList(roles, results) {
+  if (!results || !results.length) return '';
+  
+  const formatRole = r => {
+    const role = roles.find(pr => (pr.uid || pr.id) === r.uid);
+    if (!role) return r.uid;
+    const scope = _scopeDisplayForModal(role);
+    const scopeSuffix = (scope && scope !== 'Directory' && scope !== 'Group membership') ? ` [${scope}]` : '';
+    return role.name + scopeSuffix;
+  };
+
+  const succeeded = results.filter(r => r.success).map(formatRole);
+  
+  const failed = results.filter(r => !r.success).map(r => {
+    const role = roles.find(pr => (pr.uid || pr.id) === r.uid);
+    const name = role ? formatRole(r) : r.uid;
+    return name + (r.error ? ` (${r.error})` : '');
+  });
+  
+  let msg = '';
+  if (succeeded.length) msg += 'Activated: ' + succeeded.join(', ');
+  if (failed.length) {
+    if (msg) msg += '\n';
+    msg += 'Failed: ' + failed.join(', ');
+  }
+  return msg;
 }
 
 function hideNotificationsModal() {
@@ -374,6 +403,7 @@ function applyTheme(theme) {
   });
   
   localStorage.setItem(THEME_KEY, theme);
+  _renderQuickActions();
 }
 
 function showSettingsModal() {
@@ -404,6 +434,10 @@ function showSettingsModal() {
     }
   });
 
+  // Sync checkboxes
+  const quickAppCb = document.getElementById('flag-quick-appearance');
+  if (quickAppCb) quickAppCb.checked = !!_flags.quickAppearance;
+
   modal.hidden = false;
   modal.querySelector('.modal')?.classList.add('fade-in');
 }
@@ -411,6 +445,55 @@ function showSettingsModal() {
 function hideSettingsModal() {
   const modal = document.getElementById('settings-modal');
   if (modal) modal.hidden = true;
+}
+
+function _renderQuickActions() {
+  const container = document.getElementById('header-quick-actions');
+  if (!container) return;
+
+  if (!_flags.quickAppearance) {
+    container.innerHTML = '';
+    return;
+  }
+
+  // Always use the sun icon for Appearance quick setting
+  const icon = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';
+
+  container.innerHTML = `
+    <div class="quick-action-wrap">
+      <button class="icon-btn" id="quick-theme-btn" aria-label="Appearance" title="Appearance (Quick Action)">
+        ${icon}
+      </button>
+      <div class="quick-dropdown" id="quick-theme-dropdown" hidden>
+        <button class="quick-dropdown-item" data-theme="system">System default</button>
+        <button class="quick-dropdown-item" data-theme="dark">Dark</button>
+        <button class="quick-dropdown-item" data-theme="light">Light</button>
+        <button class="quick-dropdown-item" data-theme="hc">High Contrast</button>
+      </div>
+    </div>
+  `;
+
+  const btn = document.getElementById('quick-theme-btn');
+  const dropdown = document.getElementById('quick-theme-dropdown');
+
+  btn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    dropdown.hidden = !dropdown.hidden;
+  });
+
+  dropdown?.querySelectorAll('.quick-dropdown-item').forEach(item => {
+    item.addEventListener('click', () => {
+      applyTheme(item.dataset.theme);
+      dropdown.hidden = true;
+    });
+  });
+
+  // Close on outside click
+  document.addEventListener('click', (e) => {
+    if (dropdown && !dropdown.hidden && !e.target.closest('.quick-action-wrap')) {
+      dropdown.hidden = true;
+    }
+  });
 }
 
 function _saveFlag(key, checked) {
@@ -878,14 +961,14 @@ async function handleActivate() {
     const pendingApproval = (outcome.results || []).filter(r => r.pendingApproval).length;
     _opOverlay.close(fail > 0 ? 2500 : 1400);
     if (fail === 0 && pendingApproval === 0) {
-      showToast({ title: 'Successfully activated', description: ok + ' role' + (ok !== 1 ? 's' : ''), type: 'success', debugInfo: outcome.results });
+      showToast({ title: 'Successfully activated', description: _formatRoleOutcomeList(cappedRoles, outcome.results), type: 'success', debugInfo: outcome.results });
     } else if (pendingApproval > 0 && fail === 0) {
-      showToast({ title: ok + ' activated', description: pendingApproval + ' awaiting approval', type: 'info', duration: 8000, debugInfo: outcome.results });
+      showToast({ title: ok + ' activated', description: pendingApproval + ' awaiting approval\n' + _formatRoleOutcomeList(cappedRoles, outcome.results), type: 'info', duration: 8000, debugInfo: outcome.results });
     } else if (ok === 0 && pendingApproval === 0) {
       const firstError = outcome.results?.find(r => r.error)?.error || 'Activation failed';
-      showToast({ title: 'Activation failed', description: firstError, type: 'error', debugInfo: outcome.results });
+      showToast({ title: 'Activation failed', description: firstError + '\n\n' + _formatRoleOutcomeList(cappedRoles, outcome.results), type: 'error', debugInfo: outcome.results });
     } else {
-      showToast({ title: ok + ' role' + (ok !== 1 ? 's' : '') + ' activated', description: fail + ' failed. ' + (outcome.results?.find(r => r.error)?.error || ''), type: 'warning', debugInfo: outcome.results });
+      showToast({ title: ok + ' role' + (ok !== 1 ? 's' : '') + ' activated', description: fail + ' failed.\n' + _formatRoleOutcomeList(cappedRoles, outcome.results), type: 'warning', debugInfo: outcome.results });
     }
     await _refresh();
   } catch (err) {
@@ -919,10 +1002,10 @@ async function handleDeactivate() {
 
     _opOverlay.close(fail > 0 ? 2500 : 1400);
     if (fail === 0) {
-      showToast({ title: 'Successfully deactivated', description: ok + ' role' + (ok !== 1 ? 's' : ''), type: 'success', debugInfo: outcome.results });
+      showToast({ title: 'Successfully deactivated', description: _formatRoleOutcomeList(roles, outcome.results), type: 'success', debugInfo: outcome.results });
     } else {
       const firstError = outcome.results?.find(r => r.error)?.error || 'Deactivation failed';
-      showToast({ title: ok + ' deactivated', description: fail + ' failed. ' + firstError, type: 'warning', debugInfo: outcome.results });
+      showToast({ title: ok + ' deactivated', description: fail + ' failed. ' + firstError + '\n' + _formatRoleOutcomeList(roles, outcome.results), type: 'warning', debugInfo: outcome.results });
     }
     // Background sync — small delay gives the API time to propagate the deactivation
     // before we re-fetch, preventing the role from briefly reappearing.
@@ -1189,6 +1272,9 @@ async function bootstrap() {
   if (loading) loading.hidden = true;
   if (app)     app.hidden     = false;
 
+  // Initialise header quick actions
+  _renderQuickActions();
+
   // Initialise profile DB (non-blocking — it'll be ready long before the user clicks Save)
   profileManager.init().catch(err => console.warn('[App] ProfileManager init failed:', err));
 
@@ -1210,16 +1296,57 @@ async function bootstrap() {
       });
     });
 
-  // Help modal
-  const _showHelp = () => {
-    const m = document.getElementById('help-modal');
-    if (m) { m.hidden = false; m.querySelector('.modal')?.classList.add('fade-in'); }
+  // Help menu & modal
+  const helpBtn = document.getElementById('help-btn');
+  const helpDropdown = document.getElementById('help-dropdown');
+  const helpModal = document.getElementById('help-modal');
+
+  const _showHelp = (target = 'guide') => {
+    if (!helpModal) return;
+    
+    // Set title
+    const titles = {
+      'guide': 'Manual',
+      'how-it-works': 'How it works',
+      'features': 'Features',
+      'faq': 'FAQ'
+    };
+    const titleEl = document.getElementById('help-modal-title');
+    if (titleEl) titleEl.textContent = titles[target] || 'Manual';
+
+    // Toggle content sections
+    helpModal.querySelectorAll('[id^="help-content-"]').forEach(el => {
+      el.hidden = (el.id !== `help-content-${target}`);
+    });
+
+    helpModal.hidden = false;
+    helpModal.querySelector('.modal')?.classList.add('fade-in');
+    if (helpDropdown) helpDropdown.hidden = true;
   };
-  const _hideHelp = () => { const m = document.getElementById('help-modal'); if (m) m.hidden = true; };
-  document.getElementById('help-btn')?.addEventListener('click', _showHelp);
+
+  const _hideHelp = () => { if (helpModal) helpModal.hidden = true; };
+
+  helpBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (helpDropdown) helpDropdown.hidden = !helpDropdown.hidden;
+  });
+
+  helpDropdown?.querySelectorAll('.quick-dropdown-item').forEach(item => {
+    item.addEventListener('click', () => {
+      _showHelp(item.dataset.help);
+    });
+  });
+
   document.getElementById('help-modal-close-btn')?.addEventListener('click', _hideHelp);
   document.getElementById('help-modal-close-footer')?.addEventListener('click', _hideHelp);
-  document.getElementById('help-modal')?.addEventListener('click', e => { if (e.target === e.currentTarget) _hideHelp(); });
+  helpModal?.addEventListener('click', e => { if (e.target === e.currentTarget) _hideHelp(); });
+
+  // Close help dropdown on outside click
+  document.addEventListener('click', (e) => {
+    if (helpDropdown && !helpDropdown.hidden && !e.target.closest('.quick-action-wrap')) {
+      helpDropdown.hidden = true;
+    }
+  });
 
   // Refresh button
   document.getElementById('refresh-btn')
@@ -1298,6 +1425,13 @@ async function bootstrap() {
     const btn = document.getElementById('flag-swap-sections');
     if (btn) { btn.classList.toggle('active', on); btn.setAttribute('aria-checked', on); }
     _applySectionOrder();
+  });
+
+  // Quick actions
+  document.getElementById('flag-quick-appearance')?.addEventListener('change', e => {
+    _flags.quickAppearance = e.target.checked;
+    localStorage.setItem(FLAGS_KEY, JSON.stringify(_flags));
+    _renderQuickActions();
   });
 
   // Activation modal profile save toggle
