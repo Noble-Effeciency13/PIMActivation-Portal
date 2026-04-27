@@ -1,0 +1,65 @@
+name: Sync Deployment Templates
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Portal/deploy/bicep/**'
+      - 'Portal/deploy/azuredeploy.json'
+      - '.github/workflows/sync-deployment-templates.yml'
+  pull_request:
+    paths:
+      - 'Portal/deploy/bicep/**'
+      - 'Portal/deploy/azuredeploy.json'
+      - '.github/workflows/sync-deployment-templates.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out pull request
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v4
+
+      - name: Check out branch
+        if: github.event_name != 'pull_request'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Set up Bicep
+        uses: Azure/setup-bicep@v2
+        with:
+          bicep-version: latest
+
+      - name: Build ARM template from Bicep
+        run: |
+          bicep build Portal/deploy/bicep/portal-selfhosted.bicep \
+            --outfile Portal/deploy/azuredeploy.json
+
+      - name: Check for deployment template drift
+        if: github.event_name == 'pull_request'
+        run: |
+          if ! git diff --exit-code -- Portal/deploy/azuredeploy.json; then
+            echo "Portal/deploy/azuredeploy.json is out of sync with Portal/deploy/bicep/portal-selfhosted.bicep."
+            echo "Run: bicep build Portal/deploy/bicep/portal-selfhosted.bicep --outfile Portal/deploy/azuredeploy.json"
+            exit 1
+          fi
+
+      - name: Commit synced ARM template
+        if: github.event_name != 'pull_request'
+        run: |
+          if git diff --quiet -- Portal/deploy/azuredeploy.json; then
+            echo "Deployment template is already in sync."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Portal/deploy/azuredeploy.json
+          git commit -m "chore: sync deployment template"
+          git push

@@ -1,15 +1,22 @@
 {
   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "languageVersion": "2.0",
   "contentVersion": "1.0.0.0",
   "metadata": {
-    "description": "PIMActivation Portal — Self-Hosted Deployment. Provisions an Azure Static Web App and automatically deploys the portal SPA into your own tenant.",
+    "_generator": {
+      "name": "bicep",
+      "version": "0.42.1.51946",
+      "templateHash": "11460639355451173443"
+    },
+    "description": "PIMActivation Portal - Self-Hosted Deployment. Provisions an Azure Static Web App, creates the Entra app registration, and deploys the portal SPA.",
     "source": "https://github.com/Noble-Effeciency13/PIMActivation-Portal"
   },
   "parameters": {
-    "clientId": {
+    "applicationDisplayName": {
       "type": "string",
+      "defaultValue": "PIMActivation Portal",
       "metadata": {
-        "description": "Application (client) ID of the Entra ID app registration you created for the portal."
+        "description": "Display name of the Entra ID app registration created for the portal."
       }
     },
     "tenantId": {
@@ -23,72 +30,134 @@
       "type": "string",
       "defaultValue": "",
       "metadata": {
-        "description": "Optional custom domain to attach to the Static Web App (e.g. pim.contoso.com)."
+        "description": "Optional custom domain to configure on the Static Web App (e.g. pim.contoso.com)."
       }
     },
     "location": {
       "type": "string",
       "defaultValue": "[resourceGroup().location]",
       "metadata": {
-        "description": "Azure region for all resources."
+        "description": "Azure region for the Static Web App."
       }
     },
     "staticWebAppSku": {
       "type": "string",
       "defaultValue": "Free",
-      "allowedValues": [ "Free", "Standard" ],
+      "allowedValues": [
+        "Free",
+        "Standard"
+      ],
       "metadata": {
-        "description": "Pricing tier for the Azure Static Web App."
+        "description": "SKU for the Static Web App."
       }
     },
     "resourceTag": {
       "type": "string",
       "defaultValue": "PIMActivation",
       "metadata": {
-        "description": "Value for the 'project' resource tag applied to all resources."
+        "description": "Tag applied to all resources."
       }
     }
   },
   "variables": {
     "suffix": "[uniqueString(resourceGroup().id)]",
-    "appName": "[concat('pimactivation-portal-', variables('suffix'))]",
-    "idName": "[concat('id-pimactivation-deploy-', variables('suffix'))]",
-    "scriptName": "[concat('script-pimactivation-deploy-', variables('suffix'))]",
+    "appName": "[format('pimactivation-portal-{0}', variables('suffix'))]",
+    "idName": "[format('id-pimactivation-deploy-{0}', variables('suffix'))]",
+    "scriptName": "[format('script-pimactivation-deploy-{0}', variables('suffix'))]",
+    "tags": {
+      "project": "[parameters('resourceTag')]"
+    },
+    "customDomainUrl": "[format('https://{0}', parameters('customDomain'))]",
+    "applicationUniqueName": "[format('pimactivation-portal-{0}', uniqueString(parameters('tenantId'), resourceGroup().id))]",
     "contributorRoleId": "b24988ac-6180-42a0-ab88-20f7382dd24c",
-    "roleAssignmentName": "[guid(resourceGroup().id, resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', concat('id-pimactivation-deploy-', uniqueString(resourceGroup().id))), 'b24988ac-6180-42a0-ab88-20f7382dd24c')]",
-    "scriptContent": "set -e\n\necho \"==> Installing Node.js and tools...\"\napk add --no-cache nodejs npm curl unzip\n\necho \"==> Downloading portal source...\"\ncurl -fsSL \"https://github.com/Noble-Effeciency13/PIMActivation-Portal/archive/refs/heads/main.zip\" -o main.zip\nunzip -q main.zip\ncd PIMActivation-Portal-main\n\necho \"==> Injecting configuration...\"\nsed -i \"s|__PORTAL_CLIENT_ID__|${CLIENT_ID}|g\" Portal/js/msal-config.js\nsed -i \"s|__PORTAL_TENANT_ID__|${TENANT_ID}|g\" Portal/js/msal-config.js\n\necho \"==> Verifying injection...\"\nif grep -qE '__PORTAL_CLIENT_ID__|__PORTAL_TENANT_ID__' Portal/js/msal-config.js; then\n  echo \"ERROR: placeholder injection failed\" && exit 1\nfi\n\necho \"==> Retrieving SWA deployment token...\"\nDEPLOYMENT_TOKEN=$(az staticwebapp secrets list --name \"${SWA_NAME}\" --resource-group \"${RESOURCE_GROUP}\" --query \"properties.apiKey\" --output tsv)\n\necho \"==> Installing SWA CLI...\"\nnpm install -g @azure/static-web-apps-cli --quiet --no-progress\n\necho \"==> Deploying portal...\"\nswa deploy Portal/ --deployment-token \"${DEPLOYMENT_TOKEN}\" --env production --no-use-keychain\n\necho \"==> Done.\"\n"
+    "microsoftGraphAppId": "00000003-0000-0000-c000-000000000000",
+    "azureManagementAppId": "797f4846-ba00-4fd7-ba43-dac1f8f63013",
+    "graphDelegatedPermissions": [
+      {
+        "id": "e1fe6dd8-ba31-4d61-89e7-88639da4683d",
+        "type": "Scope"
+      },
+      {
+        "id": "d01b97e9-cbc0-49fe-810a-750afd5527a3",
+        "type": "Scope"
+      },
+      {
+        "id": "32531c59-1f32-461f-b8df-6f8a3b89f73b",
+        "type": "Scope"
+      },
+      {
+        "id": "7e26fdff-9cb1-4e56-bede-211fe0e420e8",
+        "type": "Scope"
+      },
+      {
+        "id": "572fea84-0151-49b2-9301-11cb16974376",
+        "type": "Scope"
+      },
+      {
+        "id": "3361d15d-be43-4de6-b441-3c746d05163d",
+        "type": "Scope"
+      },
+      {
+        "id": "e4c9e354-4dc5-45b8-9e7c-e1393b0b1a20",
+        "type": "Scope"
+      },
+      {
+        "id": "7427e0e9-2fba-42fe-b0c0-848c9e6a8182",
+        "type": "Scope"
+      },
+      {
+        "id": "37f7f235-527c-4136-accd-4a02d197296e",
+        "type": "Scope"
+      },
+      {
+        "id": "14dad69e-099b-42c9-810b-d002981feec1",
+        "type": "Scope"
+      },
+      {
+        "id": "64a6cdd6-aab1-4aaf-94b8-3cc8405e90d0",
+        "type": "Scope"
+      }
+    ],
+    "azureManagementDelegatedPermissions": [
+      {
+        "id": "41094075-9dad-400e-a0bd-54e686782033",
+        "type": "Scope"
+      }
+    ]
   },
-  "resources": [
-    {
+  "imports": {
+    "microsoftGraphV1": {
+      "provider": "MicrosoftGraph",
+      "version": "1.0.0"
+    }
+  },
+  "resources": {
+    "deployIdentity": {
       "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
       "apiVersion": "2023-01-31",
       "name": "[variables('idName')]",
       "location": "[parameters('location')]",
-      "tags": {
-        "project": "[parameters('resourceTag')]"
-      }
+      "tags": "[variables('tags')]"
     },
-    {
+    "roleAssignment": {
       "type": "Microsoft.Authorization/roleAssignments",
       "apiVersion": "2022-04-01",
-      "name": "[variables('roleAssignmentName')]",
+      "name": "[guid(resourceGroup().id, resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('idName')), variables('contributorRoleId'))]",
       "properties": {
         "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('contributorRoleId'))]",
-        "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('idName')), '2023-01-31').principalId]",
+        "principalId": "[reference('deployIdentity').principalId]",
         "principalType": "ServicePrincipal"
       },
       "dependsOn": [
-        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('idName'))]"
+        "deployIdentity"
       ]
     },
-    {
+    "staticWebApp": {
       "type": "Microsoft.Web/staticSites",
       "apiVersion": "2023-01-01",
       "name": "[variables('appName')]",
       "location": "[parameters('location')]",
-      "tags": {
-        "project": "[parameters('resourceTag')]"
-      },
+      "tags": "[variables('tags')]",
       "sku": {
         "name": "[parameters('staticWebAppSku')]",
         "tier": "[parameters('staticWebAppSku')]"
@@ -98,29 +167,78 @@
         "allowConfigFileUpdates": true
       }
     },
-    {
+    "customDomainResource": {
       "condition": "[not(empty(parameters('customDomain')))]",
       "type": "Microsoft.Web/staticSites/customDomains",
       "apiVersion": "2023-01-01",
-      "name": "[concat(variables('appName'), '/', if(empty(parameters('customDomain')), 'placeholder', parameters('customDomain')))]",
+      "name": "[format('{0}/{1}', variables('appName'), parameters('customDomain'))]",
       "properties": {},
       "dependsOn": [
-        "[resourceId('Microsoft.Web/staticSites', variables('appName'))]"
+        "staticWebApp"
       ]
     },
-    {
+    "portalApplication": {
+      "import": "microsoftGraphV1",
+      "type": "Microsoft.Graph/applications@v1.0",
+      "properties": {
+        "displayName": "[parameters('applicationDisplayName')]",
+        "uniqueName": "[variables('applicationUniqueName')]",
+        "signInAudience": "AzureADMyOrg",
+        "defaultRedirectUri": "[format('https://{0}', reference('staticWebApp').defaultHostname)]",
+        "spa": {
+          "redirectUris": "[if(empty(parameters('customDomain')), createArray(format('https://{0}', reference('staticWebApp').defaultHostname)), createArray(format('https://{0}', reference('staticWebApp').defaultHostname), variables('customDomainUrl')))]"
+        },
+        "info": {
+          "marketingUrl": "https://pimactivation.com/",
+          "privacyStatementUrl": "https://pimactivation.com/",
+          "supportUrl": "https://github.com/Noble-Effeciency13/PIMActivation-Portal/issues",
+          "termsOfServiceUrl": "https://pimactivation.com/"
+        },
+        "requiredResourceAccess": [
+          {
+            "resourceAppId": "[variables('microsoftGraphAppId')]",
+            "resourceAccess": "[variables('graphDelegatedPermissions')]"
+          },
+          {
+            "resourceAppId": "[variables('azureManagementAppId')]",
+            "resourceAccess": "[variables('azureManagementDelegatedPermissions')]"
+          }
+        ],
+        "tags": [
+          "PIMActivation",
+          "SelfHosted"
+        ]
+      },
+      "dependsOn": [
+        "staticWebApp"
+      ]
+    },
+    "portalServicePrincipal": {
+      "import": "microsoftGraphV1",
+      "type": "Microsoft.Graph/servicePrincipals@v1.0",
+      "properties": {
+        "appId": "[reference('portalApplication').appId]",
+        "appRoleAssignmentRequired": false,
+        "tags": [
+          "WindowsAzureActiveDirectoryIntegratedApp",
+          "PIMActivation"
+        ]
+      },
+      "dependsOn": [
+        "portalApplication"
+      ]
+    },
+    "deployScript": {
       "type": "Microsoft.Resources/deploymentScripts",
       "apiVersion": "2023-08-01",
       "name": "[variables('scriptName')]",
       "location": "[parameters('location')]",
-      "tags": {
-        "project": "[parameters('resourceTag')]"
-      },
+      "tags": "[variables('tags')]",
       "kind": "AzureCLI",
       "identity": {
         "type": "UserAssigned",
         "userAssignedIdentities": {
-          "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('idName'))]": {}
+          "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('idName')))]": {}
         }
       },
       "properties": {
@@ -129,31 +247,94 @@
         "timeout": "PT10M",
         "cleanupPreference": "OnSuccess",
         "environmentVariables": [
-          { "name": "CLIENT_ID",      "value": "[parameters('clientId')]" },
-          { "name": "TENANT_ID",      "value": "[parameters('tenantId')]" },
-          { "name": "SWA_NAME",       "value": "[variables('appName')]" },
-          { "name": "RESOURCE_GROUP", "value": "[resourceGroup().name]" }
+          {
+            "name": "CLIENT_ID",
+            "value": "[reference('portalApplication').appId]"
+          },
+          {
+            "name": "TENANT_ID",
+            "value": "[parameters('tenantId')]"
+          },
+          {
+            "name": "SWA_NAME",
+            "value": "[variables('appName')]"
+          },
+          {
+            "name": "PORTAL_URL",
+            "value": "[format('https://{0}', reference('staticWebApp').defaultHostname)]"
+          },
+          {
+            "name": "RESOURCE_GROUP",
+            "value": "[resourceGroup().name]"
+          }
         ],
-        "scriptContent": "[variables('scriptContent')]"
+        "scriptContent": "      set -e\r\n\r\n      echo \"==> Installing Node.js and tools...\"\r\n      apk add --no-cache nodejs npm curl unzip\r\n\r\n      echo \"==> Downloading portal source...\"\r\n      curl -fsSL \\\r\n        \"https://github.com/Noble-Effeciency13/PIMActivation-Portal/archive/refs/heads/main.zip\" \\\r\n        -o main.zip\r\n      unzip -q main.zip\r\n      cd PIMActivation-Portal-main\r\n\r\n      echo \"==> Injecting configuration...\"\r\n      echo \"==> Portal URL: ${PORTAL_URL}\"\r\n      echo \"==> Portal app registration client ID: ${CLIENT_ID}\"\r\n      sed -i \"s|__PORTAL_CLIENT_ID__|${CLIENT_ID}|g\" Portal/js/msal-config.js\r\n      sed -i \"s|__PORTAL_TENANT_ID__|${TENANT_ID}|g\" Portal/js/msal-config.js\r\n\r\n      echo \"==> Verifying injection...\"\r\n      if grep -q '__PORTAL_CLIENT_ID__\\|__PORTAL_TENANT_ID__' Portal/js/msal-config.js; then\r\n        echo \"ERROR: placeholder injection failed\" && exit 1\r\n      fi\r\n\r\n      echo \"==> Retrieving SWA deployment token...\"\r\n      DEPLOYMENT_TOKEN=$(az staticwebapp secrets list \\\r\n        --name \"${SWA_NAME}\" \\\r\n        --resource-group \"${RESOURCE_GROUP}\" \\\r\n        --query \"properties.apiKey\" \\\r\n        --output tsv)\r\n\r\n      echo \"==> Installing SWA CLI...\"\r\n      npm install -g @azure/static-web-apps-cli --quiet --no-progress\r\n\r\n      echo \"==> Deploying portal to Azure Static Web Apps...\"\r\n      swa deploy Portal/ \\\r\n        --deployment-token \"${DEPLOYMENT_TOKEN}\" \\\r\n        --env production \\\r\n        --no-use-keychain\r\n\r\n      echo \"==> Deployment complete.\"\r\n    "
       },
       "dependsOn": [
-        "[resourceId('Microsoft.Authorization/roleAssignments', variables('roleAssignmentName'))]",
-        "[resourceId('Microsoft.Web/staticSites', variables('appName'))]"
+        "deployIdentity",
+        "portalApplication",
+        "portalServicePrincipal",
+        "roleAssignment",
+        "staticWebApp"
       ]
     }
-  ],
+  },
   "outputs": {
     "portalUrl": {
       "type": "string",
-      "value": "[concat('https://', reference(resourceId('Microsoft.Web/staticSites', variables('appName')), '2023-01-01').defaultHostname)]"
+      "metadata": {
+        "description": "URL of the deployed portal."
+      },
+      "value": "[format('https://{0}', reference('staticWebApp').defaultHostname)]"
     },
     "staticWebAppName": {
       "type": "string",
+      "metadata": {
+        "description": "Name of the Azure Static Web App resource."
+      },
       "value": "[variables('appName')]"
+    },
+    "clientId": {
+      "type": "string",
+      "metadata": {
+        "description": "Application (client) ID of the Entra ID app registration created for the portal."
+      },
+      "value": "[reference('portalApplication').appId]"
+    },
+    "applicationObjectId": {
+      "type": "string",
+      "metadata": {
+        "description": "Object ID of the Entra ID app registration created for the portal."
+      },
+      "value": "[reference('portalApplication').id]"
+    },
+    "servicePrincipalObjectId": {
+      "type": "string",
+      "metadata": {
+        "description": "Object ID of the enterprise application/service principal created for the portal."
+      },
+      "value": "[reference('portalServicePrincipal').id]"
+    },
+    "redirectUris": {
+      "type": "array",
+      "metadata": {
+        "description": "SPA redirect URIs configured on the Entra ID app registration."
+      },
+      "value": "[if(empty(parameters('customDomain')), createArray(format('https://{0}', reference('staticWebApp').defaultHostname)), createArray(format('https://{0}', reference('staticWebApp').defaultHostname), variables('customDomainUrl')))]"
+    },
+    "adminConsentUrl": {
+      "type": "string",
+      "metadata": {
+        "description": "Admin consent URL for the created portal application."
+      },
+      "value": "[uri(environment().authentication.loginEndpoint, format('{0}/adminconsent?client_id={1}', parameters('tenantId'), reference('portalApplication').appId))]"
     },
     "nextStep": {
       "type": "string",
-      "value": "[concat('Add https://', reference(resourceId('Microsoft.Web/staticSites', variables('appName')), '2023-01-01').defaultHostname, ' as a redirect URI in your Entra app registration (', parameters('clientId'), ').')]"
+      "metadata": {
+        "description": "Next step: grant admin consent for the delegated permissions if your tenant requires it."
+      },
+      "value": "[format('Grant admin consent if required: {0}', uri(environment().authentication.loginEndpoint, format('{0}/adminconsent?client_id={1}', parameters('tenantId'), reference('portalApplication').appId)))]"
     }
   }
 }

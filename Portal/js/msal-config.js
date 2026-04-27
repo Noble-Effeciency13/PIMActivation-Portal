@@ -4,7 +4,7 @@
  *
  * CLIENT_ID and TENANT_ID are injected at deploy time via sed replacement.
  * __PORTAL_CLIENT_ID__  → GitHub secret PORTAL_CLIENT_ID  (hosted CI)
- *                        → Bicep parameter clientId          (self-hosted ARM)
+ *                        → Bicep-created Entra app ID        (self-hosted ARM)
  * __PORTAL_TENANT_ID__  → 'organizations'                   (hosted CI, multi-tenant)
  *                        → Bicep parameter tenantId          (self-hosted ARM, single-tenant)
  *

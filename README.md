@@ -103,11 +103,24 @@ PIMActivation-Portal/
 │   │       └── graph-client.js    # Graph + $batch with 429 retry
 │   ├── staticwebapp.config.json   # SPA routing, CSP, security headers
 │   └── deploy/
+│       ├── azuredeploy.json       # Generated ARM template for Deploy to Azure
 │       └── bicep/
-│           └── portal.bicep       # Azure Static Web Apps IaC
+│           ├── portal.bicep       # Hosted Static Web App IaC
+│           ├── portal-selfhosted.bicep
+│           └── bicepconfig.json   # Microsoft Graph Bicep extension
 ├── website/                       # GitHub Pages landing site (pimactivation.com)
-└── .github/workflows/             # CI: deploy-portal.yml, deploy-pages.yml
+└── .github/workflows/             # CI: portal/pages deploy + template sync
 ```
+
+---
+
+## Self-hosted Azure deployment
+
+The self-hosted template provisions the Azure Static Web App, creates a single-tenant Entra ID app registration, configures the SPA redirect URI, adds the required delegated API permissions, deploys the portal files, and outputs the generated client ID.
+
+The Bicep file at `Portal/deploy/bicep/portal-selfhosted.bicep` is the source of truth. `Portal/deploy/azuredeploy.json` is generated from it by the `Sync Deployment Templates` workflow so the Deploy to Azure template does not drift from the Bicep source.
+
+Deploying Microsoft Graph resources from Bicep requires the deploying identity to have permission to create application registrations, such as `Application.ReadWrite.All`. After deployment, use the `adminConsentUrl` output if your tenant requires administrator consent for the configured delegated permissions.
 
 ---
 
