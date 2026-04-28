@@ -72,7 +72,7 @@
 
     <!-- ── User context card ──────────────────────────────────────────────────── -->
     <div class="user-context-card" id="user-context-card">
-      <div class="uc-item">
+      <div class="uc-item uc-collapsible">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
         <div>
           <div class="uc-label">Signed in as</div>
@@ -86,13 +86,16 @@
           <div class="uc-value" id="user-email"></div>
         </div>
       </div>
-      <div class="uc-item">
+      <div class="uc-item uc-collapsible">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>
         <div>
           <div class="uc-label">Tenant</div>
           <div class="uc-value uc-mono" id="user-tenant"></div>
         </div>
       </div>
+      <button class="icon-btn uc-expand-btn" id="uc-expand-btn" aria-expanded="false" aria-label="Show more details" title="Show more details">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </button>
     </div>
 
     <main class="app-main">

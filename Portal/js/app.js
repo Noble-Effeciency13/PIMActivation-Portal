@@ -1509,6 +1509,17 @@ async function bootstrap() {
   document.getElementById('select-all-active')
     ?.addEventListener('change', e => roleManager.selectAllActive(e.target.checked));
 
+  
+  // User context card expand toggle
+  document.getElementById('uc-expand-btn')?.addEventListener('click', () => {
+    const card = document.getElementById('user-context-card');
+    if (card) card.classList.toggle('expanded');
+    const btn = document.getElementById('uc-expand-btn');
+    if (btn) {
+      btn.setAttribute('aria-expanded', btn.getAttribute('aria-expanded') === 'true' ? 'false' : 'true');
+    }
+  });
+
   // Eligible search
   document.getElementById('eligible-search')
     ?.addEventListener('input', () => roleManager.renderEligible());

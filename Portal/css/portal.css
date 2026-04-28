@@ -1929,3 +1929,39 @@ body.show-inactive-policies .pol-none-label {
   padding:     24px 0;
   line-height: 1.6;
 }
+/* Mobile User Context Card Toggle */
+.uc-expand-btn {
+  display: none;
+  margin-left: auto;
+  align-self: center;
+  transition: transform 0.2s;
+  color: var(--text-muted);
+}
+.uc-expand-btn:hover {
+  color: var(--text);
+  background: transparent;
+}
+@media (max-width: 640px) {
+  .user-context-card {
+    position: relative;
+    padding-right: 48px;
+    align-items: center;
+  }
+  .uc-collapsible {
+    display: none;
+  }
+  .user-context-card.expanded .uc-collapsible {
+    display: flex;
+    width: 100%;
+  }
+  .uc-expand-btn {
+    display: inline-flex;
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  .user-context-card.expanded .uc-expand-btn {
+    transform: translateY(-50%) rotate(180deg);
+  }
+}
