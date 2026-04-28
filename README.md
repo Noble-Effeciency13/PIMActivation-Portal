@@ -87,6 +87,7 @@ If a role's PIM policy requires a Conditional Access auth context (`acrs` claim)
 
 ```
 PIMActivation-Portal/
+├── assets/favicons/              # Source favicon set synced into both web roots
 ├── Portal/                        # Browser SPA
 │   ├── index.html
 │   ├── css/portal.css
@@ -108,9 +109,41 @@ PIMActivation-Portal/
 │           ├── portal.bicep       # Hosted Static Web App IaC
 │           ├── portal-selfhosted.bicep
 │           └── bicepconfig.json   # Microsoft Graph Bicep extension
+├── scripts/                       # Maintenance scripts
 ├── website/                       # GitHub Pages landing site (pimactivation.com)
-└── .github/workflows/             # CI: portal/pages deploy + template sync
+└── .github/workflows/             # CI: portal/pages deploy + template/favicon sync
 ```
+
+---
+
+## Favicons
+
+Favicons are sourced from `assets/favicons/` and synced into both deployed web roots: `Portal/` for the Azure Static Web App and `website/` for the landing page.
+
+The page head advertises `favicon.svg` for modern light-mode sessions and `favicon.ico` for dark-mode sessions plus legacy `/favicon.ico` probes. Browser favicon caches are sticky, so use an incognito window or clear site data when validating a changed favicon.
+
+After adding or replacing favicon files, run:
+
+```powershell
+pwsh ./scripts/sync-favicons.ps1
+```
+
+The `Sync Favicons` workflow checks pull requests for drift and commits synced favicon copies back to `main` after direct source updates.
+
+---
+
+## Local mobile testing
+
+Run the local dev server, then use Chrome or Edge DevTools device emulation for the first mobile pass:
+
+```powershell
+$env:PORT='0'
+node dev.js
+```
+
+Open the printed localhost URL, press `F12`, toggle device emulation with `Ctrl+Shift+M`, and test common widths such as 390, 375, 360, and 320 pixels. This keeps MSAL on a localhost redirect URI, so no extra app registration redirect URI is needed.
+
+For a real phone, expose the local server through an HTTPS tunnel such as VS Code port forwarding, Microsoft dev tunnels, or ngrok, then add that temporary HTTPS origin as a SPA redirect URI in the Entra app registration before signing in from the phone.
 
 ---
 

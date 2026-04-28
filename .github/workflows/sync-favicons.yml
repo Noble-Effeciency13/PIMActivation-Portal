@@ -1,0 +1,69 @@
+name: Sync Favicons
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'assets/favicons/**'
+      - 'scripts/sync-favicons.ps1'
+      - 'Portal/favicon.ico'
+      - 'Portal/favicons/**'
+      - 'website/favicon.ico'
+      - 'website/favicons/**'
+      - '.github/workflows/sync-favicons.yml'
+  pull_request:
+    paths:
+      - 'assets/favicons/**'
+      - 'scripts/sync-favicons.ps1'
+      - 'Portal/favicon.ico'
+      - 'Portal/favicons/**'
+      - 'website/favicon.ico'
+      - 'website/favicons/**'
+      - '.github/workflows/sync-favicons.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out pull request
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v4
+
+      - name: Check out branch
+        if: github.event_name != 'pull_request'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Sync favicons
+        shell: pwsh
+        run: ./scripts/sync-favicons.ps1
+
+      - name: Check for favicon drift
+        if: github.event_name == 'pull_request'
+        run: |
+          if ! git diff --exit-code -- Portal/favicon.ico Portal/favicons website/favicon.ico website/favicons; then
+            echo "Favicon files are out of sync with assets/favicons."
+            echo "Run: pwsh ./scripts/sync-favicons.ps1"
+            exit 1
+          fi
+
+      - name: Commit synced favicons
+        if: github.event_name != 'pull_request'
+        run: |
+          if git diff --quiet -- Portal/favicon.ico Portal/favicons website/favicon.ico website/favicons; then
+            echo "Favicons are already in sync."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add --all -- Portal/favicons website/favicons
+          if [ -e Portal/favicon.ico ]; then git add --all -- Portal/favicon.ico; fi
+          if [ -e website/favicon.ico ]; then git add --all -- website/favicon.ico; fi
+          git commit -m "chore: sync favicons"
+          git push

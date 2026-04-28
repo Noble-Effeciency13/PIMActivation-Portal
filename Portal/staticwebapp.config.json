@@ -11,11 +11,29 @@
       "headers": {
         "Cache-Control": "no-cache, must-revalidate"
       }
+    },
+    {
+      "route": "/favicon.ico",
+      "headers": {
+        "Cache-Control": "no-cache, must-revalidate"
+      }
+    },
+    {
+      "route": "/favicons/*",
+      "headers": {
+        "Cache-Control": "no-cache, must-revalidate"
+      }
+    },
+    {
+      "route": "/manifest.json",
+      "headers": {
+        "Cache-Control": "no-cache, must-revalidate"
+      }
     }
   ],
   "navigationFallback": {
     "rewrite": "/index.html",
-    "exclude": ["/css/*", "/js/*", "/images/*", "*.ico", "*.svg", "*.png", "*.woff2"]
+    "exclude": ["/css/*", "/js/*", "/images/*", "/favicons/*", "/manifest.json", "*.ico", "*.svg", "*.png", "*.webmanifest", "*.woff2"]
   },
   "responseOverrides": {
     "404": {
@@ -34,6 +52,10 @@
   },
   "mimeTypes": {
     ".json":  "application/json",
+    ".ico":   "image/x-icon",
+    ".svg":   "image/svg+xml",
+    ".png":   "image/png",
+    ".webmanifest": "application/manifest+json",
     ".webp":  "image/webp",
     ".woff2": "font/woff2"
   }
