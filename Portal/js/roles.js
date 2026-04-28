@@ -262,7 +262,14 @@ class RoleManager {
           '<td class="col-type" data-label="Type">' + badge + '</td>' +
           '<td class="col-role" data-label="Role"><div class="role-cell">' +
             '<span class="role-name">' + escapeHtml(role.name) + pending + '</span>' +
-            '<span class="role-scope">' + escapeHtml(this.getScopeDisplay(role)) + '</span>' +
+            '<span class="role-scope"><span class="mobile-badge">' + badge + '</span>' + escapeHtml(this.getScopeDisplay(role)) + '</span>' +
+            '<div class="mobile-policy-strip">' +
+              '<span class="pol-max">' + maxDisp + '</span>' +
+              _polMfa(role) +
+              _polDot(role.requiresJustification, 'Just.',  'pol-warning', 'Justification required') +
+              _polDot(role.requiresTicket,        'Ticket', 'pol-warning', 'Ticket required') +
+              _polDot(role.requiresApproval,      'Apprv.', 'pol-purple',  'Approval required') +
+            '</div>' +
           '</div></td>' +
           '<td class="col-policy" data-label="Max"><span class="pol-max">' + maxDisp + '</span></td>' +
           '<td class="col-policy" data-label="MFA">'    + _polMfa(role)                                     + '</td>' +
@@ -446,7 +453,7 @@ class RoleManager {
         '<td class="col-type" data-label="Type">' + badge + '</td>' +
         '<td class="col-role" data-label="Role"><div class="role-cell">' +
           '<span class="role-name">' + escapeHtml(role.name) + '</span>' +
-          '<span class="role-scope">' + escapeHtml(this.getScopeDisplay(role)) + '</span>' +
+          '<span class="role-scope"><span class="mobile-badge">' + badge + '</span>' + escapeHtml(this.getScopeDisplay(role)) + '</span>' +
         '</div></td>' +
         '<td class="col-expires" data-label="Expires">' + expiryHtml + '</td>' +
       '</tr>';
@@ -461,7 +468,7 @@ class RoleManager {
         '<td class="col-type" data-label="Type">' + badge + '</td>' +
         '<td class="col-role" data-label="Role"><div class="role-cell">' +
           '<span class="role-name">' + escapeHtml(role.name) + '</span>' +
-          '<span class="role-scope">' + escapeHtml(_scopeDisplay(role)) + '</span>' +
+          '<span class="role-scope"><span class="mobile-badge">' + badge + '</span>' + escapeHtml(_scopeDisplay(role)) + '</span>' +
           '<span class="awaiting-tag">Awaiting approval</span>' +
         '</div></td>' +
         '<td class="col-expires"></td>' +
@@ -782,7 +789,7 @@ function _polDot(required, letter, colorClass, tooltip) {
   if (required) {
     return '<span class="pol-dot ' + colorClass + '" title="' + tooltip + '">' + letter + '</span>';
   }
-  return '<span class="pol-none" title="Not required">&ndash;</span>';
+  return '<span class="pol-none" title="Not required"><span class="pol-none-dash">&ndash;</span><span class="pol-none-label">' + letter + '</span></span>';
 }
 
 function _polMfa(role) {
@@ -794,7 +801,7 @@ function _polMfa(role) {
     const tip = role.authContextId ? 'Auth context: ' + escapeHtml(role.authContextId) : 'Auth context required';
     parts.push('<span class="pol-dot pol-auth-ctx" title="' + escapeHtml(tip) + '">CA</span>');
   }
-  if (parts.length === 0) return '<span class="pol-none" title="No MFA or auth context required">&ndash;</span>';
+  if (parts.length === 0) return '<span class="pol-none" title="No MFA or auth context required"><span class="pol-none-dash">&ndash;</span><span class="pol-none-label">MFA</span></span>';
   return '<div class="pol-mfa-cell">' + parts.join('') + '</div>';
 }
 

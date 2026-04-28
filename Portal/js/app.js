@@ -17,8 +17,12 @@ const _flags = {
   showActiveInEligible: false,
   swapSections:         false,
   quickAppearance:      true,
+  showInactivePolicies: false,
+  quickInactivePolicies: false,
   ...JSON.parse(localStorage.getItem(FLAGS_KEY) || '{}')
 };
+
+_applyInactivePolicies();
 
 function escapeHtml(str) {
   if (str == null) return '';
@@ -350,6 +354,10 @@ const _opOverlay = {
 
 // ── Section order ─────────────────────────────────────────────────────────────
 
+function _applyInactivePolicies() {
+  document.body.classList.toggle('show-inactive-policies', !!_flags.showInactivePolicies);
+}
+
 function _applySectionOrder() {
   document.querySelector('.app-main')?.classList.toggle('sections-swapped', !!_flags.swapSections);
 }
@@ -424,6 +432,7 @@ function showSettingsModal() {
   // Sync toggle switches
   [
     ['flag-show-active',   'showActiveInEligible'],
+    ['flag-show-inactive', 'showInactivePolicies'],
     ['flag-swap-sections', 'swapSections'],
   ].forEach(([id, key]) => {
     const btn = document.getElementById(id);
@@ -437,6 +446,9 @@ function showSettingsModal() {
   // Sync checkboxes
   const quickAppCb = document.getElementById('flag-quick-appearance');
   if (quickAppCb) quickAppCb.checked = !!_flags.quickAppearance;
+
+  const quickInactCb = document.getElementById('flag-quick-inactive');
+  if (quickInactCb) quickInactCb.checked = !!_flags.quickInactivePolicies;
 
   modal.hidden = false;
   modal.querySelector('.modal')?.classList.add('fade-in');
@@ -460,6 +472,11 @@ function _renderQuickActions() {
   const icon = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';
 
   container.innerHTML = `
+    ${_flags.quickInactivePolicies ? `<div class="quick-action-wrap">
+      <button class="icon-btn ${_flags.showInactivePolicies ? 'active' : ''}" id="quick-labels-btn" aria-label="Toggle Inactive Labels" title="Toggle Inactive Labels" aria-pressed="${!!_flags.showInactivePolicies}">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+      </button>
+    </div>` : ''}
     <div class="quick-action-wrap">
       <button class="icon-btn" id="quick-theme-btn" aria-label="Appearance" title="Appearance (Quick Action)">
         ${icon}
@@ -494,6 +511,22 @@ function _renderQuickActions() {
       dropdown.hidden = true;
     }
   });
+
+  const labelsBtn = document.getElementById('quick-labels-btn');
+  if (labelsBtn) {
+    labelsBtn.addEventListener('click', () => {
+      _flags.showInactivePolicies = !_flags.showInactivePolicies;
+      localStorage.setItem(FLAGS_KEY, JSON.stringify(_flags));
+      _applyInactivePolicies();
+      labelsBtn.classList.toggle('active', _flags.showInactivePolicies);
+      labelsBtn.setAttribute('aria-pressed', _flags.showInactivePolicies);
+      const sw = document.getElementById('flag-show-inactive');
+      if (sw) {
+        sw.classList.toggle('active', _flags.showInactivePolicies);
+        sw.setAttribute('aria-checked', _flags.showInactivePolicies);
+      }
+    });
+  }
 }
 
 function _saveFlag(key, checked) {
@@ -1417,6 +1450,18 @@ async function bootstrap() {
     _refresh();
   });
 
+  // Show inactive policies toggle
+  document.getElementById('flag-show-inactive')?.addEventListener('click', () => {
+    const on = !_flags.showInactivePolicies;
+    _flags.showInactivePolicies = on;
+    localStorage.setItem(FLAGS_KEY, JSON.stringify(_flags));
+    const btn = document.getElementById('flag-show-inactive');
+    if (btn) { btn.classList.toggle('active', on); btn.setAttribute('aria-checked', on); }
+    _applyInactivePolicies();
+    const qbtn = document.getElementById('quick-labels-btn');
+    if (qbtn) { qbtn.classList.toggle('active', on); qbtn.setAttribute('aria-pressed', on); }
+  });
+
   // Swap sections toggle
   document.getElementById('flag-swap-sections')?.addEventListener('click', () => {
     const on = !_flags.swapSections;
@@ -1430,6 +1475,12 @@ async function bootstrap() {
   // Quick actions
   document.getElementById('flag-quick-appearance')?.addEventListener('change', e => {
     _flags.quickAppearance = e.target.checked;
+    localStorage.setItem(FLAGS_KEY, JSON.stringify(_flags));
+    _renderQuickActions();
+  });
+
+  document.getElementById('flag-quick-inactive')?.addEventListener('change', e => {
+    _flags.quickInactivePolicies = e.target.checked;
     localStorage.setItem(FLAGS_KEY, JSON.stringify(_flags));
     _renderQuickActions();
   });

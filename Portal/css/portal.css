@@ -672,11 +672,31 @@ a { color: var(--primary); text-decoration: none; }
 .pol-purple   { background: var(--purple-dim);  color: var(--purple);  border: 1px solid var(--purple); }
 .pol-auth-ctx { background: var(--danger-dim);  color: var(--danger);  border: 1px solid var(--danger); }
 .pol-none     { color: var(--text-faint); font-size: 14px; line-height: 1; }
+.pol-none-label {
+  display: none;
+  font-size: 10px;
+  border: 1px dashed var(--border);
+  padding: 1px 4px;
+  border-radius: 4px;
+  color: var(--text-faint);
+  background: var(--bg-hover);
+  text-transform: uppercase;
+}
+body.show-inactive-policies .pol-none-dash {
+  display: none;
+}
+body.show-inactive-policies .pol-none-label {
+  display: inline-block;
+}
+
 .pol-max      { font-size: 12px; font-weight: 600; color: var(--text-muted); white-space: nowrap; }
 /* MFA column can contain both an MFA pill and an AC pill */
 .pol-mfa-cell { display: flex; flex-direction: column; align-items: center; gap: 3px; }
 
 /* Pending approval badge */
+
+.mobile-badge { display: none; }
+.mobile-policy-strip { display: none; }
 .pending-badge {
   display:       inline-block;
   margin-left:   5px;
@@ -1280,6 +1300,12 @@ a { color: var(--primary); text-decoration: none; }
   .col-policy     { display: none; }
   /* Show the expand button column */
   .col-expand     { display: table-cell; }
+  .col-type       { display: none; }
+  .mobile-badge   { display: inline-block; margin-right: 5px; vertical-align: middle; }
+  .mobile-policy-strip { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+  .col-cb         { width: 48px; }
+  .cb-wrap        { padding: 10px; }
+  .expand-btn     { width: 44px; height: 44px; }
   .col-role { min-width: 140px; }
   /* Switch to auto layout on mobile — fixed layout fights with display:none
      policy columns when the colspan detail row is revealed, causing the
