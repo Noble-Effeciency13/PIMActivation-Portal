@@ -1,13 +1,27 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <title>PIM Activation Portal</title>
+  <link rel="icon" type="image/svg+xml" href="/favicons/favicon.svg" media="(prefers-color-scheme: light)">
+  <link rel="icon" type="image/x-icon" href="/favicons/favicon.ico" media="(prefers-color-scheme: dark)">
+  <link rel="shortcut icon" type="image/x-icon" href="/favicons/favicon.ico" media="(prefers-color-scheme: dark)">
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-title" content="PIM">
+  <link rel="manifest" href="/favicons/site.webmanifest">
   <!-- MSAL 2.x from jsDelivr (must be synchronous — app scripts depend on it) -->
-  <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.39.0/lib/msal-browser.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.39.0/lib/msal-browser.min.js"
+    crossorigin="anonymous"></script>
   <link rel="stylesheet" href="css/portal.css">
 </head>
+
 <body>
 
   <!-- Loading overlay -->
@@ -22,69 +36,127 @@
     <!-- ── Header ──────────────────────────────────────────────────────────── -->
     <header class="app-header">
       <div class="header-brand">
-        <svg class="brand-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        <svg class="brand-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" />
         </svg>
         <span class="brand-name">PIM Activation Portal</span>
       </div>
       <div class="header-right">
-        <!-- Theme picker -->
-        <div class="theme-picker" id="theme-picker">
-          <button class="icon-btn" id="theme-btn" aria-label="Change theme" title="Change theme" aria-expanded="false" aria-haspopup="true">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
-              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-              <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
-              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-            </svg>
+        <div class="header-quick-actions" id="header-quick-actions"></div>
+        <button class="icon-btn" id="refresh-btn" aria-label="Refresh roles" title="Refresh roles">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        </button>
+        <div class="notif-bell" id="notif-bell">
+          <button class="icon-btn" id="notifications-btn" aria-label="Notifications" title="Notifications">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
           </button>
-          <div class="theme-dropdown" id="theme-dropdown" hidden role="menu">
-            <button class="theme-option" data-theme="system" role="menuitem">System default</button>
-            <button class="theme-option" data-theme="dark"   role="menuitem">Dark</button>
-            <button class="theme-option" data-theme="light"  role="menuitem">Light</button>
-            <button class="theme-option" data-theme="hc"     role="menuitem">High Contrast</button>
+          <span class="notif-badge" id="notifications-badge" hidden>0</span>
+        </div>
+        <button class="icon-btn" id="settings-btn" aria-label="Settings" title="Settings">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+        <div class="quick-action-wrap">
+          <button class="icon-btn" id="help-btn" aria-label="Manual" title="Manual">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </button>
+          <div class="quick-dropdown" id="help-dropdown" hidden>
+            <button class="quick-dropdown-item" data-help="guide">Manual</button>
+            <button class="quick-dropdown-item" data-help="how-it-works">How it works</button>
+            <button class="quick-dropdown-item" data-help="features">Features</button>
+            <button class="quick-dropdown-item" data-help="faq">FAQ</button>
           </div>
         </div>
-        <!-- Refresh -->
-        <button class="icon-btn" id="refresh-btn" aria-label="Refresh roles" title="Refresh roles">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-          </svg>
+        <button class="icon-btn icon-btn-signout" id="sign-out-btn" aria-label="Sign out" title="Sign out">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         </button>
-        <!-- Activation Profiles -->
-        <button class="icon-btn" id="profiles-btn" aria-label="Activation profiles" title="Activation profiles">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-          </svg>
-        </button>
-        <!-- User chip -->
-        <div class="user-chip">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-          </svg>
-          <span id="user-name" class="user-name"></span>
-          <button id="sign-out-btn" class="sign-out-btn">Sign out</button>
-        </div>
       </div>
     </header>
 
+    <!-- ── User context card ──────────────────────────────────────────────────── -->
+    <div class="user-context-card" id="user-context-card">
+      <div class="uc-item uc-collapsible">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <div>
+          <div class="uc-label">Signed in as</div>
+          <div class="uc-value" id="user-name"></div>
+        </div>
+      </div>
+      <div class="uc-item">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+        <div>
+          <div class="uc-label">Account</div>
+          <div class="uc-value" id="user-email"></div>
+        </div>
+      </div>
+      <div class="uc-item uc-collapsible uc-tenant-item">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>
+        <div>
+          <div class="uc-label">Tenant</div>
+          <div id="user-tenant" class="uc-value uc-mono"></div>
+        </div>
+        <button class="uc-tenant-switch-btn" id="tenant-switch-btn" aria-label="Switch tenant" title="Switch tenant">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 7H3"/><polyline points="18 4 21 7 18 10"/><path d="M3 17h18"/><polyline points="6 14 3 17 6 20"/></svg>
+          Switch Tenant
+        </button>
+      </div>
+      <button class="icon-btn uc-expand-btn" id="uc-expand-btn" aria-expanded="false" aria-label="Show more details" title="Show more details">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </button>
+    </div>
+
     <main class="app-main">
-      <!-- Progress bar -->
-      <div id="progress-bar" class="progress-bar" hidden>
-        <div id="progress-fill" class="progress-fill" style="width:0%"></div>
-        <span id="progress-label" class="progress-label"></span>
+      <!-- Consent banner (shown when Azure role loading fails due to missing consent) -->
+      <div id="consent-banner" class="consent-banner" hidden role="alert">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          aria-hidden="true">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="8" x2="12" y2="12" />
+          <line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+        <span class="consent-banner-msg">Azure roles could not be loaded — additional permissions are required.</span>
+        <button class="btn btn-primary btn-sm" id="consent-grant-btn">Grant Access</button>
+        <button class="icon-btn" id="consent-dismiss-btn" aria-label="Dismiss banner">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
       </div>
 
       <!-- ── Active Roles ──────────────────────────────────────────────────── -->
       <section class="roles-section" id="section-active">
         <div class="section-header">
           <div class="section-title-group">
+            <button class="section-collapse-btn" aria-label="Collapse section" aria-expanded="true">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
             <h2 class="section-title">Active Roles</h2>
             <span class="role-count" id="active-count" aria-live="polite">&ndash;</span>
           </div>
           <div class="section-controls">
-            <input type="search" id="active-search" class="search-input" placeholder="Filter&hellip;" aria-label="Filter active roles">
+            <button class="icon-btn filter-toggle-btn" id="active-filter-toggle-btn" aria-label="Toggle filters" aria-expanded="false" title="Toggle filters">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+            </button>
+            <input type="search" id="active-search" class="search-input" placeholder="Filter&hellip;"
+              aria-label="Filter active roles">
+            <button class="btn btn-ghost btn-sm" id="active-save-filter-btn" aria-label="Save search as quick filter" hidden>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+              Save
+            </button>
+            <button class="btn btn-danger btn-sm" id="deactivate-btn" disabled>Deactivate</button>
           </div>
+        </div>
+        <div id="active-filter-bar" class="filter-bar filter-bar-hidden" role="toolbar" aria-label="Active role filters">
+          <div class="filter-bar-group" id="active-filter-type-group">
+            <button class="flag-pill filter-type-pill active" data-type-filter="null" aria-pressed="true">All</button>
+            <button class="flag-pill filter-type-pill" data-type-filter="User" aria-pressed="false">Entra</button>
+            <button class="flag-pill filter-type-pill" data-type-filter="Group" aria-pressed="false">Groups</button>
+            <button class="flag-pill filter-type-pill" data-type-filter="AzureResource" aria-pressed="false">Azure</button>
+          </div>
+          <div class="filter-bar-divider" id="active-filter-saved-divider" hidden></div>
+          <div class="filter-bar-group" id="active-filter-saved-group"></div>
         </div>
         <div class="table-wrap">
           <table class="roles-table" id="active-table" aria-label="Active roles">
@@ -101,13 +173,11 @@
               </tr>
             </thead>
             <tbody id="active-roles-body">
-              <tr class="row-placeholder"><td colspan="4">Loading&hellip;</td></tr>
+              <tr class="row-placeholder">
+                <td colspan="4">Loading&hellip;</td>
+              </tr>
             </tbody>
           </table>
-        </div>
-        <div class="section-action-bar" id="active-action-bar" hidden>
-          <span class="selection-label" id="active-selection-label"></span>
-          <button class="btn btn-danger btn-sm" id="deactivate-btn">Deactivate selected</button>
         </div>
       </section>
 
@@ -115,12 +185,38 @@
       <section class="roles-section" id="section-eligible">
         <div class="section-header">
           <div class="section-title-group">
+            <button class="section-collapse-btn" aria-label="Collapse section" aria-expanded="true">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
             <h2 class="section-title">Eligible Roles</h2>
             <span class="role-count" id="eligible-count" aria-live="polite">&ndash;</span>
           </div>
           <div class="section-controls">
-            <input type="search" id="eligible-search" class="search-input" placeholder="Filter&hellip;" aria-label="Filter eligible roles">
+            <button class="icon-btn filter-toggle-btn" id="filter-toggle-btn" aria-label="Toggle filters" aria-expanded="false" title="Toggle filters">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+            </button>
+            <input type="search" id="eligible-search" class="search-input" placeholder="Filter&hellip;"
+              aria-label="Filter eligible roles">
+            <button class="btn btn-ghost btn-sm" id="save-filter-btn" aria-label="Save search as quick filter" hidden>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+              Save
+            </button>
+            <button class="btn btn-ghost btn-sm" id="profiles-btn" aria-label="Activation profiles">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
+              <span class="btn-text">Profiles</span>
+            </button>
+            <button class="btn btn-primary btn-sm" id="activate-btn" disabled>Activate</button>
           </div>
+        </div>
+        <div id="eligible-filter-bar" class="filter-bar filter-bar-hidden" role="toolbar" aria-label="Role filters">
+          <div class="filter-bar-group" id="filter-type-group">
+            <button class="flag-pill filter-type-pill active" data-type-filter="null" aria-pressed="true">All</button>
+            <button class="flag-pill filter-type-pill" data-type-filter="User" aria-pressed="false">Entra</button>
+            <button class="flag-pill filter-type-pill" data-type-filter="Group" aria-pressed="false">Groups</button>
+            <button class="flag-pill filter-type-pill" data-type-filter="AzureResource" aria-pressed="false">Azure</button>
+          </div>
+          <div class="filter-bar-divider" id="filter-saved-divider" hidden></div>
+          <div class="filter-bar-group" id="filter-saved-group"></div>
         </div>
         <div class="table-wrap">
           <table class="roles-table" id="eligible-table" aria-label="Eligible roles">
@@ -142,14 +238,11 @@
               </tr>
             </thead>
             <tbody id="eligible-roles-body">
-              <tr class="row-placeholder"><td colspan="8">Loading&hellip;</td></tr>
+              <tr class="row-placeholder">
+                <td colspan="8">Loading&hellip;</td>
+              </tr>
             </tbody>
           </table>
-        </div>
-        <div class="section-action-bar" id="eligible-action-bar" hidden>
-          <span class="selection-label" id="eligible-selection-label"></span>
-          <button class="btn btn-ghost btn-sm" id="save-profile-btn">Save as profile</button>
-          <button class="btn btn-primary btn-sm" id="activate-btn">Activate selected</button>
         </div>
       </section>
     </main>
@@ -157,66 +250,78 @@
     <!-- ── Footer ──────────────────────────────────────────────────────────── -->
     <footer class="app-footer" aria-label="Application footer">
       <div class="footer-inner">
-        <div class="footer-people">
+        <div class="footer-line footer-author-line">
           <div class="footer-person" title="Sebastian Flæng Markdanner">
-            <span class="footer-full">Sebastian Flæng Markdanner</span>
-            <span class="footer-short">SM</span>
+            <span class="footer-person-name">Sebastian Flæng Markdanner</span>
             <div class="footer-person-links">
-              <a class="footer-github" href="https://github.com/Noble-Effeciency13" target="_blank" rel="noopener noreferrer" aria-label="GitHub">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+              <a class="footer-github" href="https://github.com/Noble-Effeciency13" target="_blank"
+                rel="noopener noreferrer" aria-label="Sebastian Flæng Markdanner GitHub">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path
+                    d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" />
+                </svg>
               </a>
-              <a class="footer-linkedin" href="https://www.linkedin.com/in/sebastian-markdanner/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg>
+              <a class="footer-linkedin" href="https://www.linkedin.com/in/sebastian-markdanner/" target="_blank"
+                rel="noopener noreferrer" aria-label="Sebastian Flæng Markdanner LinkedIn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
+                  <rect x="2" y="9" width="4" height="12" />
+                  <circle cx="4" cy="4" r="2" />
+                </svg>
               </a>
-              <a class="footer-website" href="https://chanceofsecurity.com/" target="_blank" rel="noopener noreferrer" aria-label="Sebastian Flæng Markdanner website">chanceofsecurity.com</a>
+              <a class="footer-website" href="https://chanceofsecurity.com/" target="_blank" rel="noopener noreferrer"
+                aria-label="Sebastian Flæng Markdanner website" title="chanceofsecurity.com">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M2 12h20" />
+                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                </svg>
+              </a>
             </div>
           </div>
-          <span class="footer-dot footer-before-tagline">&middot;</span>
-          <span class="footer-tagline" title="With ❤️ from the community to the community.">
-            <span class="footer-full">With ❤️ from the community to the community.</span>
-            <span class="footer-short">Community</span>
-          </span>
-          <span class="footer-dot footer-between-people">&middot;</span>
+          <span class="footer-separator" aria-hidden="true">-</span>
           <div class="footer-person" title="Lukas Gosling">
-            <span class="footer-full">Lukas Gosling</span>
-            <span class="footer-short">LG</span>
+            <span class="footer-person-name">Lukas Gosling</span>
             <div class="footer-person-links">
-              <a class="footer-github" href="https://github.com/l-gosling" target="_blank" rel="noopener noreferrer" aria-label="GitHub">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+              <a class="footer-github" href="https://github.com/l-gosling" target="_blank" rel="noopener noreferrer"
+                aria-label="Lukas Gosling GitHub">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path
+                    d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" />
+                </svg>
               </a>
-              <a class="footer-linkedin" href="https://www.linkedin.com/in/lukas-gosling/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg>
+              <a class="footer-linkedin" href="https://www.linkedin.com/in/lukas-gosling/" target="_blank"
+                rel="noopener noreferrer" aria-label="Lukas Gosling LinkedIn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
+                  <rect x="2" y="9" width="4" height="12" />
+                  <circle cx="4" cy="4" r="2" />
+                </svg>
               </a>
             </div>
           </div>
         </div>
-        <div class="footer-products">
-          <a href="https://github.com/Noble-Effeciency13/PIMActivation" target="_blank" rel="noopener noreferrer" aria-label="PIMActivation for PowerShell" title="PIMActivation for PowerShell">
-            <span class="footer-full">PIMActivation for PowerShell</span>
-            <span class="footer-short">PS</span>
-          </a>
-          <span class="footer-dot">&middot;</span>
-          <a href="https://github.com/Noble-Effeciency13/PIMActivation-Web" target="_blank" rel="noopener noreferrer" aria-label="PIMActivation Self-hosted" title="PIMActivation Self-hosted">
-            <span class="footer-full">PIMActivation Self-hosted</span>
-            <span class="footer-short">Self</span>
-          </a>
+        <div class="footer-line footer-site-line">
+          <a class="footer-landing" href="https://pimactivation.com/" target="_blank" rel="noopener noreferrer"
+            aria-label="PIMActivation landing page">PIMActivation.com</a>
         </div>
-        <p class="footer-copy" title="© 2026 PIMActivation - Sebastian Flæng Markdanner.">
-          <span class="footer-full">&copy; 2026 PIMActivation - Sebastian Flæng Markdanner.</span>
-          <span class="footer-short">&copy;</span>
-        </p>
-        <a class="footer-landing" href="https://pimactivation.com/" target="_blank" rel="noopener noreferrer" aria-label="PIMActivation landing page">pimactivation.com</a>
       </div>
     </footer>
   </div>
 
   <!-- ── Profiles modal ─────────────────────────────────────────────────── -->
-  <div id="profiles-modal" class="modal-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="profiles-modal-title">
+  <div id="profiles-modal" class="modal-overlay" hidden role="dialog" aria-modal="true"
+    aria-labelledby="profiles-modal-title">
     <div class="modal">
       <div class="modal-header">
         <h2 class="modal-title" id="profiles-modal-title">Activation Profiles</h2>
         <button class="icon-btn modal-close" id="profiles-modal-close-btn" aria-label="Close">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
         </button>
       </div>
       <div class="modal-body" id="profiles-modal-body">
@@ -228,13 +333,211 @@
     </div>
   </div>
 
+  <!-- ── Settings modal ────────────────────────────────────────────────── -->
+  <div id="settings-modal" class="modal-overlay" hidden role="dialog" aria-modal="true"
+    aria-labelledby="settings-modal-title">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title" id="settings-modal-title">Settings</h2>
+        <button class="icon-btn modal-close" id="settings-modal-close-btn" aria-label="Close">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+
+        <!-- PIM surfaces -->
+        <div class="settings-row">
+          <div class="settings-info">
+            <div class="settings-title">PIM surfaces</div>
+            <div class="settings-desc">Enable only what you need — consent is requested per surface.</div>
+          </div>
+          <div class="flag-pills">
+            <button class="flag-pill active" type="button" data-flag="entra" aria-pressed="true" title="Directory roles (Global Reader, User Admin, …)">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>
+              Entra roles
+              <span class="flag-dot" aria-hidden="true"></span>
+            </button>
+            <button class="flag-pill active" type="button" data-flag="azure" aria-pressed="true" title="Subscription / RG / resource-scoped RBAC">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+              Azure resources
+              <span class="flag-dot" aria-hidden="true"></span>
+            </button>
+            <button class="flag-pill active" type="button" data-flag="group" aria-pressed="true" title="Just-in-time Member / Owner access">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              PIM for Groups
+              <span class="flag-dot" aria-hidden="true"></span>
+            </button>
+          </div>
+        </div>
+
+        <hr class="settings-hr">
+
+        <!-- Default duration -->
+        <div class="settings-row">
+          <div class="settings-info">
+            <div class="settings-title">Default duration</div>
+            <div class="settings-desc">Your preferred default when activating roles.</div>
+          </div>
+          <div class="settings-dur-ctrl">
+            <input type="number" id="settings-default-duration" class="form-input settings-dur-input" min="0.5" max="24" step="0.5" value="8" aria-label="Default duration in hours">
+            <span class="settings-dur-label">hours</span>
+          </div>
+        </div>
+
+        <hr class="settings-hr">
+
+        <!-- Show active in eligible list -->
+        <div class="settings-row">
+          <div class="settings-info">
+            <div class="settings-title">Show active roles in eligible list</div>
+            <div class="settings-desc">If disabled, already-active roles are hidden from the eligible table.</div>
+          </div>
+          <button class="toggle-switch" id="flag-show-active" type="button" role="switch" aria-checked="false">
+            <span class="toggle-thumb" aria-hidden="true"></span>
+          </button>
+        </div>
+
+        <div class="settings-row">
+          <div class="settings-info">
+            <div class="settings-title">Show inactive policies</div>
+            <div class="settings-desc">Display inactive policies (e.g. MFA) as greyed-out labels.</div>
+          </div>
+          <button class="toggle-switch" id="flag-show-inactive" type="button" role="switch" aria-checked="false">
+            <span class="toggle-thumb" aria-hidden="true"></span>
+          </button>
+        </div>
+
+        <hr class="settings-hr">
+
+        <!-- Swap sections -->
+        <div class="settings-row">
+          <div class="settings-info">
+            <div class="settings-title">Eligible roles on top</div>
+            <div class="settings-desc">Show eligible roles above active roles.</div>
+          </div>
+          <button class="toggle-switch" id="flag-swap-sections" type="button" role="switch" aria-checked="false">
+            <span class="toggle-thumb" aria-hidden="true"></span>
+          </button>
+        </div>
+
+        <div class="settings-row">
+          <div class="settings-info">
+            <div class="settings-title">Remember collapsed sections</div>
+            <div class="settings-desc">Sections remember their collapsed/expanded state across refreshes. Turn off to always expand all sections on load.</div>
+          </div>
+          <button class="toggle-switch" id="flag-persist-sections" type="button" role="switch" aria-checked="false">
+            <span class="toggle-thumb" aria-hidden="true"></span>
+          </button>
+        </div>
+
+        <div class="settings-row">
+          <div class="settings-info">
+            <div class="settings-title">Remember filter bar state</div>
+            <div class="settings-desc">Remembers whether the eligible roles filter bar is expanded or collapsed across refreshes.</div>
+          </div>
+          <button class="toggle-switch" id="flag-persist-filter-bar" type="button" role="switch" aria-checked="false">
+            <span class="toggle-thumb" aria-hidden="true"></span>
+          </button>
+        </div>
+
+        <hr class="settings-hr">
+
+        <!-- Appearance -->
+        <div class="settings-row">
+          <div class="settings-info">
+            <div class="settings-title">Appearance</div>
+            <div class="settings-desc">Choose your preferred color theme.</div>
+          </div>
+          <div class="theme-grid">
+            <button class="theme-card active" data-theme="system">System default</button>
+            <button class="theme-card" data-theme="dark">Dark</button>
+            <button class="theme-card" data-theme="light">Light</button>
+            <button class="theme-card" data-theme="hc">High Contrast</button>
+          </div>
+        </div>
+
+        <hr class="settings-hr">
+
+        <!-- Quick Actions -->
+        <div class="settings-row">
+          <div class="settings-info">
+            <div class="settings-title">Quick Actions</div>
+            <div class="settings-desc">Choose which settings are available in the header.</div>
+          </div>
+          <div class="settings-column" style="gap: 4px;">
+            <label class="cb-wrap" style="justify-content: flex-start; gap: 8px;">
+              <input type="checkbox" id="flag-quick-appearance">
+              <span class="form-label" style="margin:0">Appearance</span>
+            </label>
+            <label class="cb-wrap" style="justify-content: flex-start; gap: 8px;">
+              <input type="checkbox" id="flag-quick-inactive">
+              <span class="form-label" style="margin:0">Inactive policies toggle</span>
+            </label>
+          </div>
+        </div>
+
+      </div>
+      <div class="modal-footer settings-modal-footer">
+        <div class="settings-reset-wrap">
+          <button class="btn btn-ghost btn-sm settings-reset-btn" id="settings-reset-btn">Reset to defaults</button>
+          <div class="settings-reset-confirm" id="settings-reset-confirm" hidden>
+            <span class="settings-reset-label">Are you sure?</span>
+            <button class="btn btn-danger btn-sm" id="settings-reset-yes">Yes, reset</button>
+            <button class="btn btn-ghost btn-sm" id="settings-reset-no">Cancel</button>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-sm" id="settings-modal-close-footer">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Notifications modal ──────────────────────────────────────────────── -->
+  <div id="notifications-modal" class="modal-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="notifications-modal-title">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title" id="notifications-modal-title">Notifications</h2>
+        <button class="icon-btn modal-close" id="notifications-modal-close-btn" aria-label="Close">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body" id="notifications-modal-body"><!-- Rendered by JS --></div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost btn-sm" id="notifications-clear-btn">Clear all</button>
+        <button class="btn btn-ghost" id="notifications-modal-close-footer">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Tenant picker modal ─────────────────────────────────────────────── -->
+  <div id="tenant-picker-modal" class="modal-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="tenant-picker-title">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <h2 class="modal-title" id="tenant-picker-title">Switch Tenant</h2>
+        <button class="icon-btn modal-close" id="tenant-picker-close-btn" aria-label="Close">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body" id="tenant-picker-body">
+        <p class="tenant-picker-hint">Loading tenants&hellip;</p>
+      </div>
+    </div>
+  </div>
+
   <!-- ── Activation modal ────────────────────────────────────────────────── -->
   <div id="activation-modal" class="modal-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <div class="modal">
       <div class="modal-header">
         <h2 class="modal-title" id="modal-title">Activate Roles</h2>
         <button class="icon-btn modal-close" id="modal-close-btn" aria-label="Close">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
         </button>
       </div>
       <div class="modal-body">
@@ -242,32 +545,64 @@
         <form id="activation-form" novalidate>
           <div class="form-row">
             <label class="form-label">Duration</label>
+            <div class="duration-presets" id="duration-presets">
+              <button type="button" class="preset-btn" data-h="0" data-m="15">15m</button>
+              <button type="button" class="preset-btn" data-h="0" data-m="30">30m</button>
+              <button type="button" class="preset-btn" data-h="1" data-m="0">1h</button>
+              <button type="button" class="preset-btn" data-h="2" data-m="0">2h</button>
+              <button type="button" class="preset-btn" data-h="4" data-m="0">4h</button>
+              <button type="button" class="preset-btn active" data-h="8" data-m="0">8h</button>
+              <button type="button" class="preset-btn" data-h="12" data-m="0">12h</button>
+              <button type="button" class="preset-btn" data-h="24" data-m="0">24h</button>
+            </div>
+            <input type="range" id="duration-slider" class="duration-slider" min="0" max="1440" step="15" value="480" aria-label="Duration slider">
             <div class="duration-inputs">
-              <input type="number" id="duration-hours" class="duration-num" min="0" max="24" value="8" aria-label="Hours">
+              <input type="number" id="duration-hours" class="duration-num" min="0" max="999" value="8"
+                aria-label="Hours">
               <span class="duration-sep">h</span>
-              <input type="number" id="duration-mins"  class="duration-num" min="0" max="59" value="0"  aria-label="Minutes">
+              <input type="number" id="duration-mins" class="duration-num" min="0" max="59" value="0"
+                aria-label="Minutes">
               <span class="duration-sep">m</span>
               <span class="duration-hint" id="duration-hint"></span>
             </div>
           </div>
           <div class="form-row" id="justification-row">
-            <label class="form-label" for="justification-input">Justification <span class="req-mark" aria-hidden="true">*</span></label>
-            <textarea id="justification-input" class="form-textarea" rows="3" maxlength="500" placeholder="Business reason for this activation&hellip;"></textarea>
+            <label class="form-label" for="justification-input">Justification <span class="req-mark" id="justification-req-mark"
+                aria-hidden="true" hidden>*</span></label>
+            <textarea id="justification-input" class="form-textarea" rows="3" maxlength="500"
+              placeholder="Business reason for this activation&hellip;"></textarea>
+            <p class="form-error" id="justification-error" hidden></p>
           </div>
           <div class="form-row" id="ticket-row" hidden>
-            <label class="form-label" for="ticket-input">Ticket number <span class="req-mark" aria-hidden="true">*</span></label>
+            <label class="form-label" for="ticket-input">Ticket number <span class="req-mark"
+                aria-hidden="true">*</span></label>
             <input type="text" id="ticket-input" class="form-input" maxlength="100" placeholder="e.g. INC-12345">
+            <p class="form-error" id="ticket-error" hidden></p>
           </div>
           <div class="form-row azure-scope-row" id="azure-scope-row" hidden>
             <div class="form-label">Azure resource scope</div>
-            <div class="scope-hint">Use reduced scope for Azure Resource roles when you only need access lower in the hierarchy.</div>
+            <div class="scope-hint">Use reduced scope for Azure Resource roles when you only need access lower in the
+              hierarchy.</div>
             <div class="azure-scope-list" id="azure-scope-list"></div>
+          </div>
+
+          <div class="form-divider"></div>
+
+          <div class="form-row profile-save-toggle-row">
+            <label class="cb-wrap" style="justify-content: flex-start; gap: 8px;">
+              <input type="checkbox" id="save-profile-checkbox">
+              <span class="form-label" style="margin:0">Save as profile</span>
+            </label>
+          </div>
+          <div class="form-row" id="profile-name-row" hidden>
+            <input type="text" id="profile-name-input" class="form-input"
+              placeholder="Profile name (e.g. 'Standard access')…" maxlength="60">
           </div>
         </form>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-ghost"    id="modal-cancel-btn">Cancel</button>
-        <button class="btn btn-primary"  id="modal-confirm-btn">Activate</button>
+        <button class="btn btn-ghost" id="modal-cancel-btn">Cancel</button>
+        <button class="btn btn-primary" id="modal-confirm-btn">Activate</button>
       </div>
     </div>
   </div>
@@ -289,6 +624,81 @@
     </div>
   </div>
 
+  <!-- ── Manual modal ────────────────────────────────────────────────────── -->
+  <div id="help-modal" class="modal-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="help-modal-title">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title" id="help-modal-title">Manual</h2>
+        <button class="icon-btn modal-close" id="help-modal-close-btn" aria-label="Close">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body help-body">
+        <!-- Manual / Guide -->
+        <div id="help-content-guide">
+          <div class="help-section">
+            <span class="help-eyebrow">Basics</span>
+            <div class="help-section-title">Quick start</div>
+            <p>Select one or more eligible roles in the <strong>Eligible Roles</strong> table, then click <strong>Activate</strong>. Fill in the duration and any required justification or ticket number, then confirm.</p>
+          </div>
+          <div class="help-section">
+            <span class="help-eyebrow">Advanced</span>
+            <div class="help-section-title">Bulk operations</div>
+            <p>You can select multiple roles at once across Entra, Azure, and Groups. All selected roles are submitted in a single batch — each role's policy (max duration, MFA, approval) is respected individually.</p>
+          </div>
+          <div class="help-section">
+            <span class="help-eyebrow">Profiles</span>
+            <div class="help-section-title">Activation profiles</div>
+            <p>Click <strong>Profiles</strong> to save your current selection. Profiles store role IDs, durations, and justifications in your browser's IndexedDB for one-click reuse.</p>
+          </div>
+        </div>
+
+        <!-- How it works -->
+        <div id="help-content-how-it-works" hidden>
+          <div class="help-section">
+            <span class="help-eyebrow">Architecture</span>
+            <div class="help-section-title">Zero-Backend SPA</div>
+            <p>This portal is a fully static single-page application. It talks directly to Microsoft Graph and Azure Resource Manager API endpoints using your delegated user token. No backend, no proxy, and no secrets are stored on any server.</p>
+          </div>
+          <div class="help-section">
+            <span class="help-eyebrow">Logic</span>
+            <div class="help-section-title">Direct Integration</div>
+            <p>By using the MSAL library, we authenticate you directly against Entra ID. The portal then orchestrates the PIM API calls on your behalf, ensuring your credentials never leave your browser session.</p>
+          </div>
+        </div>
+
+        <!-- Features -->
+        <div id="help-content-features" hidden>
+          <div class="help-section">
+            <span class="help-eyebrow">Capabilities</span>
+            <div class="help-section-title">Core Features</div>
+            <ul>
+              <li><strong>Multi-Surface</strong> — Bulk activation across Entra, Azure Resource roles, and PIM for Groups.</li>
+              <li><strong>Policy Enforcement</strong> — Automatic duration capping, justification validation, and ticket field handling.</li>
+              <li><strong>Step-up MFA</strong> — Full support for Conditional Access auth-context step-up when policies require it.</li>
+              <li><strong>Expiry Tracking</strong> — Real-time countdown timers and colour-coded warnings for active roles.</li>
+              <li><strong>Smart Filtering</strong> — Instant search and grouping by surface type.</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- FAQ -->
+        <div id="help-content-faq" hidden>
+          <div class="help-section">
+            <span class="help-eyebrow">Q&A</span>
+            <div class="help-section-title">Frequently Asked Questions</div>
+            <p><strong>Does it store my tokens?</strong> No, tokens are kept in browser memory and handled by MSAL.</p>
+            <p><strong>Does it need admin consent?</strong> Only if your tenant requires it for delegated permissions like reading role eligibility.</p>
+            <p><strong>Can I use it with my own app?</strong> Yes, the self-hosted version allows providing your own Client ID and Tenant ID.</p>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary btn-sm" id="help-modal-close-footer">OK</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Scripts -->
   <script src="js/msal-config.js" defer></script>
   <script src="js/auth.js" defer></script>
@@ -300,4 +710,5 @@
   <script src="js/roles.js" defer></script>
   <script src="js/app.js" defer></script>
 </body>
+
 </html>

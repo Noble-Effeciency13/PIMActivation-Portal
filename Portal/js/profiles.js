@@ -39,17 +39,21 @@ class ProfileManager {
 
   /**
    * Save a new profile.
-   * @param {string}   name  — user-provided display name
-   * @param {object[]} roles — array of role descriptor objects to save
+   * @param {string}   name          — user-provided display name
+   * @param {object[]} roles         — array of role descriptor objects to save
+   * @param {object}   [opts]        — optional { justification, durationHours, durationMins }
    * @returns {Promise<object>} saved profile
    */
-  async saveProfile(name, roles) {
+  async saveProfile(name, roles, opts = {}) {
     const profile = {
-      id:         crypto.randomUUID(),
-      name:       name.trim(),
-      roles:      roles.map(r => ({ uid: r.uid, type: r.type, id: r.id, name: r.name, scope: r.scope })),
-      createdAt:  new Date().toISOString(),
-      lastUsedAt: null
+      id:            crypto.randomUUID(),
+      name:          name.trim(),
+      roles:         roles.map(r => ({ uid: r.uid, type: r.type, id: r.id, name: r.name, scope: r.scope })),
+      justification: opts.justification || '',
+      durationHours: opts.durationHours ?? 8,
+      durationMins:  opts.durationMins  ?? 0,
+      createdAt:     new Date().toISOString(),
+      lastUsedAt:    null
     };
     await this._put(profile);
     return profile;

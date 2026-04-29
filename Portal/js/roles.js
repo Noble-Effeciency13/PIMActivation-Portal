@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Role renderer — Portal
  * Copyright © 2026 Sebastian Flæng Markdanner — MIT License
  *
@@ -12,7 +12,9 @@
  *  - Expiry countdown timers (30s tick, colour-coded near expiry)
  */
 
-/* global graphClient, armClient, policyCache, PolicyCache, portalAuth, escapeHtml, formatExpiry, formatExpiryDateTime, showToast */
+/* global graphClient, armClient, policyCache, PolicyCache, portalAuth, escapeHtml, formatExpiry, formatExpiryDateTime, showToast, _getQuickFilters, _getActiveQuickFilters, _deleteQuickFilter, _deleteActiveQuickFilter, _saveQuickFilters, _saveActiveQuickFilters */
+
+const ROLES_CACHE_KEY = 'pim-portal-roles-cache';
 
 class RoleManager {
   constructor() {
@@ -24,11 +26,21 @@ class RoleManager {
     this._timers          = [];
     /** uid → expiry timestamp; recently deactivated roles are suppressed from reappearing on reload */
     this._suppressedUids  = new Map();
+    this._typeFilter           = null; // eligible section type filter
+    this._activeSavedFilterId  = null; // eligible section: active saved filter id
+    this._confirmingDeleteId   = null; // eligible section: pill showing delete confirm
+    this._dragSrcId            = null; // eligible section: id being dragged
+    this._activeTypeFilter     = null; // active section type filter
+    this._activeSavedId        = null; // active section: active saved filter id
+    this._activeConfirmId      = null; // active section: pill showing delete confirm
+    this._activeDragId         = null; // active section: id being dragged
+    this._enrichedPhase1 = false; // true when Phase 1 policy enrichment settles
+    this._enrichedPhase2 = false; // true when Phase 2 policy enrichment settles (or Azure skipped)
   }
 
   // ── Load ──────────────────────────────────────────────────────────────────
 
-  async loadRoles() {
+  async loadRoles(flags = { entra: true, azure: true, group: true }) {
     this.eligibleRoles    = [];
     this.activeRoles      = [];
     this._pendingRequests = [];
@@ -37,71 +49,145 @@ class RoleManager {
     this._stopTimers();
     this._resetSelectAll();
 
-    if (typeof showProgress === 'function') showProgress('Loading Entra & Group roles\u2026');
+    // \u2500\u2500 Cache: always apply as visual baseline, live data replaces it \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+    this._enrichedPhase1 = false;
+    this._enrichedPhase2 = false;
+    if (!flags.azure) this._enrichedPhase2 = true;
 
-    // Phase 1: Entra + Group (usually fast)
-    const [entraElig, groupElig, entraActive, groupActive, pending] = await Promise.all([
-      graphClient.getEligibleEntraRoles().catch(e => { console.error('[Roles] Entra elig:', e); return e; }),
-      graphClient.getEligibleGroupRoles().catch(e => { console.error('[Roles] Group elig:', e); return e; }),
-      graphClient.getActiveEntraRoles().catch(e  => { console.error('[Roles] Entra act:', e);  return e; }),
-      graphClient.getActiveGroupRoles().catch(e  => { console.error('[Roles] Group act:', e);   return e; }),
-      graphClient.getPendingActivationRequests().catch(() => [])
-    ]);
+    const _cacheTenantId = portalAuth.getAccount()?.tenantId
+                         || portalAuth.getAccount()?.idTokenClaims?.tid
+                         || 'default';
 
-    const all    = [entraElig, groupElig, entraActive, groupActive];
+    const _cached = this._loadRoleCache(_cacheTenantId);
+    if (_cached) this._applyCache(_cached);
+
+    if (typeof showProgress === 'function') showProgress('Loading roles\u2026');
+
+    // Phase 1: Entra + Group
+    const tasks = [];
+    if (flags.entra) {
+      tasks.push(graphClient.getEligibleEntraRoles().catch(e => { console.error('[Roles] Entra elig:', e); return e; }));
+      tasks.push(graphClient.getActiveEntraRoles().catch(e => { console.error('[Roles] Entra act:', e); return e; }));
+    } else {
+      tasks.push(Promise.resolve([]), Promise.resolve([]));
+    }
+
+    if (flags.group) {
+      tasks.push(graphClient.getEligibleGroupRoles().catch(e => { console.error('[Roles] Group elig:', e); return e; }));
+      tasks.push(graphClient.getActiveGroupRoles().catch(e => { console.error('[Roles] Group act:', e); return e; }));
+    } else {
+      tasks.push(Promise.resolve([]), Promise.resolve([]));
+    }
+
+    tasks.push(graphClient.getPendingActivationRequests().catch(() => []));
+
+    const [entraElig, entraActive, groupElig, groupActive, pending] = await Promise.all(tasks);
+
+    const all    = [entraElig, entraActive, groupElig, groupActive];
     const errors = all.filter(r => r instanceof Error);
     const toArr  = r => (r instanceof Error ? [] : r);
 
-    if (errors.length === 4) {
-      showToast('Failed to load roles: ' + errors[0].message, 'error', 12000);
-    } else if (errors.length > 0) {
-      showToast('Some role sources failed. Check the browser console.', 'warning', 8000);
+    // Build maps from cached state (populated by _applyCache above, or empty on first load)
+    const _cacheEligMap     = new Map(this.eligibleRoles.map(r => [r.uid || r.id, r]));
+    const _cacheAzureElig   = this.eligibleRoles.filter(r => r.type === 'AzureResource');
+    const _cacheAzureActive = this.activeRoles.filter(r => r.type === 'AzureResource');
+
+    // Fresh Entra + Group — merge cached policy so labels don't flash greyed-out
+    this.eligibleRoles = _mergePolicy([...toArr(entraElig), ...toArr(groupElig)], _cacheEligMap);
+    this.activeRoles   = [...toArr(entraActive), ...toArr(groupActive)];
+
+    // Re-add cached Azure as placeholder so Azure roles stay visible while Phase 2 fetches
+    if (flags.azure) {
+      this.eligibleRoles = [...this.eligibleRoles, ..._cacheAzureElig];
+      this.activeRoles   = [...this.activeRoles,   ..._cacheAzureActive];
     }
 
-    this.eligibleRoles = [...toArr(entraElig), ...toArr(groupElig)];
-    this.activeRoles   = [...toArr(entraActive), ...toArr(groupActive)];
     this._removeSuppressed();
 
     this._pendingRequests = Array.isArray(pending) ? pending : [];
     this._annotatePending(pending);
 
-    // Render immediately — policy columns show "—" until background enrichment finishes
+    // Render immediately
     this.renderEligible();
     this.renderActive();
 
-    // Policy enrichment runs in background; re-renders both tables when done
-    // (active table also needs re-render so AU display names are applied)
-    this._enrichPolicy().then(() => { this.renderEligible(); this.renderActive(); }).catch(() => {});
+    // Policy enrichment
+    this._enrichPolicy()
+      .then(() => {
+        this.renderEligible();
+        this.renderActive();
+        this._enrichedPhase1 = true;
+        this._maybeSaveCache();
+      })
+      .catch(() => {
+        this._enrichedPhase1 = true;
+        this._maybeSaveCache();
+      });
 
-    if (typeof updateProgress === 'function') updateProgress(60, 'Loading Azure roles\u2026');
+    // Phase 2: Azure
+    if (flags.azure) {
+      if (typeof updateProgress === 'function') updateProgress(60, 'Loading Azure roles\u2026');
+      try {
+        const [azureElig, azureActive, azurePending] = await Promise.all([
+          armClient.getEligibleAzureRoles(),
+          armClient.getActiveAzureRoles(),
+          armClient.getPendingAzureRequests().catch(e => { console.warn('[Roles] Azure pending:', e.message); return []; })
+        ]);
+        const dedupAzureElig   = _deduplicateAzure(azureElig);
+        const dedupAzureActive = _deduplicateAzureActive(azureActive);
 
-    // Phase 2: Azure (may take longer — ARM cold start / MFA step-up)
-    try {
-      const [azureElig, azureActive, azurePending] = await Promise.all([
-        armClient.getEligibleAzureRoles(),
-        armClient.getActiveAzureRoles(),
-        armClient.getPendingAzureRequests().catch(e => { console.warn('[Roles] Azure pending:', e.message); return []; })
-      ]);
-      const dedupAzureElig   = _deduplicateAzure(azureElig);
-      // Active roles: dedup on role+scope so the same assignment doesn't appear
-      // twice, but Owner@MG and Owner@Subscription remain separate entries.
-      const dedupAzureActive = _deduplicateAzureActive(azureActive);
-      this.eligibleRoles = [...this.eligibleRoles, ...dedupAzureElig];
-      this.activeRoles   = [...this.activeRoles,   ...dedupAzureActive];
-      this._removeSuppressed();
-      // Merge Azure pending into the global pending list and re-render
-      this._pendingRequests = [...this._pendingRequests, ...azurePending];
-      this._annotatePending(this._pendingRequests);
-      this.renderEligible();
-      this.renderActive();
-      // Enrich Azure eligible roles with PIM policies (fire-and-forget, same as Entra)
-      this._enrichAzurePolicy(dedupAzureElig).then(() => this.renderEligible()).catch(() => {});
-    } catch (err) {
-      console.warn('[Roles] Azure roles unavailable:', err.message);
+        // Build policy map from the placeholder Azure roles, then swap them out
+        const _cacheAzureMap = new Map(
+          this.eligibleRoles.filter(r => r.type === 'AzureResource').map(r => [r.uid || r.id, r])
+        );
+        this.eligibleRoles = this.eligibleRoles.filter(r => r.type !== 'AzureResource');
+        this.activeRoles   = this.activeRoles.filter(r => r.type !== 'AzureResource');
+
+        this.eligibleRoles = [...this.eligibleRoles, ..._mergePolicy(dedupAzureElig, _cacheAzureMap)];
+        this.activeRoles   = [...this.activeRoles,   ...dedupAzureActive];
+        this._removeSuppressed();
+        this._pendingRequests = [...this._pendingRequests, ...azurePending];
+        this._annotatePending(this._pendingRequests);
+        this.renderEligible();
+        this.renderActive();
+        this._enrichAzurePolicy(dedupAzureElig)
+          .then(() => {
+            this.renderEligible();
+            this._enrichedPhase2 = true;
+            this._maybeSaveCache();
+          })
+          .catch(() => {
+            this._enrichedPhase2 = true;
+            this._maybeSaveCache();
+          });
+      } catch (err) {
+        this._enrichedPhase2 = true; // Azure failed entirely; save Phase 1 result
+        this._maybeSaveCache();
+        console.warn('[Roles] Azure roles unavailable:', err.message);
+        if (typeof showConsentBanner === 'function') showConsentBanner(err);
+      }
     }
 
     if (typeof hideProgress === 'function') hideProgress();
     this._startTimers();
+    document.getElementById('section-active')?.classList.add('fade-in');
+    document.getElementById('section-eligible')?.classList.add('fade-in');
+  }
+
+  /** Resolve Administrative Unit GUIDs to human-readable names */
+  getScopeDisplay(role) {
+    if (role.type === 'AzureResource') return role.scope || role.scopeId || '';
+    if (role.type === 'Group')         return role.scope || 'Group membership';
+    const s = role.scope || role.directoryScopeId || '';
+    if (s === '/' || s === 'Directory') return 'Directory';
+    
+    // Resolve AU GUIDs
+    const auMatch = typeof s === 'string' && s.match(/\/administrativeUnits\/([a-f0-9-]{36})/i);
+    if (auMatch) {
+      const name = _auNames.get(auMatch[1]);
+      return 'Administrative Unit: ' + (name || auMatch[1]);
+    }
+    return s;
   }
 
   // ── Policy enrichment ─────────────────────────────────────────────────────
@@ -190,14 +276,37 @@ class RoleManager {
     const tbody = document.getElementById('eligible-roles-body');
     if (!tbody) return;
 
-    const query = (document.getElementById('eligible-search')?.value || '').toLowerCase();
-    const roles = _sort(_filter(this.eligibleRoles, query));
+    const _savedActive = this._activeSavedFilterId
+      ? _getQuickFilters().find(f => f.id === this._activeSavedFilterId)
+      : null;
+    const query = (_savedActive
+      ? _savedActive.query
+      : (document.getElementById('eligible-search')?.value || '')
+    ).toLowerCase();
+
+    // When "show active in eligible" is off, hide eligible roles that are already active
+    let source = this.eligibleRoles;
+    if (typeof _flags !== 'undefined' && !_flags.showActiveInEligible) {
+      const activeKeys = new Set(this.activeRoles.map(r =>
+        _roleKey(r.id) + '|' + _normalizeScopeId(r.scopeId || r.directoryScopeId || '').toLowerCase() + '|' + (r.type || '')
+      ));
+      source = this.eligibleRoles.filter(r =>
+        !activeKeys.has(_roleKey(r.id) + '|' + _normalizeScopeId(r.scopeId || r.directoryScopeId || '').toLowerCase() + '|' + (r.type || ''))
+      );
+    }
+
+    // Type filter
+    if (this._typeFilter) {
+      source = source.filter(r => r.type === this._typeFilter);
+    }
+
+    const roles = _sort(_filter(source, query));
 
     const n = roles.length;
     document.getElementById('eligible-count').textContent = n + ' role' + (n !== 1 ? 's' : '');
 
     if (n === 0) {
-      const msg = this.eligibleRoles.length === 0 ? 'No eligible roles found.' : 'No roles match your search.';
+      const msg = this.eligibleRoles.length === 0 ? 'No eligible roles found.' : 'No roles match the current filters.';
       tbody.innerHTML = '<tr class="row-placeholder"><td colspan="9">' + msg + '</td></tr>';
       this._updateBars();
       return;
@@ -230,7 +339,14 @@ class RoleManager {
           '<td class="col-type" data-label="Type">' + badge + '</td>' +
           '<td class="col-role" data-label="Role"><div class="role-cell">' +
             '<span class="role-name">' + escapeHtml(role.name) + pending + '</span>' +
-            '<span class="role-scope">' + escapeHtml(_scopeDisplay(role)) + '</span>' +
+            '<span class="role-scope"><span class="mobile-badge">' + badge + '</span>' + escapeHtml(this.getScopeDisplay(role)) + '</span>' +
+            '<div class="mobile-policy-strip">' +
+              '<span class="pol-max">' + maxDisp + '</span>' +
+              _polMfa(role) +
+              _polDot(role.requiresJustification, 'Just.',  'pol-warning', 'Justification required') +
+              _polDot(role.requiresTicket,        'Ticket', 'pol-warning', 'Ticket required') +
+              _polDot(role.requiresApproval,      'Apprv.', 'pol-purple',  'Approval required') +
+            '</div>' +
           '</div></td>' +
           '<td class="col-policy" data-label="Max"><span class="pol-max">' + maxDisp + '</span></td>' +
           '<td class="col-policy" data-label="MFA">'    + _polMfa(role)                                     + '</td>' +
@@ -274,6 +390,18 @@ class RoleManager {
       });
     });
 
+    // Row click selection
+    tbody.querySelectorAll('tr:not(.row-detail)').forEach(tr => {
+      tr.addEventListener('click', e => {
+        if (e.target.closest('button') || e.target.closest('.cb-wrap')) return;
+        const cb = tr.querySelector('.elig-cb');
+        if (cb) {
+          cb.checked = !cb.checked;
+          cb.dispatchEvent(new Event('change'));
+        }
+      });
+    });
+
     // Wire expand buttons — tap to reveal policy panel on mobile
     tbody.querySelectorAll('.expand-btn').forEach(btn => {
       btn.addEventListener('click', e => {
@@ -296,8 +424,19 @@ class RoleManager {
     const tbody = document.getElementById('active-roles-body');
     if (!tbody) return;
 
-    const query = (document.getElementById('active-search')?.value || '').toLowerCase();
-    const roles = _sort(_filter(this.activeRoles, query));
+    const _activeSaved = this._activeSavedId
+      ? _getActiveQuickFilters().find(f => f.id === this._activeSavedId)
+      : null;
+    const query = (_activeSaved
+      ? _activeSaved.query
+      : (document.getElementById('active-search')?.value || '')
+    ).toLowerCase();
+
+    let activeSource = this.activeRoles;
+    if (this._activeTypeFilter) {
+      activeSource = activeSource.filter(r => r.type === this._activeTypeFilter);
+    }
+    const roles = _sort(_filter(activeSource, query));
     const n     = roles.length;
 
     // Build awaiting-approval ghost rows: pending requests matched to eligible roles
@@ -367,7 +506,7 @@ class RoleManager {
 
     if (totalShown === 0) {
       const msg = (this.activeRoles.length === 0 && !this._pendingRequests?.length)
-        ? 'No active roles.' : 'No roles match your search.';
+        ? 'No active roles.' : 'No roles match the current filters.';
       tbody.innerHTML = '<tr class="row-placeholder"><td colspan="4">' + msg + '</td></tr>';
       this._updateBars();
       return;
@@ -391,15 +530,18 @@ class RoleManager {
           '<span class="expiry-abs">' + formatExpiryDateTime(role.endDateTime) + '</span>';
       }
 
+      const disabledAttr = !isPim ? 'disabled' : '';
+      const tooltip      = !isPim ? 'Permanent roles cannot be deactivated.' : '';
+
       return '<tr class="' + selCls + '" data-uid="' + escapeHtml(uid) + '">' +
-        '<td class="col-cb"><label class="cb-wrap">' +
-          '<input type="checkbox" class="active-cb" data-uid="' + escapeHtml(uid) + '" ' + checked +
+        '<td class="col-cb"><label class="cb-wrap ' + (!isPim ? 'cb-disabled' : '') + '" title="' + escapeHtml(tooltip) + '">' +
+          '<input type="checkbox" class="active-cb" data-uid="' + escapeHtml(uid) + '" ' + checked + ' ' + disabledAttr +
           ' aria-label="' + escapeHtml(role.name) + '">' +
         '</label></td>' +
         '<td class="col-type" data-label="Type">' + badge + '</td>' +
         '<td class="col-role" data-label="Role"><div class="role-cell">' +
           '<span class="role-name">' + escapeHtml(role.name) + '</span>' +
-          '<span class="role-scope">' + escapeHtml(_scopeDisplay(role)) + '</span>' +
+          '<span class="role-scope"><span class="mobile-badge">' + badge + '</span>' + escapeHtml(this.getScopeDisplay(role)) + '</span>' +
         '</div></td>' +
         '<td class="col-expires" data-label="Expires">' + expiryHtml + '</td>' +
       '</tr>';
@@ -414,7 +556,7 @@ class RoleManager {
         '<td class="col-type" data-label="Type">' + badge + '</td>' +
         '<td class="col-role" data-label="Role"><div class="role-cell">' +
           '<span class="role-name">' + escapeHtml(role.name) + '</span>' +
-          '<span class="role-scope">' + escapeHtml(_scopeDisplay(role)) + '</span>' +
+          '<span class="role-scope"><span class="mobile-badge">' + badge + '</span>' + escapeHtml(_scopeDisplay(role)) + '</span>' +
           '<span class="awaiting-tag">Awaiting approval</span>' +
         '</div></td>' +
         '<td class="col-expires"></td>' +
@@ -431,6 +573,39 @@ class RoleManager {
         cb.closest('tr').classList.toggle('row-selected', cb.checked);
         this._updateBars();
         this._syncHeader('active');
+      });
+    });
+
+    tbody.querySelectorAll('.cb-disabled').forEach(wrap => {
+      wrap.addEventListener('mouseup', (e) => {
+        // Since input is disabled, click falls through to label/wrap
+        if (typeof showToast === 'function') {
+          showToast({ 
+            title: 'Permanent role', 
+            description: 'Permanent roles cannot be deactivated.', 
+            type: 'info', 
+            duration: 3000,
+            noHistory: true 
+          });
+        }
+      });
+    });
+
+    // Row click selection
+    tbody.querySelectorAll('tr:not(.row-detail):not(.row-awaiting-approval)').forEach(tr => {
+      tr.addEventListener('click', e => {
+        if (e.target.closest('button') || e.target.closest('.cb-wrap')) return;
+        const cb = tr.querySelector('.active-cb');
+        if (cb && !cb.disabled) {
+          cb.checked = !cb.checked;
+          cb.dispatchEvent(new Event('change'));
+        } else if (cb && cb.disabled) {
+          // Trigger the permanent role toast
+          const wrap = tr.querySelector('.cb-disabled');
+          if (wrap) {
+            wrap.dispatchEvent(new Event('mouseup', { bubbles: true }));
+          }
+        }
       });
     });
 
@@ -517,19 +692,17 @@ class RoleManager {
     const ne = this.selectedEligible.size;
     const na = this.selectedActive.size;
 
-    const eligBar = document.getElementById('eligible-action-bar');
-    const actBar  = document.getElementById('active-action-bar');
-    const eligLbl = document.getElementById('eligible-selection-label');
-    const actLbl  = document.getElementById('active-selection-label');
     const eligBtn = document.getElementById('activate-btn');
     const actBtn  = document.getElementById('deactivate-btn');
 
-    if (eligBar) eligBar.hidden = ne === 0;
-    if (actBar)  actBar.hidden  = na === 0;
-    if (eligLbl) eligLbl.textContent = ne + ' role' + (ne !== 1 ? 's' : '') + ' selected';
-    if (actLbl)  actLbl.textContent  = na + ' role' + (na !== 1 ? 's' : '') + ' selected';
-    if (eligBtn) eligBtn.disabled = ne === 0;
-    if (actBtn)  actBtn.disabled  = na === 0;
+    if (eligBtn) {
+      eligBtn.disabled    = ne === 0;
+      eligBtn.textContent = ne > 0 ? 'Activate (' + ne + ')' : 'Activate';
+    }
+    if (actBtn) {
+      actBtn.disabled    = na === 0;
+      actBtn.textContent = na > 0 ? 'Deactivate (' + na + ')' : 'Deactivate';
+    }
   }
 
   _syncHeader(which) {
@@ -580,11 +753,356 @@ class RoleManager {
       });
     }, 30000));
   }
+
+  // ── Filter bar ───────────────────────────────────────────────────────────────
+
+  renderFilterBar() {
+    document.querySelectorAll('#filter-type-group .filter-type-pill').forEach(btn => {
+      const val = btn.dataset.typeFilter === 'null' ? null : btn.dataset.typeFilter;
+      const on  = this._typeFilter === val;
+      btn.classList.toggle('active', on);
+      btn.setAttribute('aria-pressed', String(on));
+    });
+    this._renderSavedPills();
+    // Bar visibility (open/closed) is controlled exclusively by _applyFilterBarState() in app.js
+  }
+
+  renderActiveFilterBar() {
+    document.querySelectorAll('#active-filter-type-group .filter-type-pill').forEach(btn => {
+      const val = btn.dataset.typeFilter === 'null' ? null : btn.dataset.typeFilter;
+      const on  = this._activeTypeFilter === val;
+      btn.classList.toggle('active', on);
+      btn.setAttribute('aria-pressed', String(on));
+    });
+    this._renderActiveSavedPills();
+    // Bar visibility controlled by _applyActiveFilterBarState() in app.js
+  }
+
+  _renderSavedPills() {
+    const group   = document.getElementById('filter-saved-group');
+    const divider = document.getElementById('filter-saved-divider');
+    if (!group) return;
+    const saved = _getQuickFilters();
+    if (divider) divider.hidden = saved.length === 0;
+    if (saved.length === 0) { group.innerHTML = ''; return; }
+
+    group.innerHTML = saved.map(f => {
+      const isActive     = this._activeSavedFilterId === f.id;
+      const isConfirming = this._confirmingDeleteId  === f.id;
+
+      if (isConfirming) {
+        return (
+          '<span class="filter-delete-confirm">' +
+            'Delete &ldquo;' + escapeHtml(f.label) + '&rdquo;?' +
+            '<button class="btn btn-danger btn-sm filter-confirm-yes" data-filter-id="' + escapeHtml(f.id) + '">Yes</button>' +
+            '<button class="btn btn-ghost btn-sm filter-confirm-no">No</button>' +
+          '</span>'
+        );
+      }
+
+      return (
+        '<button class="flag-pill filter-saved-pill' + (isActive ? ' active' : '') +
+          '" data-filter-id="' + escapeHtml(f.id) + '" draggable="true">' +
+          escapeHtml(f.label) +
+          '<span class="filter-pill-delete" data-filter-id="' + escapeHtml(f.id) +
+            '" role="button" tabindex="0" aria-label="Remove filter">' +
+            '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true">' +
+              '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>' +
+            '</svg></span>' +
+        '</button>'
+      );
+    }).join('');
+
+    // Toggle activate / deactivate on pill click
+    group.querySelectorAll('.filter-saved-pill').forEach(btn => {
+      btn.addEventListener('click', e => {
+        if (e.target.closest('.filter-pill-delete')) return;
+        const id = btn.dataset.filterId;
+        if (this._activeSavedFilterId === id) {
+          this._activeSavedFilterId = null;
+        } else {
+          this._activeSavedFilterId = id;
+          const input = document.getElementById('eligible-search');
+          if (input) {
+            input.value = '';
+            const saveBtn = document.getElementById('save-filter-btn');
+            if (saveBtn) saveBtn.hidden = true;
+          }
+        }
+        this.renderFilterBar();
+        this.renderEligible();
+      });
+
+      // ── Drag-to-reorder ──────────────────────────────────────────────────────
+      btn.addEventListener('dragstart', e => {
+        if (e.target.closest('.filter-pill-delete')) { e.preventDefault(); return; }
+        this._dragSrcId = btn.dataset.filterId;
+        e.dataTransfer.effectAllowed = 'move';
+        setTimeout(() => btn.classList.add('dragging'), 0);
+      });
+
+      btn.addEventListener('dragend', () => {
+        btn.classList.remove('dragging');
+        group.querySelectorAll('.filter-saved-pill').forEach(b => b.classList.remove('drag-over'));
+        this._dragSrcId = null;
+      });
+
+      btn.addEventListener('dragover', e => {
+        if (!this._dragSrcId || btn.dataset.filterId === this._dragSrcId) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        group.querySelectorAll('.filter-saved-pill').forEach(b => b.classList.remove('drag-over'));
+        btn.classList.add('drag-over');
+      });
+
+      btn.addEventListener('dragleave', () => btn.classList.remove('drag-over'));
+
+      btn.addEventListener('drop', e => {
+        e.preventDefault();
+        e.stopPropagation();
+        btn.classList.remove('drag-over');
+        const srcId = this._dragSrcId;
+        const dstId = btn.dataset.filterId;
+        if (!srcId || srcId === dstId) return;
+        const filters = _getQuickFilters();
+        const srcIdx  = filters.findIndex(f => f.id === srcId);
+        const dstIdx  = filters.findIndex(f => f.id === dstId);
+        if (srcIdx === -1 || dstIdx === -1) return;
+        const [item] = filters.splice(srcIdx, 1);
+        filters.splice(dstIdx, 0, item);
+        _saveQuickFilters(filters);
+        this.renderFilterBar();
+      });
+    });
+
+    // × click — show inline delete confirmation
+    group.querySelectorAll('.filter-pill-delete').forEach(span => {
+      const ask = e => {
+        e.stopPropagation();
+        this._confirmingDeleteId = span.dataset.filterId;
+        this._renderSavedPills();
+      };
+      span.addEventListener('click', ask);
+      span.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') ask(e); });
+    });
+
+    // Confirm Yes — delete filter
+    group.querySelectorAll('.filter-confirm-yes').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.filterId;
+        if (this._activeSavedFilterId === id) {
+          this._activeSavedFilterId = null;
+          this.renderEligible();
+        }
+        this._confirmingDeleteId = null;
+        _deleteQuickFilter(id);
+        this.renderFilterBar();
+      });
+    });
+
+    // Confirm No — cancel
+    group.querySelectorAll('.filter-confirm-no').forEach(btn => {
+      btn.addEventListener('click', () => {
+        this._confirmingDeleteId = null;
+        this._renderSavedPills();
+      });
+    });
+  }
+
+  // ── Active roles filter bar ───────────────────────────────────────────────────
+
+  _renderActiveSavedPills() {
+    const group   = document.getElementById('active-filter-saved-group');
+    const divider = document.getElementById('active-filter-saved-divider');
+    if (!group) return;
+    const saved = _getActiveQuickFilters();
+    if (divider) divider.hidden = saved.length === 0;
+    if (saved.length === 0) { group.innerHTML = ''; return; }
+
+    group.innerHTML = saved.map(f => {
+      const isActive     = this._activeSavedId  === f.id;
+      const isConfirming = this._activeConfirmId === f.id;
+
+      if (isConfirming) {
+        return (
+          '<span class="filter-delete-confirm">' +
+            'Delete &ldquo;' + escapeHtml(f.label) + '&rdquo;?' +
+            '<button class="btn btn-danger btn-sm filter-confirm-yes" data-filter-id="' + escapeHtml(f.id) + '">Yes</button>' +
+            '<button class="btn btn-ghost btn-sm filter-confirm-no">No</button>' +
+          '</span>'
+        );
+      }
+
+      return (
+        '<button class="flag-pill filter-saved-pill' + (isActive ? ' active' : '') +
+          '" data-filter-id="' + escapeHtml(f.id) + '" draggable="true">' +
+          escapeHtml(f.label) +
+          '<span class="filter-pill-delete" data-filter-id="' + escapeHtml(f.id) +
+            '" role="button" tabindex="0" aria-label="Remove filter">' +
+            '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true">' +
+              '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>' +
+            '</svg></span>' +
+        '</button>'
+      );
+    }).join('');
+
+    group.querySelectorAll('.filter-saved-pill').forEach(btn => {
+      btn.addEventListener('click', e => {
+        if (e.target.closest('.filter-pill-delete')) return;
+        const id = btn.dataset.filterId;
+        if (this._activeSavedId === id) {
+          this._activeSavedId = null;
+        } else {
+          this._activeSavedId = id;
+          const input = document.getElementById('active-search');
+          if (input) {
+            input.value = '';
+            const saveBtn = document.getElementById('active-save-filter-btn');
+            if (saveBtn) saveBtn.hidden = true;
+          }
+        }
+        this.renderActiveFilterBar();
+        this.renderActive();
+      });
+
+      btn.addEventListener('dragstart', e => {
+        if (e.target.closest('.filter-pill-delete')) { e.preventDefault(); return; }
+        this._activeDragId = btn.dataset.filterId;
+        e.dataTransfer.effectAllowed = 'move';
+        setTimeout(() => btn.classList.add('dragging'), 0);
+      });
+      btn.addEventListener('dragend', () => {
+        btn.classList.remove('dragging');
+        group.querySelectorAll('.filter-saved-pill').forEach(b => b.classList.remove('drag-over'));
+        this._activeDragId = null;
+      });
+      btn.addEventListener('dragover', e => {
+        if (!this._activeDragId || btn.dataset.filterId === this._activeDragId) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        group.querySelectorAll('.filter-saved-pill').forEach(b => b.classList.remove('drag-over'));
+        btn.classList.add('drag-over');
+      });
+      btn.addEventListener('dragleave', () => btn.classList.remove('drag-over'));
+      btn.addEventListener('drop', e => {
+        e.preventDefault();
+        e.stopPropagation();
+        btn.classList.remove('drag-over');
+        const srcId = this._activeDragId;
+        const dstId = btn.dataset.filterId;
+        if (!srcId || srcId === dstId) return;
+        const filters = _getActiveQuickFilters();
+        const srcIdx  = filters.findIndex(f => f.id === srcId);
+        const dstIdx  = filters.findIndex(f => f.id === dstId);
+        if (srcIdx === -1 || dstIdx === -1) return;
+        const [item] = filters.splice(srcIdx, 1);
+        filters.splice(dstIdx, 0, item);
+        _saveActiveQuickFilters(filters);
+        this.renderActiveFilterBar();
+      });
+    });
+
+    group.querySelectorAll('.filter-pill-delete').forEach(span => {
+      const ask = e => {
+        e.stopPropagation();
+        this._activeConfirmId = span.dataset.filterId;
+        this._renderActiveSavedPills();
+      };
+      span.addEventListener('click', ask);
+      span.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') ask(e); });
+    });
+
+    group.querySelectorAll('.filter-confirm-yes').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.filterId;
+        if (this._activeSavedId === id) {
+          this._activeSavedId = null;
+          this.renderActive();
+        }
+        this._activeConfirmId = null;
+        _deleteActiveQuickFilter(id);
+        this.renderActiveFilterBar();
+      });
+    });
+
+    group.querySelectorAll('.filter-confirm-no').forEach(btn => {
+      btn.addEventListener('click', () => {
+        this._activeConfirmId = null;
+        this._renderActiveSavedPills();
+      });
+    });
+  }
+
+  // ── Role data cache ───────────────────────────────────────────────────────────
+
+  _loadRoleCache(tenantId) {
+    try {
+      const raw = localStorage.getItem(ROLES_CACHE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (parsed.v !== 1)                       return null;
+      if (parsed.tenantId !== tenantId)         return null;
+      if (!Array.isArray(parsed.eligibleRoles)) return null;
+      if (!Array.isArray(parsed.activeRoles))   return null;
+      return parsed;
+    } catch { return null; }
+  }
+
+  _saveRoleCache() {
+    try {
+      const tenantId = portalAuth.getAccount()?.tenantId
+                     || portalAuth.getAccount()?.idTokenClaims?.tid
+                     || 'default';
+      localStorage.setItem(ROLES_CACHE_KEY, JSON.stringify({
+        v:               1,
+        ts:              Date.now(),
+        tenantId,
+        eligibleRoles:   this.eligibleRoles,
+        activeRoles:     this.activeRoles,
+        pendingRequests: this._pendingRequests,
+        auNames:         [..._auNames.entries()]
+      }));
+    } catch (err) {
+      if (err.name === 'QuotaExceededError' || err.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
+        console.warn('[Roles] Cache write skipped — localStorage quota exceeded');
+      }
+    }
+  }
+
+  _maybeSaveCache() {
+    if (this._enrichedPhase1 && this._enrichedPhase2) this._saveRoleCache();
+  }
+
+  _applyCache(cached) {
+    this.eligibleRoles    = cached.eligibleRoles   || [];
+    this.activeRoles      = cached.activeRoles     || [];
+    this._pendingRequests = cached.pendingRequests || [];
+    if (Array.isArray(cached.auNames)) {
+      cached.auNames.forEach(([id, name]) => _auNames.set(id, name));
+    }
+    this.renderEligible();
+    this.renderActive();
+  }
 }
 
 // ── Module-private helpers ────────────────────────────────────────────────────
 
 /** Sort: Entra → Group → Azure, alphabetical within each group */
+function _mergePolicy(roles, cacheMap) {
+  return roles.map(role => {
+    const prev = cacheMap.get(role.uid || role.id);
+    if (!prev || prev.maxDurationHours == null) return role;
+    role.requiresMfa           = prev.requiresMfa;
+    role.requiresJustification = prev.requiresJustification;
+    role.requiresTicket        = prev.requiresTicket;
+    role.requiresApproval      = prev.requiresApproval;
+    role.requiresAuthContext   = prev.requiresAuthContext;
+    role.authContextId         = prev.authContextId;
+    role.maxDurationHours      = prev.maxDurationHours;
+    return role;
+  });
+}
+
 function _sort(roles) {
   const order = { User: 0, Group: 1, AzureResource: 2 };
   return [...roles].sort((a, b) => {
@@ -685,23 +1203,13 @@ function _normalizeScopeId(scopeId) {
 }
 
 function _scopeDisplay(role) {
-  if (role.type === 'AzureResource') return role.scope || role.scopeId || '';
-  if (role.type === 'Group')         return role.scope || 'Group membership';
-  const s = role.scope || role.directoryScopeId || '';
-  if (s === '/' || s === 'Directory') return 'Directory';
-  // Resolve Administrative Unit GUIDs to human-readable names
-  const auMatch = typeof s === 'string' && s.match(/\/administrativeUnits\/([a-f0-9-]{36})/i);
-  if (auMatch) {
-    const name = _auNames.get(auMatch[1]);
-    return 'Administrative Unit: ' + (name || auMatch[1]);
-  }
-  return s;
+  return window.roleManager ? window.roleManager.getScopeDisplay(role) : (role.scope || role.directoryScopeId || '');
 }
 
 function _typeBadge(type) {
   const cls = type === 'AzureResource' ? 'badge-azure' : type === 'Group' ? 'badge-group' : 'badge-entra';
   const lbl = type === 'AzureResource' ? 'Azure'       : type === 'Group' ? 'Group'       : 'Entra';
-  return '<span class="type-badge ' + cls + '">[' + lbl + ']</span>';
+  return '<span class="type-badge ' + cls + '">' + lbl + '</span>';
 }
 
 function _maxDuration(hours) {
@@ -714,7 +1222,7 @@ function _polDot(required, letter, colorClass, tooltip) {
   if (required) {
     return '<span class="pol-dot ' + colorClass + '" title="' + tooltip + '">' + letter + '</span>';
   }
-  return '<span class="pol-none" title="Not required">&ndash;</span>';
+  return '<span class="pol-none" title="Not required"><span class="pol-none-dash">&ndash;</span><span class="pol-none-label">' + letter + '</span></span>';
 }
 
 function _polMfa(role) {
@@ -726,7 +1234,7 @@ function _polMfa(role) {
     const tip = role.authContextId ? 'Auth context: ' + escapeHtml(role.authContextId) : 'Auth context required';
     parts.push('<span class="pol-dot pol-auth-ctx" title="' + escapeHtml(tip) + '">CA</span>');
   }
-  if (parts.length === 0) return '<span class="pol-none" title="No MFA or auth context required">&ndash;</span>';
+  if (parts.length === 0) return '<span class="pol-none" title="No MFA or auth context required"><span class="pol-none-dash">&ndash;</span><span class="pol-none-label">MFA</span></span>';
   return '<div class="pol-mfa-cell">' + parts.join('') + '</div>';
 }
 

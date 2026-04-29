@@ -15,6 +15,9 @@ const msalInstance = new msal.PublicClientApplication(window.msalConfig);
 /** Currently active account */
 let _account = null;
 
+/** sessionStorage key that persists the chosen tenant across F5 refreshes (same tab session) */
+const PREFERRED_TENANT_KEY = 'pim-portal-preferred-tenant';
+
 /** Claims string to include in every token acquisition while an auth-context activation is in progress. */
 let _activeAuthContextClaims = null;
 
@@ -29,16 +32,23 @@ async function initAuth() {
     if (response && response.account) {
       msalInstance.setActiveAccount(response.account);
       _account = response.account;
+      // Record which tenant was chosen so F5 restores the same one
+      sessionStorage.setItem(PREFERRED_TENANT_KEY, response.account.tenantId);
       return _account;
     }
   } catch (err) {
     console.error('[Auth] handleRedirectPromise error:', err);
   }
 
+  const preferredTenantId = sessionStorage.getItem(PREFERRED_TENANT_KEY);
   const accounts = msalInstance.getAllAccounts();
   if (accounts.length > 0) {
-    msalInstance.setActiveAccount(accounts[0]);
-    _account = accounts[0];
+    // When multiple accounts exist (home + guest tenants), honour the stored preference
+    const preferred = preferredTenantId
+      ? (accounts.find(a => a.tenantId === preferredTenantId) ?? accounts[0])
+      : accounts[0];
+    msalInstance.setActiveAccount(preferred);
+    _account = preferred;
     return _account;
   }
 
@@ -113,13 +123,29 @@ function getUserId() {
 
 // ── Private helpers ──────────────────────────────────────────────────────────
 
+/**
+ * Returns the authority URL for the currently active account's tenant.
+ * Always specifying this explicitly prevents MSAL from falling back to the
+ * msalConfig default authority (the app's home tenant) when acquiring tokens
+ * for a guest/switched tenant — which would cause ARM to return home-tenant
+ * resources instead of the target tenant's resources.
+ */
+function _authority() {
+  const tid = _account?.tenantId || _account?.idTokenClaims?.tid;
+  return tid
+    ? `https://login.microsoftonline.com/${tid}`
+    : window.msalConfig.auth.authority;
+}
+
 async function _acquireToken(scopes, claims) {
   if (!_account) throw new Error('Not signed in');
 
+  const authority = _authority();
   try {
     const result = await msalInstance.acquireTokenSilent({
       scopes,
-      account: _account,
+      account:   _account,
+      authority,
       ...(claims ? { claims } : {})
     });
     return result.accessToken;
@@ -127,7 +153,7 @@ async function _acquireToken(scopes, claims) {
     if (err instanceof msal.InteractionRequiredAuthError) {
       // Silent acquisition failed — redirect to Microsoft for fresh tokens.
       // The page will reload on return and initAuth() will process the response.
-      await msalInstance.acquireTokenRedirect({ scopes, account: _account, ...(claims ? { claims } : {}) });
+      await msalInstance.acquireTokenRedirect({ scopes, account: _account, authority, ...(claims ? { claims } : {}) });
       // Page navigates away — execution does not continue here.
     }
     throw err;
@@ -167,9 +193,38 @@ async function stepUpForAuthContexts(authContextIds, roles) {
     access_token: { acrs: { essential: true, value: authContextIds[0] } }
   });
 
-  await msalInstance.acquireTokenPopup({ scopes, account: _account, claims });
+  await msalInstance.acquireTokenPopup({ scopes, account: _account, authority: _authority(), claims });
   // Returns normally — caller continues with activation
 }
 
+/**
+ * Request ARM consent interactively via a popup (used by the consent banner).
+ * Unlike getArmToken(), this always uses a popup so the user doesn't navigate away.
+ * @returns {Promise<void>}
+ */
+async function grantArmConsent() {
+  if (!_account) throw new Error('Not signed in');
+  await msalInstance.acquireTokenPopup({ scopes: [window.ARM_SCOPE], account: _account, authority: _authority() });
+}
+
+/**
+ * Switch to a different Entra tenant using the currently signed-in account.
+ * Uses loginRedirect with a tenant-specific authority and the current account's
+ * UPN as loginHint so Microsoft can SSO the user silently when they are already
+ * a guest/member of that tenant. The page navigates away; on return, initAuth()
+ * picks up the new tenant's account via handleRedirectPromise().
+ * @param {string} tenantId  Target tenant GUID
+ */
+async function switchTenant(tenantId) {
+  // Persist before the redirect so initAuth() restores the right account on return
+  sessionStorage.setItem(PREFERRED_TENANT_KEY, tenantId);
+  await msalInstance.loginRedirect({
+    authority: `https://login.microsoftonline.com/${tenantId}`,
+    scopes:     window.GRAPH_SCOPES,
+    loginHint:  _account?.username,
+  });
+  // Page navigates away — execution does not continue here.
+}
+
 // Expose globally for other modules
-window.portalAuth = { initAuth, signIn, signOut, getGraphToken, getArmToken, getGraphTokenWithAuthContext, stepUpForAuthContexts, setAuthContextClaims, getAccount, getUserId };
+window.portalAuth = { initAuth, signIn, signOut, getGraphToken, getArmToken, getGraphTokenWithAuthContext, stepUpForAuthContexts, grantArmConsent, setAuthContextClaims, getAccount, getUserId, switchTenant };
