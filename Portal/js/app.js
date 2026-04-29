@@ -17,8 +17,8 @@ const _flags = {
   showActiveInEligible: false,
   swapSections:         false,
   quickAppearance:      true,
-  showInactivePolicies: false,
-  quickInactivePolicies: false,
+  showInactivePolicies: true,
+  quickInactivePolicies: true,
   ...JSON.parse(localStorage.getItem(FLAGS_KEY) || '{}')
 };
 
@@ -593,12 +593,15 @@ function showActivationModal(roles, opts = {}) {
     }
   }
 
-  // Show/hide justification & ticket rows
+  // Justification is always visible; required only when policy enforces it
   const needsJust   = roles.some(r => r.requiresJustification);
   const needsTicket = roles.some(r => r.requiresTicket);
   const justRow   = document.getElementById('justification-row');
   const ticketRow = document.getElementById('ticket-row');
-  if (justRow)   justRow.hidden   = !needsJust;
+  if (justRow) {
+    const reqMark = document.getElementById('justification-req-mark');
+    if (reqMark) reqMark.hidden = !needsJust;
+  }
   if (ticketRow) ticketRow.hidden = !needsTicket;
 
   // Pre-fill or clear values
