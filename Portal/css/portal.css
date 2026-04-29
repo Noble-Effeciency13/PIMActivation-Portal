@@ -479,14 +479,41 @@ a { color: var(--primary); text-decoration: none; }
   border-bottom:   1px solid var(--border);
   flex-wrap:       wrap;
 }
+.roles-section.collapsed .section-header { border-bottom: none; }
+.roles-section.collapsed .table-wrap     { display: none; }
+
 .section-title-group {
   display:     flex;
-  align-items: baseline;
+  align-items: center;
   gap:         8px;
 }
 .section-title { font-size: 15px; font-weight: 600; }
 .role-count    { font-size: 12px; color: var(--text-muted); }
 .section-controls { display: flex; align-items: center; gap: 8px; }
+
+.section-collapse-btn {
+  display:         inline-flex;
+  align-items:     center;
+  justify-content: center;
+  width:           24px;
+  height:          24px;
+  padding:         0;
+  background:      transparent;
+  border:          none;
+  border-radius:   var(--radius-xs);
+  color:           var(--text-muted);
+  cursor:          pointer;
+  flex-shrink:     0;
+}
+.section-collapse-btn svg {
+  transition: transform 0.2s ease;
+}
+.roles-section.collapsed .section-collapse-btn svg {
+  transform: rotate(-90deg);
+}
+@media (hover: hover) and (pointer: fine) {
+  .section-collapse-btn:hover { background: var(--bg-hover); color: var(--text); }
+}
 
 /* Search input */
 .search-input {

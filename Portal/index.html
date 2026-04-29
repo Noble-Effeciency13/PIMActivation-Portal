@@ -125,6 +125,9 @@
       <section class="roles-section" id="section-active">
         <div class="section-header">
           <div class="section-title-group">
+            <button class="section-collapse-btn" aria-label="Collapse section" aria-expanded="true">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
             <h2 class="section-title">Active Roles</h2>
             <span class="role-count" id="active-count" aria-live="polite">&ndash;</span>
           </div>
@@ -161,6 +164,9 @@
       <section class="roles-section" id="section-eligible">
         <div class="section-header">
           <div class="section-title-group">
+            <button class="section-collapse-btn" aria-label="Collapse section" aria-expanded="true">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
             <h2 class="section-title">Eligible Roles</h2>
             <span class="role-count" id="eligible-count" aria-live="polite">&ndash;</span>
           </div>
@@ -376,6 +382,16 @@
             <div class="settings-desc">Show eligible roles above active roles.</div>
           </div>
           <button class="toggle-switch" id="flag-swap-sections" type="button" role="switch" aria-checked="false">
+            <span class="toggle-thumb" aria-hidden="true"></span>
+          </button>
+        </div>
+
+        <div class="settings-row">
+          <div class="settings-info">
+            <div class="settings-title">Remember collapsed sections</div>
+            <div class="settings-desc">Sections remember their collapsed/expanded state across refreshes. Turn off to always expand all sections on load.</div>
+          </div>
+          <button class="toggle-switch" id="flag-persist-sections" type="button" role="switch" aria-checked="false">
             <span class="toggle-thumb" aria-hidden="true"></span>
           </button>
         </div>

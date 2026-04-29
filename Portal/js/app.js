@@ -15,7 +15,8 @@ const _flags = {
   group:               true,
   defaultDuration:     8,
   showActiveInEligible: false,
-  swapSections:         false,
+  swapSections:         true,
+  persistSectionState:  true,
   quickAppearance:      true,
   showInactivePolicies: true,
   quickInactivePolicies: true,
@@ -352,7 +353,9 @@ const _opOverlay = {
   }
 };
 
-// ── Section order ─────────────────────────────────────────────────────────────
+// ── Section order & collapse ───────────────────────────────────────────────────
+
+const SECTION_STATE_KEY = 'pim-portal-section-states';
 
 function _applyInactivePolicies() {
   document.body.classList.toggle('show-inactive-policies', !!_flags.showInactivePolicies);
@@ -360,6 +363,43 @@ function _applyInactivePolicies() {
 
 function _applySectionOrder() {
   document.querySelector('.app-main')?.classList.toggle('sections-swapped', !!_flags.swapSections);
+}
+
+function _getSectionStates() {
+  try { return JSON.parse(localStorage.getItem(SECTION_STATE_KEY) || '{}'); } catch { return {}; }
+}
+
+function _setSectionCollapsed(id, collapsed) {
+  const section = document.getElementById(id);
+  if (!section) return;
+  section.classList.toggle('collapsed', collapsed);
+  const btn = section.querySelector('.section-collapse-btn');
+  if (btn) {
+    btn.setAttribute('aria-expanded', String(!collapsed));
+    btn.setAttribute('aria-label', collapsed ? 'Expand section' : 'Collapse section');
+  }
+}
+
+function _toggleSection(id) {
+  const section = document.getElementById(id);
+  if (!section) return;
+  const collapsed = !section.classList.contains('collapsed');
+  _setSectionCollapsed(id, collapsed);
+  if (_flags.persistSectionState) {
+    const states = _getSectionStates();
+    states[id] = collapsed;
+    localStorage.setItem(SECTION_STATE_KEY, JSON.stringify(states));
+  }
+}
+
+function _applyInitialSectionStates() {
+  const ids = ['section-active', 'section-eligible'];
+  if (_flags.persistSectionState) {
+    const states = _getSectionStates();
+    ids.forEach(id => _setSectionCollapsed(id, !!states[id]));
+  } else {
+    ids.forEach(id => _setSectionCollapsed(id, false));
+  }
 }
 
 // ── Consent banner ────────────────────────────────────────────────────────────
@@ -431,9 +471,10 @@ function showSettingsModal() {
 
   // Sync toggle switches
   [
-    ['flag-show-active',   'showActiveInEligible'],
-    ['flag-show-inactive', 'showInactivePolicies'],
-    ['flag-swap-sections', 'swapSections'],
+    ['flag-show-active',      'showActiveInEligible'],
+    ['flag-show-inactive',    'showInactivePolicies'],
+    ['flag-swap-sections',    'swapSections'],
+    ['flag-persist-sections', 'persistSectionState'],
   ].forEach(([id, key]) => {
     const btn = document.getElementById(id);
     if (btn) {
@@ -1256,6 +1297,7 @@ function _timeAgo(dateString) {
 async function bootstrap() {
   initTheme();
   _applySectionOrder();
+  _applyInitialSectionStates();
 
   // Update loading message while MSAL processes the redirect token exchange
   const loadingMsg = document.getElementById('loading-msg');
@@ -1474,6 +1516,22 @@ async function bootstrap() {
     if (btn) { btn.classList.toggle('active', on); btn.setAttribute('aria-checked', on); }
     _applySectionOrder();
   });
+
+  // Persist section state toggle
+  document.getElementById('flag-persist-sections')?.addEventListener('click', () => {
+    const on = !_flags.persistSectionState;
+    _flags.persistSectionState = on;
+    localStorage.setItem(FLAGS_KEY, JSON.stringify(_flags));
+    const btn = document.getElementById('flag-persist-sections');
+    if (btn) { btn.classList.toggle('active', on); btn.setAttribute('aria-checked', on); }
+    if (!on) localStorage.removeItem(SECTION_STATE_KEY);
+  });
+
+  // Section collapse buttons
+  document.getElementById('section-active')?.querySelector('.section-collapse-btn')
+    ?.addEventListener('click', () => _toggleSection('section-active'));
+  document.getElementById('section-eligible')?.querySelector('.section-collapse-btn')
+    ?.addEventListener('click', () => _toggleSection('section-eligible'));
 
   // Quick actions
   document.getElementById('flag-quick-appearance')?.addEventListener('change', e => {
