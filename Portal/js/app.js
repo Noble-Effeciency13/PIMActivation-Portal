@@ -17,6 +17,7 @@ const _flags = {
   showActiveInEligible: false,
   swapSections:         true,
   persistSectionState:  true,
+  persistFilterBarState: true,
   quickAppearance:      true,
   showInactivePolicies: true,
   quickInactivePolicies: true,
@@ -355,7 +356,72 @@ const _opOverlay = {
 
 // ── Section order & collapse ───────────────────────────────────────────────────
 
-const SECTION_STATE_KEY = 'pim-portal-section-states';
+const SECTION_STATE_KEY  = 'pim-portal-section-states';
+
+// ── Quick filters ─────────────────────────────────────────────────────────────
+const QUICK_FILTERS_KEY         = 'pim-portal-quick-filters';
+const ACTIVE_QUICK_FILTERS_KEY  = 'pim-portal-active-quick-filters';
+const FILTER_BAR_STATE_KEY      = 'pim-portal-filter-bar-open';
+const ACTIVE_FILTER_BAR_STATE_KEY = 'pim-portal-active-filter-bar-open';
+
+let _filterBarOpen       = false;
+let _activeFilterBarOpen = false;
+
+function _applyFilterBarState() {
+  const bar = document.getElementById('eligible-filter-bar');
+  bar?.classList.toggle('filter-bar-hidden', !_filterBarOpen);
+  const btn = document.getElementById('filter-toggle-btn');
+  if (btn) {
+    btn.classList.toggle('active', _filterBarOpen);
+    btn.setAttribute('aria-expanded', String(_filterBarOpen));
+  }
+}
+
+function _applyActiveFilterBarState() {
+  const bar = document.getElementById('active-filter-bar');
+  bar?.classList.toggle('filter-bar-hidden', !_activeFilterBarOpen);
+  const btn = document.getElementById('active-filter-toggle-btn');
+  if (btn) {
+    btn.classList.toggle('active', _activeFilterBarOpen);
+    btn.setAttribute('aria-expanded', String(_activeFilterBarOpen));
+  }
+}
+
+function _getQuickFilters() {
+  try { return JSON.parse(localStorage.getItem(QUICK_FILTERS_KEY) || '[]'); } catch { return []; }
+}
+function _saveQuickFilters(filters) {
+  localStorage.setItem(QUICK_FILTERS_KEY, JSON.stringify(filters));
+}
+function _addQuickFilter(query) {
+  const label = query.trim();
+  if (!label) return;
+  const filters = _getQuickFilters();
+  if (filters.some(f => f.query.toLowerCase() === label.toLowerCase())) return;
+  filters.push({ id: 'qf-' + Date.now(), label, query: label });
+  _saveQuickFilters(filters);
+}
+function _deleteQuickFilter(id) {
+  _saveQuickFilters(_getQuickFilters().filter(f => f.id !== id));
+}
+
+function _getActiveQuickFilters() {
+  try { return JSON.parse(localStorage.getItem(ACTIVE_QUICK_FILTERS_KEY) || '[]'); } catch { return []; }
+}
+function _saveActiveQuickFilters(filters) {
+  localStorage.setItem(ACTIVE_QUICK_FILTERS_KEY, JSON.stringify(filters));
+}
+function _addActiveQuickFilter(query) {
+  const label = query.trim();
+  if (!label) return;
+  const filters = _getActiveQuickFilters();
+  if (filters.some(f => f.query.toLowerCase() === label.toLowerCase())) return;
+  filters.push({ id: 'aqf-' + Date.now(), label, query: label });
+  _saveActiveQuickFilters(filters);
+}
+function _deleteActiveQuickFilter(id) {
+  _saveActiveQuickFilters(_getActiveQuickFilters().filter(f => f.id !== id));
+}
 
 function _applyInactivePolicies() {
   document.body.classList.toggle('show-inactive-policies', !!_flags.showInactivePolicies);
@@ -474,7 +540,8 @@ function showSettingsModal() {
     ['flag-show-active',      'showActiveInEligible'],
     ['flag-show-inactive',    'showInactivePolicies'],
     ['flag-swap-sections',    'swapSections'],
-    ['flag-persist-sections', 'persistSectionState'],
+    ['flag-persist-sections',    'persistSectionState'],
+    ['flag-persist-filter-bar', 'persistFilterBarState'],
   ].forEach(([id, key]) => {
     const btn = document.getElementById(id);
     if (btn) {
@@ -1407,6 +1474,14 @@ async function bootstrap() {
   initTheme();
   _applySectionOrder();
   _applyInitialSectionStates();
+  _filterBarOpen = _flags.persistFilterBarState
+    ? localStorage.getItem(FILTER_BAR_STATE_KEY) === 'true'
+    : false;
+  _applyFilterBarState();
+  _activeFilterBarOpen = _flags.persistFilterBarState
+    ? localStorage.getItem(ACTIVE_FILTER_BAR_STATE_KEY) === 'true'
+    : false;
+  _applyActiveFilterBarState();
 
   // Update loading message while MSAL processes the redirect token exchange
   const loadingMsg = document.getElementById('loading-msg');
@@ -1646,6 +1721,19 @@ async function bootstrap() {
     if (!on) localStorage.removeItem(SECTION_STATE_KEY);
   });
 
+  // Persist filter bar state toggle
+  document.getElementById('flag-persist-filter-bar')?.addEventListener('click', () => {
+    const on = !_flags.persistFilterBarState;
+    _flags.persistFilterBarState = on;
+    localStorage.setItem(FLAGS_KEY, JSON.stringify(_flags));
+    const btn = document.getElementById('flag-persist-filter-bar');
+    if (btn) { btn.classList.toggle('active', on); btn.setAttribute('aria-checked', on); }
+    if (!on) {
+      localStorage.removeItem(FILTER_BAR_STATE_KEY);
+      localStorage.removeItem(ACTIVE_FILTER_BAR_STATE_KEY);
+    }
+  });
+
   // Section collapse buttons
   document.getElementById('section-active')?.querySelector('.section-collapse-btn')
     ?.addEventListener('click', () => _toggleSection('section-active'));
@@ -1719,13 +1807,91 @@ async function bootstrap() {
     }
   });
 
-  // Eligible search
-  document.getElementById('eligible-search')
-    ?.addEventListener('input', () => roleManager.renderEligible());
+  // Filter bar toggle button
+  document.getElementById('filter-toggle-btn')?.addEventListener('click', () => {
+    _filterBarOpen = !_filterBarOpen;
+    _applyFilterBarState();
+    if (_flags.persistFilterBarState) {
+      localStorage.setItem(FILTER_BAR_STATE_KEY, String(_filterBarOpen));
+    }
+  });
 
-  // Active search
-  document.getElementById('active-search')
-    ?.addEventListener('input', () => roleManager.renderActive());
+  // Eligible search — re-render + toggle Save button visibility
+  const _eligSearch = document.getElementById('eligible-search');
+  _eligSearch?.addEventListener('input', () => {
+    roleManager.renderEligible();
+    const saveBtn = document.getElementById('save-filter-btn');
+    if (saveBtn) saveBtn.hidden = !_eligSearch.value.trim();
+  });
+
+  // Save current search as quick filter, activate it immediately, clear the input
+  document.getElementById('save-filter-btn')?.addEventListener('click', () => {
+    const q = _eligSearch?.value.trim();
+    if (!q) return;
+    _addQuickFilter(q);
+    const newFilter = _getQuickFilters().find(f => f.query.toLowerCase() === q.toLowerCase());
+    if (newFilter) roleManager._activeSavedFilterId = newFilter.id;
+    if (_eligSearch) _eligSearch.value = '';
+    const saveBtn = document.getElementById('save-filter-btn');
+    if (saveBtn) saveBtn.hidden = true;
+    roleManager.renderFilterBar();
+    roleManager.renderEligible();
+  });
+
+  // Type filter pills (radio group — "All" is explicit reset)
+  document.getElementById('filter-type-group')?.addEventListener('click', e => {
+    const btn = e.target.closest('.filter-type-pill');
+    if (!btn) return;
+    const raw = btn.dataset.typeFilter;
+    roleManager._typeFilter = raw === 'null' ? null : raw;
+    roleManager.renderFilterBar();
+    roleManager.renderEligible();
+  });
+
+  // Initial filter bar render (restores saved pills from previous session)
+  roleManager.renderFilterBar();
+  roleManager.renderActiveFilterBar();
+
+  // Active filter bar toggle button
+  document.getElementById('active-filter-toggle-btn')?.addEventListener('click', () => {
+    _activeFilterBarOpen = !_activeFilterBarOpen;
+    _applyActiveFilterBarState();
+    if (_flags.persistFilterBarState) {
+      localStorage.setItem(ACTIVE_FILTER_BAR_STATE_KEY, String(_activeFilterBarOpen));
+    }
+  });
+
+  // Active search — re-render + toggle Save button visibility
+  const _activeSearch = document.getElementById('active-search');
+  _activeSearch?.addEventListener('input', () => {
+    roleManager.renderActive();
+    const saveBtn = document.getElementById('active-save-filter-btn');
+    if (saveBtn) saveBtn.hidden = !_activeSearch.value.trim();
+  });
+
+  // Save active search as quick filter
+  document.getElementById('active-save-filter-btn')?.addEventListener('click', () => {
+    const q = _activeSearch?.value.trim();
+    if (!q) return;
+    _addActiveQuickFilter(q);
+    const newFilter = _getActiveQuickFilters().find(f => f.query.toLowerCase() === q.toLowerCase());
+    if (newFilter) roleManager._activeSavedId = newFilter.id;
+    if (_activeSearch) _activeSearch.value = '';
+    const saveBtn = document.getElementById('active-save-filter-btn');
+    if (saveBtn) saveBtn.hidden = true;
+    roleManager.renderActiveFilterBar();
+    roleManager.renderActive();
+  });
+
+  // Active type filter pills
+  document.getElementById('active-filter-type-group')?.addEventListener('click', e => {
+    const btn = e.target.closest('.filter-type-pill');
+    if (!btn) return;
+    const raw = btn.dataset.typeFilter;
+    roleManager._activeTypeFilter = raw === 'null' ? null : raw;
+    roleManager.renderActiveFilterBar();
+    roleManager.renderActive();
+  });
 
   // Activate button (opens modal)
   document.getElementById('activate-btn')

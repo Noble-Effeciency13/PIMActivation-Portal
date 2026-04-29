@@ -24,6 +24,14 @@ class RoleManager {
     this._timers          = [];
     /** uid → expiry timestamp; recently deactivated roles are suppressed from reappearing on reload */
     this._suppressedUids  = new Map();
+    this._typeFilter           = null; // eligible section type filter
+    this._activeSavedFilterId  = null; // eligible section: active saved filter id
+    this._confirmingDeleteId   = null; // eligible section: pill showing delete confirm
+    this._dragSrcId            = null; // eligible section: id being dragged
+    this._activeTypeFilter     = null; // active section type filter
+    this._activeSavedId        = null; // active section: active saved filter id
+    this._activeConfirmId      = null; // active section: pill showing delete confirm
+    this._activeDragId         = null; // active section: id being dragged
   }
 
   // ── Load ──────────────────────────────────────────────────────────────────
@@ -210,7 +218,13 @@ class RoleManager {
     const tbody = document.getElementById('eligible-roles-body');
     if (!tbody) return;
 
-    const query = (document.getElementById('eligible-search')?.value || '').toLowerCase();
+    const _savedActive = this._activeSavedFilterId
+      ? _getQuickFilters().find(f => f.id === this._activeSavedFilterId)
+      : null;
+    const query = (_savedActive
+      ? _savedActive.query
+      : (document.getElementById('eligible-search')?.value || '')
+    ).toLowerCase();
 
     // When "show active in eligible" is off, hide eligible roles that are already active
     let source = this.eligibleRoles;
@@ -223,13 +237,18 @@ class RoleManager {
       );
     }
 
+    // Type filter
+    if (this._typeFilter) {
+      source = source.filter(r => r.type === this._typeFilter);
+    }
+
     const roles = _sort(_filter(source, query));
 
     const n = roles.length;
     document.getElementById('eligible-count').textContent = n + ' role' + (n !== 1 ? 's' : '');
 
     if (n === 0) {
-      const msg = this.eligibleRoles.length === 0 ? 'No eligible roles found.' : 'No roles match your search.';
+      const msg = this.eligibleRoles.length === 0 ? 'No eligible roles found.' : 'No roles match the current filters.';
       tbody.innerHTML = '<tr class="row-placeholder"><td colspan="9">' + msg + '</td></tr>';
       this._updateBars();
       return;
@@ -347,8 +366,19 @@ class RoleManager {
     const tbody = document.getElementById('active-roles-body');
     if (!tbody) return;
 
-    const query = (document.getElementById('active-search')?.value || '').toLowerCase();
-    const roles = _sort(_filter(this.activeRoles, query));
+    const _activeSaved = this._activeSavedId
+      ? _getActiveQuickFilters().find(f => f.id === this._activeSavedId)
+      : null;
+    const query = (_activeSaved
+      ? _activeSaved.query
+      : (document.getElementById('active-search')?.value || '')
+    ).toLowerCase();
+
+    let activeSource = this.activeRoles;
+    if (this._activeTypeFilter) {
+      activeSource = activeSource.filter(r => r.type === this._activeTypeFilter);
+    }
+    const roles = _sort(_filter(activeSource, query));
     const n     = roles.length;
 
     // Build awaiting-approval ghost rows: pending requests matched to eligible roles
@@ -418,7 +448,7 @@ class RoleManager {
 
     if (totalShown === 0) {
       const msg = (this.activeRoles.length === 0 && !this._pendingRequests?.length)
-        ? 'No active roles.' : 'No roles match your search.';
+        ? 'No active roles.' : 'No roles match the current filters.';
       tbody.innerHTML = '<tr class="row-placeholder"><td colspan="4">' + msg + '</td></tr>';
       this._updateBars();
       return;
@@ -664,6 +694,285 @@ class RoleManager {
         }
       });
     }, 30000));
+  }
+
+  // ── Filter bar ───────────────────────────────────────────────────────────────
+
+  renderFilterBar() {
+    document.querySelectorAll('#filter-type-group .filter-type-pill').forEach(btn => {
+      const val = btn.dataset.typeFilter === 'null' ? null : btn.dataset.typeFilter;
+      const on  = this._typeFilter === val;
+      btn.classList.toggle('active', on);
+      btn.setAttribute('aria-pressed', String(on));
+    });
+    this._renderSavedPills();
+    // Bar visibility (open/closed) is controlled exclusively by _applyFilterBarState() in app.js
+  }
+
+  renderActiveFilterBar() {
+    document.querySelectorAll('#active-filter-type-group .filter-type-pill').forEach(btn => {
+      const val = btn.dataset.typeFilter === 'null' ? null : btn.dataset.typeFilter;
+      const on  = this._activeTypeFilter === val;
+      btn.classList.toggle('active', on);
+      btn.setAttribute('aria-pressed', String(on));
+    });
+    this._renderActiveSavedPills();
+    // Bar visibility controlled by _applyActiveFilterBarState() in app.js
+  }
+
+  _renderSavedPills() {
+    const group   = document.getElementById('filter-saved-group');
+    const divider = document.getElementById('filter-saved-divider');
+    if (!group) return;
+    const saved = _getQuickFilters();
+    if (divider) divider.hidden = saved.length === 0;
+    if (saved.length === 0) { group.innerHTML = ''; return; }
+
+    group.innerHTML = saved.map(f => {
+      const isActive     = this._activeSavedFilterId === f.id;
+      const isConfirming = this._confirmingDeleteId  === f.id;
+
+      if (isConfirming) {
+        return (
+          '<span class="filter-delete-confirm">' +
+            'Delete &ldquo;' + escapeHtml(f.label) + '&rdquo;?' +
+            '<button class="btn btn-danger btn-sm filter-confirm-yes" data-filter-id="' + escapeHtml(f.id) + '">Yes</button>' +
+            '<button class="btn btn-ghost btn-sm filter-confirm-no">No</button>' +
+          '</span>'
+        );
+      }
+
+      return (
+        '<button class="flag-pill filter-saved-pill' + (isActive ? ' active' : '') +
+          '" data-filter-id="' + escapeHtml(f.id) + '" draggable="true">' +
+          escapeHtml(f.label) +
+          '<span class="filter-pill-delete" data-filter-id="' + escapeHtml(f.id) +
+            '" role="button" tabindex="0" aria-label="Remove filter">' +
+            '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true">' +
+              '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>' +
+            '</svg></span>' +
+        '</button>'
+      );
+    }).join('');
+
+    // Toggle activate / deactivate on pill click
+    group.querySelectorAll('.filter-saved-pill').forEach(btn => {
+      btn.addEventListener('click', e => {
+        if (e.target.closest('.filter-pill-delete')) return;
+        const id = btn.dataset.filterId;
+        if (this._activeSavedFilterId === id) {
+          this._activeSavedFilterId = null;
+        } else {
+          this._activeSavedFilterId = id;
+          const input = document.getElementById('eligible-search');
+          if (input) {
+            input.value = '';
+            const saveBtn = document.getElementById('save-filter-btn');
+            if (saveBtn) saveBtn.hidden = true;
+          }
+        }
+        this.renderFilterBar();
+        this.renderEligible();
+      });
+
+      // ── Drag-to-reorder ──────────────────────────────────────────────────────
+      btn.addEventListener('dragstart', e => {
+        if (e.target.closest('.filter-pill-delete')) { e.preventDefault(); return; }
+        this._dragSrcId = btn.dataset.filterId;
+        e.dataTransfer.effectAllowed = 'move';
+        setTimeout(() => btn.classList.add('dragging'), 0);
+      });
+
+      btn.addEventListener('dragend', () => {
+        btn.classList.remove('dragging');
+        group.querySelectorAll('.filter-saved-pill').forEach(b => b.classList.remove('drag-over'));
+        this._dragSrcId = null;
+      });
+
+      btn.addEventListener('dragover', e => {
+        if (!this._dragSrcId || btn.dataset.filterId === this._dragSrcId) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        group.querySelectorAll('.filter-saved-pill').forEach(b => b.classList.remove('drag-over'));
+        btn.classList.add('drag-over');
+      });
+
+      btn.addEventListener('dragleave', () => btn.classList.remove('drag-over'));
+
+      btn.addEventListener('drop', e => {
+        e.preventDefault();
+        e.stopPropagation();
+        btn.classList.remove('drag-over');
+        const srcId = this._dragSrcId;
+        const dstId = btn.dataset.filterId;
+        if (!srcId || srcId === dstId) return;
+        const filters = _getQuickFilters();
+        const srcIdx  = filters.findIndex(f => f.id === srcId);
+        const dstIdx  = filters.findIndex(f => f.id === dstId);
+        if (srcIdx === -1 || dstIdx === -1) return;
+        const [item] = filters.splice(srcIdx, 1);
+        filters.splice(dstIdx, 0, item);
+        _saveQuickFilters(filters);
+        this.renderFilterBar();
+      });
+    });
+
+    // × click — show inline delete confirmation
+    group.querySelectorAll('.filter-pill-delete').forEach(span => {
+      const ask = e => {
+        e.stopPropagation();
+        this._confirmingDeleteId = span.dataset.filterId;
+        this._renderSavedPills();
+      };
+      span.addEventListener('click', ask);
+      span.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') ask(e); });
+    });
+
+    // Confirm Yes — delete filter
+    group.querySelectorAll('.filter-confirm-yes').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.filterId;
+        if (this._activeSavedFilterId === id) {
+          this._activeSavedFilterId = null;
+          this.renderEligible();
+        }
+        this._confirmingDeleteId = null;
+        _deleteQuickFilter(id);
+        this.renderFilterBar();
+      });
+    });
+
+    // Confirm No — cancel
+    group.querySelectorAll('.filter-confirm-no').forEach(btn => {
+      btn.addEventListener('click', () => {
+        this._confirmingDeleteId = null;
+        this._renderSavedPills();
+      });
+    });
+  }
+
+  // ── Active roles filter bar ───────────────────────────────────────────────────
+
+  _renderActiveSavedPills() {
+    const group   = document.getElementById('active-filter-saved-group');
+    const divider = document.getElementById('active-filter-saved-divider');
+    if (!group) return;
+    const saved = _getActiveQuickFilters();
+    if (divider) divider.hidden = saved.length === 0;
+    if (saved.length === 0) { group.innerHTML = ''; return; }
+
+    group.innerHTML = saved.map(f => {
+      const isActive     = this._activeSavedId  === f.id;
+      const isConfirming = this._activeConfirmId === f.id;
+
+      if (isConfirming) {
+        return (
+          '<span class="filter-delete-confirm">' +
+            'Delete &ldquo;' + escapeHtml(f.label) + '&rdquo;?' +
+            '<button class="btn btn-danger btn-sm filter-confirm-yes" data-filter-id="' + escapeHtml(f.id) + '">Yes</button>' +
+            '<button class="btn btn-ghost btn-sm filter-confirm-no">No</button>' +
+          '</span>'
+        );
+      }
+
+      return (
+        '<button class="flag-pill filter-saved-pill' + (isActive ? ' active' : '') +
+          '" data-filter-id="' + escapeHtml(f.id) + '" draggable="true">' +
+          escapeHtml(f.label) +
+          '<span class="filter-pill-delete" data-filter-id="' + escapeHtml(f.id) +
+            '" role="button" tabindex="0" aria-label="Remove filter">' +
+            '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true">' +
+              '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>' +
+            '</svg></span>' +
+        '</button>'
+      );
+    }).join('');
+
+    group.querySelectorAll('.filter-saved-pill').forEach(btn => {
+      btn.addEventListener('click', e => {
+        if (e.target.closest('.filter-pill-delete')) return;
+        const id = btn.dataset.filterId;
+        if (this._activeSavedId === id) {
+          this._activeSavedId = null;
+        } else {
+          this._activeSavedId = id;
+          const input = document.getElementById('active-search');
+          if (input) {
+            input.value = '';
+            const saveBtn = document.getElementById('active-save-filter-btn');
+            if (saveBtn) saveBtn.hidden = true;
+          }
+        }
+        this.renderActiveFilterBar();
+        this.renderActive();
+      });
+
+      btn.addEventListener('dragstart', e => {
+        if (e.target.closest('.filter-pill-delete')) { e.preventDefault(); return; }
+        this._activeDragId = btn.dataset.filterId;
+        e.dataTransfer.effectAllowed = 'move';
+        setTimeout(() => btn.classList.add('dragging'), 0);
+      });
+      btn.addEventListener('dragend', () => {
+        btn.classList.remove('dragging');
+        group.querySelectorAll('.filter-saved-pill').forEach(b => b.classList.remove('drag-over'));
+        this._activeDragId = null;
+      });
+      btn.addEventListener('dragover', e => {
+        if (!this._activeDragId || btn.dataset.filterId === this._activeDragId) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        group.querySelectorAll('.filter-saved-pill').forEach(b => b.classList.remove('drag-over'));
+        btn.classList.add('drag-over');
+      });
+      btn.addEventListener('dragleave', () => btn.classList.remove('drag-over'));
+      btn.addEventListener('drop', e => {
+        e.preventDefault();
+        e.stopPropagation();
+        btn.classList.remove('drag-over');
+        const srcId = this._activeDragId;
+        const dstId = btn.dataset.filterId;
+        if (!srcId || srcId === dstId) return;
+        const filters = _getActiveQuickFilters();
+        const srcIdx  = filters.findIndex(f => f.id === srcId);
+        const dstIdx  = filters.findIndex(f => f.id === dstId);
+        if (srcIdx === -1 || dstIdx === -1) return;
+        const [item] = filters.splice(srcIdx, 1);
+        filters.splice(dstIdx, 0, item);
+        _saveActiveQuickFilters(filters);
+        this.renderActiveFilterBar();
+      });
+    });
+
+    group.querySelectorAll('.filter-pill-delete').forEach(span => {
+      const ask = e => {
+        e.stopPropagation();
+        this._activeConfirmId = span.dataset.filterId;
+        this._renderActiveSavedPills();
+      };
+      span.addEventListener('click', ask);
+      span.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') ask(e); });
+    });
+
+    group.querySelectorAll('.filter-confirm-yes').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.filterId;
+        if (this._activeSavedId === id) {
+          this._activeSavedId = null;
+          this.renderActive();
+        }
+        this._activeConfirmId = null;
+        _deleteActiveQuickFilter(id);
+        this.renderActiveFilterBar();
+      });
+    });
+
+    group.querySelectorAll('.filter-confirm-no').forEach(btn => {
+      btn.addEventListener('click', () => {
+        this._activeConfirmId = null;
+        this._renderActiveSavedPills();
+      });
+    });
   }
 }
 

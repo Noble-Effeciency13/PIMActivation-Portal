@@ -136,10 +136,27 @@
             <span class="role-count" id="active-count" aria-live="polite">&ndash;</span>
           </div>
           <div class="section-controls">
+            <button class="icon-btn filter-toggle-btn" id="active-filter-toggle-btn" aria-label="Toggle filters" aria-expanded="false" title="Toggle filters">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+            </button>
             <input type="search" id="active-search" class="search-input" placeholder="Filter&hellip;"
               aria-label="Filter active roles">
+            <button class="btn btn-ghost btn-sm" id="active-save-filter-btn" aria-label="Save search as quick filter" hidden>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+              Save
+            </button>
             <button class="btn btn-danger btn-sm" id="deactivate-btn" disabled>Deactivate</button>
           </div>
+        </div>
+        <div id="active-filter-bar" class="filter-bar filter-bar-hidden" role="toolbar" aria-label="Active role filters">
+          <div class="filter-bar-group" id="active-filter-type-group">
+            <button class="flag-pill filter-type-pill active" data-type-filter="null" aria-pressed="true">All</button>
+            <button class="flag-pill filter-type-pill" data-type-filter="User" aria-pressed="false">Entra</button>
+            <button class="flag-pill filter-type-pill" data-type-filter="Group" aria-pressed="false">Groups</button>
+            <button class="flag-pill filter-type-pill" data-type-filter="AzureResource" aria-pressed="false">Azure</button>
+          </div>
+          <div class="filter-bar-divider" id="active-filter-saved-divider" hidden></div>
+          <div class="filter-bar-group" id="active-filter-saved-group"></div>
         </div>
         <div class="table-wrap">
           <table class="roles-table" id="active-table" aria-label="Active roles">
@@ -175,14 +192,31 @@
             <span class="role-count" id="eligible-count" aria-live="polite">&ndash;</span>
           </div>
           <div class="section-controls">
+            <button class="icon-btn filter-toggle-btn" id="filter-toggle-btn" aria-label="Toggle filters" aria-expanded="false" title="Toggle filters">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+            </button>
             <input type="search" id="eligible-search" class="search-input" placeholder="Filter&hellip;"
               aria-label="Filter eligible roles">
+            <button class="btn btn-ghost btn-sm" id="save-filter-btn" aria-label="Save search as quick filter" hidden>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+              Save
+            </button>
             <button class="btn btn-ghost btn-sm" id="profiles-btn" aria-label="Activation profiles">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
               <span class="btn-text">Profiles</span>
             </button>
             <button class="btn btn-primary btn-sm" id="activate-btn" disabled>Activate</button>
           </div>
+        </div>
+        <div id="eligible-filter-bar" class="filter-bar filter-bar-hidden" role="toolbar" aria-label="Role filters">
+          <div class="filter-bar-group" id="filter-type-group">
+            <button class="flag-pill filter-type-pill active" data-type-filter="null" aria-pressed="true">All</button>
+            <button class="flag-pill filter-type-pill" data-type-filter="User" aria-pressed="false">Entra</button>
+            <button class="flag-pill filter-type-pill" data-type-filter="Group" aria-pressed="false">Groups</button>
+            <button class="flag-pill filter-type-pill" data-type-filter="AzureResource" aria-pressed="false">Azure</button>
+          </div>
+          <div class="filter-bar-divider" id="filter-saved-divider" hidden></div>
+          <div class="filter-bar-group" id="filter-saved-group"></div>
         </div>
         <div class="table-wrap">
           <table class="roles-table" id="eligible-table" aria-label="Eligible roles">
@@ -396,6 +430,16 @@
             <div class="settings-desc">Sections remember their collapsed/expanded state across refreshes. Turn off to always expand all sections on load.</div>
           </div>
           <button class="toggle-switch" id="flag-persist-sections" type="button" role="switch" aria-checked="false">
+            <span class="toggle-thumb" aria-hidden="true"></span>
+          </button>
+        </div>
+
+        <div class="settings-row">
+          <div class="settings-info">
+            <div class="settings-title">Remember filter bar state</div>
+            <div class="settings-desc">Remembers whether the eligible roles filter bar is expanded or collapsed across refreshes.</div>
+          </div>
+          <button class="toggle-switch" id="flag-persist-filter-bar" type="button" role="switch" aria-checked="false">
             <span class="toggle-thumb" aria-hidden="true"></span>
           </button>
         </div>
