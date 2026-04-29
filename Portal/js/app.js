@@ -500,6 +500,111 @@ function hideSettingsModal() {
   if (modal) modal.hidden = true;
 }
 
+// ── Tenant picker ─────────────────────────────────────────────────────────────
+
+const TENANT_CACHE_KEY = 'pim-portal-tenant-cache';
+
+function _getTenantCache() {
+  try { return JSON.parse(localStorage.getItem(TENANT_CACHE_KEY) || '{}'); } catch { return {}; }
+}
+
+function _updateTenantCache(tenants) {
+  const cache = {};
+  tenants.forEach(t => { cache[t.tenantId] = t; });
+  localStorage.setItem(TENANT_CACHE_KEY, JSON.stringify(cache));
+}
+
+function _updateTenantDisplay(account) {
+  const tenantEl = document.getElementById('user-tenant');
+  if (!tenantEl) return;
+  const tenantId   = account?.tenantId || account?.idTokenClaims?.tid || '';
+  const cached     = _getTenantCache()[tenantId];
+  if (cached?.displayName) {
+    tenantEl.innerHTML =
+      '<span class="uc-tenant-name">' + escapeHtml(cached.displayName) + '</span>' +
+      '<span class="uc-tenant-id">'   + escapeHtml(tenantId) + '</span>';
+  } else {
+    tenantEl.textContent = tenantId;
+  }
+}
+
+function _closeTenantPicker() {
+  const modal = document.getElementById('tenant-picker-modal');
+  if (modal) modal.hidden = true;
+}
+
+async function _openTenantPicker() {
+  const modal = document.getElementById('tenant-picker-modal');
+  const body  = document.getElementById('tenant-picker-body');
+  if (!modal || !body) return;
+
+  body.innerHTML = '<p class="tenant-picker-hint">Loading tenants…</p>';
+  modal.hidden = false;
+  modal.querySelector('.modal')?.classList.add('fade-in');
+
+  try {
+    const tenants = await armClient.getAccessibleTenants();
+    _renderTenantList(body, tenants);
+  } catch (err) {
+    body.innerHTML =
+      '<p class="tenant-picker-hint tenant-picker-error">Could not load tenants: ' +
+      escapeHtml(err.message) + '</p>';
+  }
+}
+
+function _renderTenantList(body, tenants) {
+  const currentTenantId = portalAuth.getAccount()?.tenantId || '';
+
+  // Cache names so the profile card can show the display name
+  _updateTenantCache(tenants);
+  _updateTenantDisplay(portalAuth.getAccount());
+
+  if (tenants.length === 0) {
+    body.innerHTML = '<p class="tenant-picker-hint">No other tenants found.</p>';
+    return;
+  }
+
+  // Current tenant first, then alphabetical
+  const sorted = [...tenants].sort((a, b) => {
+    if (a.tenantId === currentTenantId) return -1;
+    if (b.tenantId === currentTenantId) return 1;
+    return a.displayName.localeCompare(b.displayName);
+  });
+
+  body.innerHTML = sorted.map(t => {
+    const isCurrent = t.tenantId === currentTenantId;
+    return (
+      '<button class="tenant-item' + (isCurrent ? ' tenant-item-current' : '') + '"' +
+        ' data-tenant-id="' + escapeHtml(t.tenantId) + '"' +
+        (isCurrent ? ' disabled aria-current="true"' : '') +
+        ' title="' + escapeHtml(t.defaultDomain || t.tenantId) + '">' +
+        '<div class="tenant-item-info">' +
+          '<div class="tenant-item-name">' + escapeHtml(t.displayName) + '</div>' +
+          '<div class="tenant-item-domain">' + escapeHtml(t.defaultDomain || t.tenantId) + '</div>' +
+        '</div>' +
+        (isCurrent
+          ? '<span class="tenant-item-badge">Current</span>'
+          : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>') +
+      '</button>'
+    );
+  }).join('');
+
+  body.querySelectorAll('.tenant-item:not([disabled])').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const tenantId = btn.dataset.tenantId;
+      btn.disabled = true;
+      btn.innerHTML = '<span class="tenant-item-switching">Switching…</span>';
+      try {
+        await portalAuth.switchTenant(tenantId);
+        // Page navigates away — code below only runs if something went wrong
+      } catch (err) {
+        showToast({ title: 'Tenant switch failed', description: err.message, type: 'error' });
+        _closeTenantPicker();
+      }
+    });
+  });
+}
+
 function _renderQuickActions() {
   const container = document.getElementById('header-quick-actions');
   if (!container) return;
@@ -1357,12 +1462,15 @@ async function bootstrap() {
   profileManager.init().catch(err => console.warn('[App] ProfileManager init failed:', err));
 
   // Populate user context card
-  const nameEl   = document.getElementById('user-name');
-  const emailEl  = document.getElementById('user-email');
-  const tenantEl = document.getElementById('user-tenant');
-  if (nameEl)   nameEl.textContent   = account.name || account.username || account.idTokenClaims?.preferred_username || 'User';
-  if (emailEl)  emailEl.textContent  = account.username || account.idTokenClaims?.email || account.idTokenClaims?.preferred_username || '';
-  if (tenantEl) tenantEl.textContent = account.tenantId || account.idTokenClaims?.tid || '';
+  const nameEl  = document.getElementById('user-name');
+  const emailEl = document.getElementById('user-email');
+  if (nameEl)  nameEl.textContent  = account.name || account.username || account.idTokenClaims?.preferred_username || 'User';
+  if (emailEl) emailEl.textContent = account.username || account.idTokenClaims?.email || account.idTokenClaims?.preferred_username || '';
+  _updateTenantDisplay(account);
+  // Non-blocking: fetch tenant list to resolve display name (updates the card when ready)
+  armClient.getAccessibleTenants()
+    .then(tenants => { _updateTenantCache(tenants); _updateTenantDisplay(account); })
+    .catch(() => {});
 
   // ── Event wiring ──────────────────────────────────────────────────────────
 
@@ -1373,6 +1481,13 @@ async function bootstrap() {
         showToast({ title: 'Sign-out failed', description: err.message, type: 'error' });
       });
     });
+
+  // Tenant picker
+  document.getElementById('tenant-switch-btn')?.addEventListener('click', _openTenantPicker);
+  document.getElementById('tenant-picker-close-btn')?.addEventListener('click', _closeTenantPicker);
+  document.getElementById('tenant-picker-modal')?.addEventListener('click', e => {
+    if (e.target === e.currentTarget) _closeTenantPicker();
+  });
 
   // Help menu & modal
   const helpBtn = document.getElementById('help-btn');

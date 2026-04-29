@@ -89,12 +89,16 @@
           <div class="uc-value" id="user-email"></div>
         </div>
       </div>
-      <div class="uc-item uc-collapsible">
+      <div class="uc-item uc-collapsible uc-tenant-item">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>
         <div>
           <div class="uc-label">Tenant</div>
-          <div class="uc-value uc-mono" id="user-tenant"></div>
+          <div id="user-tenant" class="uc-value uc-mono"></div>
         </div>
+        <button class="uc-tenant-switch-btn" id="tenant-switch-btn" aria-label="Switch tenant" title="Switch tenant">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 7H3"/><polyline points="18 4 21 7 18 10"/><path d="M3 17h18"/><polyline points="6 14 3 17 6 20"/></svg>
+          Switch Tenant
+        </button>
       </div>
       <button class="icon-btn uc-expand-btn" id="uc-expand-btn" aria-expanded="false" aria-label="Show more details" title="Show more details">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
@@ -452,6 +456,21 @@
       <div class="modal-footer">
         <button class="btn btn-ghost btn-sm" id="notifications-clear-btn">Clear all</button>
         <button class="btn btn-ghost" id="notifications-modal-close-footer">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Tenant picker modal ─────────────────────────────────────────────── -->
+  <div id="tenant-picker-modal" class="modal-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="tenant-picker-title">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <h2 class="modal-title" id="tenant-picker-title">Switch Tenant</h2>
+        <button class="icon-btn modal-close" id="tenant-picker-close-btn" aria-label="Close">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body" id="tenant-picker-body">
+        <p class="tenant-picker-hint">Loading tenants&hellip;</p>
       </div>
     </div>
   </div>

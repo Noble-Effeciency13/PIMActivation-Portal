@@ -434,6 +434,30 @@ function _normalizeScopeId(scopeId) {
   return scope.replace(/\/+$/, '');
 }
 
+/**
+ * Returns the list of all Entra tenants the signed-in user can access
+ * (their home tenant + any guest tenants). Uses the ARM /tenants endpoint
+ * which is tenant-agnostic — the token for any tenant works.
+ * @returns {Promise<Array<{tenantId, displayName, defaultDomain, tenantType}>>}
+ */
+async function getAccessibleTenants() {
+  const token = await portalAuth.getArmToken();
+  const resp  = await fetch(`${ARM_BASE}/tenants?api-version=2022-12-01`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  if (!resp.ok) {
+    const body = await resp.text();
+    throw new Error(`ARM GET /tenants → ${resp.status}: ${body}`);
+  }
+  const data = await resp.json();
+  return (data.value || []).map(t => ({
+    tenantId:      t.tenantId      || '',
+    displayName:   t.displayName   || t.tenantId || 'Unknown',
+    defaultDomain: t.defaultDomain || '',
+    tenantType:    t.tenantType    || 'AAD'
+  }));
+}
+
 window.armClient = {
   getEligibleAzureRoles,
   getActiveAzureRoles,
@@ -441,5 +465,6 @@ window.armClient = {
   getAzureRolePolicy,
   getPendingAzureRequests,
   activateAzureRole,
-  deactivateAzureRole
+  deactivateAzureRole,
+  getAccessibleTenants
 };
