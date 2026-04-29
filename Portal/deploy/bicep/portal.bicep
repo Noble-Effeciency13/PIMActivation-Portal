@@ -6,10 +6,13 @@ targetScope = 'resourceGroup'
 // Usage:
 //   az deployment group create \
 //     --resource-group rg-pimactivation-portal \
-//     --template-file portal.bicep \
-//     --parameters customDomain=portal.pimactivation.com
+//     --template-file portal.bicep
+//
+// Custom domains are added after deployment. Azure validates the DNS CNAME when
+// the Static Web App custom domain is created, so the domain cannot be attached
+// before the generated default hostname exists.
 
-@description('Custom domain to configure on the Static Web App (optional).')
+@description('Optional custom domain to document in the deployment output. Add and validate it on the Static Web App manually after deployment.')
 param customDomain string = ''
 
 @description('Azure region for the Static Web App.')
@@ -40,14 +43,8 @@ resource staticWebApp 'Microsoft.Web/staticSites@2023-01-01' = {
   }
 }
 
-// ── Custom domain (optional) ─────────────────────────────────────────────────
-resource customDomainResource 'Microsoft.Web/staticSites/customDomains@2023-01-01' = if (!empty(customDomain)) {
-  parent: staticWebApp
-  name:   customDomain
-  properties: {}
-}
-
 // ── Outputs ──────────────────────────────────────────────────────────────────
 output staticWebAppUrl  string = 'https://${staticWebApp.properties.defaultHostname}'
 output staticWebAppName string = staticWebApp.name
 output deploymentToken  string = staticWebApp.listSecrets().properties.apiKey
+output customDomainNextStep string = empty(customDomain) ? '' : 'Create a CNAME from ${customDomain} to ${staticWebApp.properties.defaultHostname}, then add and validate the custom domain on the Static Web App.'
