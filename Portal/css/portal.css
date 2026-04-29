@@ -1146,6 +1146,15 @@ body.show-inactive-policies .pol-none-label {
   background:      var(--bg-surface);
   flex-shrink:     0;
 }
+.settings-modal-footer { justify-content: space-between; align-items: center; }
+.settings-reset-wrap   { display: flex; align-items: center; gap: 10px; }
+.settings-reset-confirm { display: flex; align-items: center; gap: 8px; }
+.settings-reset-label  {
+  font-size:   13px;
+  font-weight: 500;
+  color:       var(--text-muted);
+  white-space: nowrap;
+}
 .modal-role-list {
   background:    var(--bg-raised);
   border:        1px solid var(--border);

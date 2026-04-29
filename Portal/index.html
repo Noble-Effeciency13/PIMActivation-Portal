@@ -437,7 +437,15 @@
         </div>
 
       </div>
-      <div class="modal-footer">
+      <div class="modal-footer settings-modal-footer">
+        <div class="settings-reset-wrap">
+          <button class="btn btn-ghost btn-sm settings-reset-btn" id="settings-reset-btn">Reset to defaults</button>
+          <div class="settings-reset-confirm" id="settings-reset-confirm" hidden>
+            <span class="settings-reset-label">Are you sure?</span>
+            <button class="btn btn-danger btn-sm" id="settings-reset-yes">Yes, reset</button>
+            <button class="btn btn-ghost btn-sm" id="settings-reset-no">Cancel</button>
+          </div>
+        </div>
         <button class="btn btn-primary btn-sm" id="settings-modal-close-footer">OK</button>
       </div>
     </div>

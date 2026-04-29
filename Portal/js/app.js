@@ -498,6 +498,10 @@ function showSettingsModal() {
 function hideSettingsModal() {
   const modal = document.getElementById('settings-modal');
   if (modal) modal.hidden = true;
+  // Always collapse the confirmation row so it's gone next time the modal opens
+  document.getElementById('settings-reset-btn')?.removeAttribute('hidden');
+  const confirm = document.getElementById('settings-reset-confirm');
+  if (confirm) confirm.hidden = true;
 }
 
 // ── Tenant picker ─────────────────────────────────────────────────────────────
@@ -1659,6 +1663,25 @@ async function bootstrap() {
     _flags.quickInactivePolicies = e.target.checked;
     localStorage.setItem(FLAGS_KEY, JSON.stringify(_flags));
     _renderQuickActions();
+  });
+
+  // Reset settings to defaults
+  document.getElementById('settings-reset-btn')?.addEventListener('click', () => {
+    document.getElementById('settings-reset-btn').hidden = true;
+    document.getElementById('settings-reset-confirm').hidden = false;
+  });
+  document.getElementById('settings-reset-no')?.addEventListener('click', () => {
+    document.getElementById('settings-reset-btn').removeAttribute('hidden');
+    document.getElementById('settings-reset-confirm').hidden = true;
+  });
+  document.getElementById('settings-reset-yes')?.addEventListener('click', () => {
+    // Remove all pim-portal-* keys from both storages
+    [localStorage, sessionStorage].forEach(store => {
+      Object.keys(store)
+        .filter(k => k.startsWith('pim-portal-'))
+        .forEach(k => store.removeItem(k));
+    });
+    location.reload();
   });
 
   // Activation modal profile save toggle
