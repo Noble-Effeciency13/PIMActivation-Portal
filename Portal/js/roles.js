@@ -12,7 +12,9 @@
  *  - Expiry countdown timers (30s tick, colour-coded near expiry)
  */
 
-/* global graphClient, armClient, policyCache, PolicyCache, portalAuth, escapeHtml, formatExpiry, formatExpiryDateTime, showToast */
+/* global graphClient, armClient, policyCache, PolicyCache, portalAuth, escapeHtml, formatExpiry, formatExpiryDateTime, showToast, _getQuickFilters, _getActiveQuickFilters, _deleteQuickFilter, _deleteActiveQuickFilter, _saveQuickFilters, _saveActiveQuickFilters */
+
+const ROLES_CACHE_KEY = 'pim-portal-roles-cache';
 
 class RoleManager {
   constructor() {
@@ -32,6 +34,8 @@ class RoleManager {
     this._activeSavedId        = null; // active section: active saved filter id
     this._activeConfirmId      = null; // active section: pill showing delete confirm
     this._activeDragId         = null; // active section: id being dragged
+    this._enrichedPhase1 = false; // true when Phase 1 policy enrichment settles
+    this._enrichedPhase2 = false; // true when Phase 2 policy enrichment settles (or Azure skipped)
   }
 
   // ── Load ──────────────────────────────────────────────────────────────────
@@ -44,6 +48,18 @@ class RoleManager {
     this.selectedActive.clear();
     this._stopTimers();
     this._resetSelectAll();
+
+    // \u2500\u2500 Cache: always apply as visual baseline, live data replaces it \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+    this._enrichedPhase1 = false;
+    this._enrichedPhase2 = false;
+    if (!flags.azure) this._enrichedPhase2 = true;
+
+    const _cacheTenantId = portalAuth.getAccount()?.tenantId
+                         || portalAuth.getAccount()?.idTokenClaims?.tid
+                         || 'default';
+
+    const _cached = this._loadRoleCache(_cacheTenantId);
+    if (_cached) this._applyCache(_cached);
 
     if (typeof showProgress === 'function') showProgress('Loading roles\u2026');
 
@@ -71,8 +87,21 @@ class RoleManager {
     const errors = all.filter(r => r instanceof Error);
     const toArr  = r => (r instanceof Error ? [] : r);
 
-    this.eligibleRoles = [...toArr(entraElig), ...toArr(groupElig)];
+    // Build maps from cached state (populated by _applyCache above, or empty on first load)
+    const _cacheEligMap     = new Map(this.eligibleRoles.map(r => [r.uid || r.id, r]));
+    const _cacheAzureElig   = this.eligibleRoles.filter(r => r.type === 'AzureResource');
+    const _cacheAzureActive = this.activeRoles.filter(r => r.type === 'AzureResource');
+
+    // Fresh Entra + Group — merge cached policy so labels don't flash greyed-out
+    this.eligibleRoles = _mergePolicy([...toArr(entraElig), ...toArr(groupElig)], _cacheEligMap);
     this.activeRoles   = [...toArr(entraActive), ...toArr(groupActive)];
+
+    // Re-add cached Azure as placeholder so Azure roles stay visible while Phase 2 fetches
+    if (flags.azure) {
+      this.eligibleRoles = [...this.eligibleRoles, ..._cacheAzureElig];
+      this.activeRoles   = [...this.activeRoles,   ..._cacheAzureActive];
+    }
+
     this._removeSuppressed();
 
     this._pendingRequests = Array.isArray(pending) ? pending : [];
@@ -83,7 +112,17 @@ class RoleManager {
     this.renderActive();
 
     // Policy enrichment
-    this._enrichPolicy().then(() => { this.renderEligible(); this.renderActive(); }).catch(() => {});
+    this._enrichPolicy()
+      .then(() => {
+        this.renderEligible();
+        this.renderActive();
+        this._enrichedPhase1 = true;
+        this._maybeSaveCache();
+      })
+      .catch(() => {
+        this._enrichedPhase1 = true;
+        this._maybeSaveCache();
+      });
 
     // Phase 2: Azure
     if (flags.azure) {
@@ -96,15 +135,34 @@ class RoleManager {
         ]);
         const dedupAzureElig   = _deduplicateAzure(azureElig);
         const dedupAzureActive = _deduplicateAzureActive(azureActive);
-        this.eligibleRoles = [...this.eligibleRoles, ...dedupAzureElig];
+
+        // Build policy map from the placeholder Azure roles, then swap them out
+        const _cacheAzureMap = new Map(
+          this.eligibleRoles.filter(r => r.type === 'AzureResource').map(r => [r.uid || r.id, r])
+        );
+        this.eligibleRoles = this.eligibleRoles.filter(r => r.type !== 'AzureResource');
+        this.activeRoles   = this.activeRoles.filter(r => r.type !== 'AzureResource');
+
+        this.eligibleRoles = [...this.eligibleRoles, ..._mergePolicy(dedupAzureElig, _cacheAzureMap)];
         this.activeRoles   = [...this.activeRoles,   ...dedupAzureActive];
         this._removeSuppressed();
         this._pendingRequests = [...this._pendingRequests, ...azurePending];
         this._annotatePending(this._pendingRequests);
         this.renderEligible();
         this.renderActive();
-        this._enrichAzurePolicy(dedupAzureElig).then(() => this.renderEligible()).catch(() => {});
+        this._enrichAzurePolicy(dedupAzureElig)
+          .then(() => {
+            this.renderEligible();
+            this._enrichedPhase2 = true;
+            this._maybeSaveCache();
+          })
+          .catch(() => {
+            this._enrichedPhase2 = true;
+            this._maybeSaveCache();
+          });
       } catch (err) {
+        this._enrichedPhase2 = true; // Azure failed entirely; save Phase 1 result
+        this._maybeSaveCache();
         console.warn('[Roles] Azure roles unavailable:', err.message);
         if (typeof showConsentBanner === 'function') showConsentBanner(err);
       }
@@ -974,11 +1032,77 @@ class RoleManager {
       });
     });
   }
+
+  // ── Role data cache ───────────────────────────────────────────────────────────
+
+  _loadRoleCache(tenantId) {
+    try {
+      const raw = localStorage.getItem(ROLES_CACHE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (parsed.v !== 1)                       return null;
+      if (parsed.tenantId !== tenantId)         return null;
+      if (!Array.isArray(parsed.eligibleRoles)) return null;
+      if (!Array.isArray(parsed.activeRoles))   return null;
+      return parsed;
+    } catch { return null; }
+  }
+
+  _saveRoleCache() {
+    try {
+      const tenantId = portalAuth.getAccount()?.tenantId
+                     || portalAuth.getAccount()?.idTokenClaims?.tid
+                     || 'default';
+      localStorage.setItem(ROLES_CACHE_KEY, JSON.stringify({
+        v:               1,
+        ts:              Date.now(),
+        tenantId,
+        eligibleRoles:   this.eligibleRoles,
+        activeRoles:     this.activeRoles,
+        pendingRequests: this._pendingRequests,
+        auNames:         [..._auNames.entries()]
+      }));
+    } catch (err) {
+      if (err.name === 'QuotaExceededError' || err.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
+        console.warn('[Roles] Cache write skipped — localStorage quota exceeded');
+      }
+    }
+  }
+
+  _maybeSaveCache() {
+    if (this._enrichedPhase1 && this._enrichedPhase2) this._saveRoleCache();
+  }
+
+  _applyCache(cached) {
+    this.eligibleRoles    = cached.eligibleRoles   || [];
+    this.activeRoles      = cached.activeRoles     || [];
+    this._pendingRequests = cached.pendingRequests || [];
+    if (Array.isArray(cached.auNames)) {
+      cached.auNames.forEach(([id, name]) => _auNames.set(id, name));
+    }
+    this.renderEligible();
+    this.renderActive();
+  }
 }
 
 // ── Module-private helpers ────────────────────────────────────────────────────
 
 /** Sort: Entra → Group → Azure, alphabetical within each group */
+function _mergePolicy(roles, cacheMap) {
+  return roles.map(role => {
+    const prev = cacheMap.get(role.uid || role.id);
+    if (!prev || prev.maxDurationHours == null) return role;
+    role.requiresMfa           = prev.requiresMfa;
+    role.requiresJustification = prev.requiresJustification;
+    role.requiresTicket        = prev.requiresTicket;
+    role.requiresApproval      = prev.requiresApproval;
+    role.requiresAuthContext   = prev.requiresAuthContext;
+    role.authContextId         = prev.authContextId;
+    role.maxDurationHours      = prev.maxDurationHours;
+    return role;
+  });
+}
+
 function _sort(roles) {
   const order = { User: 0, Group: 1, AzureResource: 2 };
   return [...roles].sort((a, b) => {
