@@ -110,6 +110,9 @@ PIMActivation-Portal/
 │           ├── portal-selfhosted.bicep
 │           └── bicepconfig.json   # Microsoft Graph Bicep extension
 ├── scripts/                       # Maintenance scripts
+=======
+│           └── bicepconfig.json   # Bicep compiler configuration
+├── scripts/                       # Deployment and maintenance scripts
 ├── website/                       # GitHub Pages landing site (pimactivation.com)
 └── .github/workflows/             # CI: portal/pages deploy + template/favicon sync
 ```
@@ -149,11 +152,21 @@ For a real phone, expose the local server through an HTTPS tunnel such as VS Cod
 
 ## Self-hosted Azure deployment
 
-The self-hosted template provisions the Azure Static Web App, creates a single-tenant Entra ID app registration, configures the SPA redirect URI, adds the required delegated API permissions, deploys the portal files, and outputs the generated client ID.
+The self-hosted template provisions the Azure Static Web App, deploys the portal files, injects your tenant ID and an existing Entra ID SPA app registration client ID, and attempts to add the generated redirect URIs to the app registration.
 
 The Bicep file at `Portal/deploy/bicep/portal-selfhosted.bicep` is the source of truth. `Portal/deploy/azuredeploy.json` is generated from it by the `Sync Deployment Templates` workflow so the Deploy to Azure template does not drift from the Bicep source.
 
-Deploying Microsoft Graph resources from Bicep requires the deploying identity to have permission to create application registrations, such as `Application.ReadWrite.All`. After deployment, use the `adminConsentUrl` output if your tenant requires administrator consent for the configured delegated permissions.
+During deployment, the Azure deployment script downloads a ZIP archive of the portal source, saves a private copy in a customer-owned storage account in the resource group, and uploads the extracted `Portal/` folder to Static Web Apps. By default it resolves the `main` branch at deployment time, so rerunning the self-hosted deployment after a push to this repository deploys the newest `main` commit. Once the portal has been deployed, the self-hosted Static Web App serves its own copy of the files and does not depend on the live GitHub repository.
+
+Use `portalSourceBranch` to deploy from another public branch. If the repository is private, GitHub returns `404` to the unauthenticated deployment script and the Static Web App resource will be created without portal files. In that case, pass `portalSourceArchiveUrl` with a publicly reachable ZIP, a short-lived pre-signed archive URL, or another reachable package that contains `Portal/index.html`. ZIPs created with PowerShell `Compress-Archive` are supported. The deployment script uses a fresh resource name on each run to avoid Azure Files sharing violations during retries, so rerunning the template with a reachable archive URL will upload the portal into an existing empty Static Web App. If a later redeployment cannot reach the branch archive or `portalSourceArchiveUrl`, the script attempts to redeploy from the cached source archive in the customer-owned storage account.
+
+Azure Deployment Scripts cannot complete interactive device-code sign-in reliably, and Azure Resource Manager deployments do not automatically pass your Entra administrator role to Microsoft Graph. Because of that platform boundary, `applicationClientId` is required. Create or choose a single-tenant SPA app registration before deployment, then pass its application client ID.
+
+After the Static Web App hostname is generated, the deployment script attempts to merge the generated default hostname and optional `customDomain` URL into the app registration's SPA redirect URIs through Microsoft Graph. This succeeds only if the deployment script's managed identity can update that application, for example because it owns the app registration or has an appropriate Microsoft Graph application write permission. If the deployment log shows a Microsoft Graph permission warning, add the `redirectUris` deployment output to the app registration manually.
+
+The app registration should use delegated permissions only. At minimum, configure the Microsoft Graph and Azure Management delegated permissions listed in the Security section above, then use the `adminConsentUrl` deployment output if your tenant requires administrator consent.
+
+If you pass `customDomain`, the deployment also includes `https://<customDomain>` in the redirect URI update attempt. The Static Web App custom domain itself must still be added manually after deployment because Azure validates the DNS CNAME when the domain is attached. Use the generated Static Web App hostname from the deployment output, create the CNAME, then add and validate the custom domain on the Static Web App.
 
 ---
 
@@ -162,7 +175,6 @@ Deploying Microsoft Graph resources from Bicep requires the deploying identity t
 | Repository | Description |
 |---|---|
 | [Noble-Effeciency13/PIMActivation](https://github.com/Noble-Effeciency13/PIMActivation) | PowerShell module — the original, available on PSGallery |
-| [Noble-Effeciency13/PIMActivation-Web](https://github.com/Noble-Effeciency13/PIMActivation-Web) | Self-hosted web app — PowerShell Pode server in Docker |
 | [Noble-Effeciency13/PIMActivation-Portal](https://github.com/Noble-Effeciency13/PIMActivation-Portal) | Browser portal — this repo |
 
 ---

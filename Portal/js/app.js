@@ -1298,7 +1298,7 @@ function showProfilesModal(focusSave = false) {
   _renderProfilesList();
   modal.hidden = false;
   modal.querySelector('.modal')?.classList.add('fade-in');
-  if (focusSave) setTimeout(() => document.getElementById('profile-name-input')?.focus(), 50);
+  if (focusSave) setTimeout(() => document.getElementById('profiles-name-input')?.focus(), 50);
 }
 
 function hideProfilesModal() {
@@ -1318,18 +1318,18 @@ async function _renderProfilesList() {
   // Save-new-profile row
   html += '<div class="form-row profile-save-section">' +
     '<div class="profile-save-row">' +
-      '<input type="text" id="profile-name-input" class="form-input" placeholder="Profile name…" maxlength="60" style="flex:1">' +
-      '<button class="btn btn-primary btn-sm" id="profile-save-confirm-btn"' +
+      '<input type="text" id="profiles-name-input" class="form-input" placeholder="Profile name…" maxlength="60" style="flex:1">' +
+      '<button type="button" class="btn btn-primary btn-sm" id="profiles-save-confirm-btn"' +
         (selected.length === 0 ? ' disabled title="Select eligible roles first"' : '') + '>' +
         'Save (' + selected.length + ' role' + (selected.length !== 1 ? 's' : '') + ')' +
       '</button>' +
     '</div>' +
     '<div class="profile-save-extras">' +
-      '<textarea id="profile-justification-input" class="form-textarea profile-justification" rows="2" maxlength="500" placeholder="Default justification (optional)…"></textarea>' +
+      '<textarea id="profiles-justification-input" class="form-textarea profile-justification" rows="2" maxlength="500" placeholder="Default justification (optional)…"></textarea>' +
       '<div class="profile-duration-row">' +
         '<span class="form-label" style="font-size:12px;white-space:nowrap">Default duration:</span>' +
-        '<input type="number" id="profile-hours-input" class="duration-num" min="0" max="999" value="8" aria-label="Hours"> h' +
-        '<input type="number" id="profile-mins-input"  class="duration-num" min="0" max="59"  value="0"  aria-label="Minutes"> m' +
+        '<input type="number" id="profiles-hours-input" class="duration-num" min="0" max="999" value="8" aria-label="Hours"> h' +
+        '<input type="number" id="profiles-mins-input"  class="duration-num" min="0" max="59"  value="0"  aria-label="Minutes"> m' +
       '</div>' +
     '</div>' +
   '</div>';
@@ -1383,6 +1383,14 @@ async function _renderProfilesList() {
 
   body.innerHTML = html;
 
+  body.querySelector('#profiles-save-confirm-btn')?.addEventListener('click', _handleSaveProfile);
+  body.querySelector('#profiles-name-input')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      _handleSaveProfile();
+    }
+  });
+
   // Wire delete
   body.querySelectorAll('.profile-delete-btn').forEach(btn => {
     btn.addEventListener('click', async (e) => {
@@ -1403,10 +1411,11 @@ async function _renderProfilesList() {
 }
 
 async function _handleSaveProfile() {
-  const nameInput  = document.getElementById('profile-name-input');
-  const justInput  = document.getElementById('profile-justification-input');
-  const hrsInput   = document.getElementById('profile-hours-input');
-  const minsInput  = document.getElementById('profile-mins-input');
+  const body       = document.getElementById('profiles-modal-body');
+  const nameInput  = body?.querySelector('#profiles-name-input');
+  const justInput  = body?.querySelector('#profiles-justification-input');
+  const hrsInput   = body?.querySelector('#profiles-hours-input');
+  const minsInput  = body?.querySelector('#profiles-mins-input');
   const name = nameInput?.value.trim();
   if (!name) { nameInput?.focus(); showToast({ title: 'Missing name', description: 'Enter a profile name.', type: 'warning' }); return; }
   const roles = roleManager.getSelectedEligibleRoles();
