@@ -36,7 +36,10 @@ if (!CLIENT_ID || !TENANT_ID) {
 // ── Static file server ───────────────────────────────────────────────────────
 
 const PORTAL_DIR = path.join(__dirname, 'Portal');
-const PORT = 3000;
+const requestedPort = Number.parseInt(process.env.PORT || '3000', 10);
+const PORT = Number.isInteger(requestedPort) && requestedPort >= 0 && requestedPort <= 65535
+  ? requestedPort
+  : 3000;
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -84,9 +87,23 @@ function serveFile(filePath, res) {
   });
 }
 
+let triedFallbackPort = false;
+
+server.on('error', err => {
+  if (err.code === 'EADDRINUSE' && !triedFallbackPort) {
+    triedFallbackPort = true;
+    console.warn(`\nPort ${PORT} is already in use. Finding an available port...`);
+    server.listen(0, '127.0.0.1');
+    return;
+  }
+  throw err;
+});
+
 server.listen(PORT, '127.0.0.1', () => {
+  const address = server.address();
+  const activePort = typeof address === 'object' && address ? address.port : PORT;
   console.log(`\nPIM Activation Portal`);
-  console.log(`  Local:  http://localhost:${PORT}`);
+  console.log(`  Local:  http://localhost:${activePort}`);
   console.log(`  Tenant: ${TENANT_ID}`);
   console.log(`  App:    ${CLIENT_ID}\n`);
 });

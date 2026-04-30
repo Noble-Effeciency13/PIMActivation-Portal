@@ -81,11 +81,11 @@ function _updateNotificationsBadge() {
 /**
  * Show a toast notification.
  * Accepts either:
- *   showToast({ title, description?, type?, duration?, debugInfo?, noHistory? })
+ *   showToast({ title, description?, type?, duration?, debugInfo?, activityDetails?, noHistory? })
  *   showToast(title, type?, duration?)   ← legacy positional form
  */
 function showToast(msgOrOpts, type = 'info', duration = 5000) {
-  let title, description, actualType, actualDuration, debugInfo, noHistory;
+  let title, description, actualType, actualDuration, debugInfo, activityDetails, noHistory;
 
   if (msgOrOpts && typeof msgOrOpts === 'object') {
     title         = msgOrOpts.title       || '';
@@ -93,6 +93,7 @@ function showToast(msgOrOpts, type = 'info', duration = 5000) {
     actualType    = msgOrOpts.type        || msgOrOpts.tone || 'info';
     actualDuration = msgOrOpts.duration   || 5000;
     debugInfo     = msgOrOpts.debugInfo;
+    activityDetails = msgOrOpts.activityDetails;
     noHistory     = !!msgOrOpts.noHistory;
   } else {
     title         = msgOrOpts || '';
@@ -100,11 +101,12 @@ function showToast(msgOrOpts, type = 'info', duration = 5000) {
     actualType    = type;
     actualDuration = duration;
     debugInfo     = undefined;
+    activityDetails = undefined;
     noHistory     = false;
   }
 
   if (!noHistory) {
-    _toastHistory.push({ title, description, type: actualType, time: new Date(), debugInfo });
+    _toastHistory.push({ title, description, type: actualType, time: new Date(), debugInfo, activityDetails });
     _unreadCount++;
     _updateNotificationsBadge();
   }
@@ -158,7 +160,7 @@ function showNotificationsModal() {
   modal.querySelector('.modal')?.classList.add('fade-in');
 }
 
-function _formatRoleOutcomeList(roles, results) {
+function _formatRoleOutcomeList(roles, results, successLabel = 'Activated') {
   if (!results || !results.length) return '';
   
   const formatRole = r => {
@@ -178,12 +180,123 @@ function _formatRoleOutcomeList(roles, results) {
   });
   
   let msg = '';
-  if (succeeded.length) msg += 'Activated: ' + succeeded.join(', ');
+  if (succeeded.length) msg += successLabel + ': ' + succeeded.join(', ');
   if (failed.length) {
     if (msg) msg += '\n';
     msg += 'Failed: ' + failed.join(', ');
   }
   return msg;
+}
+
+function _formatHistoryDateTime(value) {
+  if (!value) return '';
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleString([], {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+function _formatDurationMinutes(totalMinutes) {
+  const minutes = Number(totalMinutes) || 0;
+  if (minutes <= 0) return '';
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h && m) return h + 'h ' + m + 'm';
+  if (h) return h + 'h';
+  return m + 'm';
+}
+
+function _activitySurfaceLabel(role) {
+  if (!role) return '';
+  if (role.type === 'AzureResource') return 'Azure';
+  if (role.type === 'Group') return 'Group';
+  return 'Entra';
+}
+
+function _buildRoleActivityDetails(roles, results, opts = {}) {
+  const outcomeResults = results || [];
+  const succeeded = outcomeResults.filter(r => r.success).length;
+  const failed = outcomeResults.filter(r => !r.success).length;
+  const pendingApproval = outcomeResults.filter(r => r.pendingApproval).length;
+  const resultRows = outcomeResults.map(result => {
+    const role = roles.find(r => (r.uid || r.id) === result.uid);
+    const scope = role ? _scopeDisplayForModal(role) : '';
+    const durationMinutes = role?._effectiveDurationMinutes || opts.durationMinutes || 0;
+    return {
+      name: role?.name || result.uid,
+      scope,
+      surface: _activitySurfaceLabel(role),
+      status: result.pendingApproval ? 'Awaiting approval' : (result.success ? 'Succeeded' : 'Failed'),
+      tone: result.pendingApproval ? 'pending' : (result.success ? 'success' : 'error'),
+      statusCode: result.status || '',
+      error: result.error || '',
+      submittedAt: result.activatedAt || result.deactivatedAt || '',
+      scheduledFor: result.scheduledFor || opts.scheduledStartDateTime || '',
+      duration: opts.action === 'deactivate' ? '' : _formatDurationMinutes(durationMinutes)
+    };
+  });
+
+  return {
+    action: opts.action || 'activate',
+    label: opts.label || 'Activation',
+    submittedAt: new Date().toISOString(),
+    total: outcomeResults.length || roles.length,
+    succeeded,
+    failed,
+    pendingApproval,
+    scheduledFor: opts.scheduledStartDateTime || '',
+    duration: opts.action === 'deactivate' ? '' : _formatDurationMinutes(opts.durationMinutes),
+    ticketNumber: opts.ticketNumber || '',
+    justification: opts.justification || '',
+    rows: resultRows
+  };
+}
+
+function _renderActivityDetails(details) {
+  if (!details) return '';
+  const metaItems = [
+    ['Action', details.label || 'Activity'],
+    ['Submitted', _formatHistoryDateTime(details.submittedAt)],
+    ['Total', String(details.total || 0)],
+    ['Succeeded', String(details.succeeded || 0)],
+    ['Failed', String(details.failed || 0)]
+  ];
+  if (details.pendingApproval) metaItems.push(['Approval', String(details.pendingApproval) + ' pending']);
+  if (details.scheduledFor) metaItems.push(['Start', _formatHistoryDateTime(details.scheduledFor)]);
+  if (details.duration) metaItems.push(['Duration', details.duration]);
+  if (details.ticketNumber) metaItems.push(['Ticket', details.ticketNumber]);
+  if (details.justification) metaItems.push(['Reason', details.justification]);
+
+  const metaHtml = metaItems.map(([label, value]) =>
+    '<span class="notif-meta-pill"><span>' + escapeHtml(label) + '</span>' + escapeHtml(value) + '</span>'
+  ).join('');
+
+  const rowsHtml = (details.rows || []).map(row => {
+    const subItems = [];
+    if (row.surface) subItems.push(row.surface);
+    if (row.scope && row.scope !== 'Directory' && row.scope !== 'Group membership') subItems.push(row.scope);
+    if (row.duration) subItems.push(row.duration);
+    if (row.scheduledFor) subItems.push('Starts ' + _formatHistoryDateTime(row.scheduledFor));
+    if (row.statusCode) subItems.push('HTTP ' + row.statusCode);
+
+    return '<li class="notif-role-row">' +
+      '<span class="notif-role-status notif-role-status-' + escapeHtml(row.tone || 'info') + '">' + escapeHtml(row.status || '') + '</span>' +
+      '<div class="notif-role-main">' +
+        '<div class="notif-role-name">' + escapeHtml(row.name) + '</div>' +
+        (subItems.length ? '<div class="notif-role-meta">' + escapeHtml(subItems.join(' · ')) + '</div>' : '') +
+        (row.error ? '<div class="notif-role-error">' + escapeHtml(row.error) + '</div>' : '') +
+      '</div>' +
+    '</li>';
+  }).join('');
+
+  return '<div class="notif-activity">' +
+    '<div class="notif-meta-grid">' + metaHtml + '</div>' +
+    (rowsHtml ? '<ul class="notif-role-list">' + rowsHtml + '</ul>' : '') +
+  '</div>';
 }
 
 function hideNotificationsModal() {
@@ -215,6 +328,7 @@ function _renderNotificationsList() {
         '</div>' +
         (n.description ? '<div class="notif-desc">' + escapeHtml(n.description) + '</div>' : '') +
         '<div class="notif-date">' + escapeHtml(dateStr) + '</div>' +
+        _renderActivityDetails(n.activityDetails) +
         (n.debugInfo
           ? '<button class="notif-copy-btn" data-debug-id="' + escapeHtml(debugId) + '">' +
               '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>' +
@@ -757,6 +871,90 @@ function _saveFlag(key, checked) {
 
 let _pendingRoles = [];
 let _azureScopeSelections = new Map();
+const SCHEDULE_MIN_LEAD_MS = 60 * 1000;
+const SCHEDULE_DEFAULT_STEP_MINUTES = 15;
+
+function _formatDateTimeLocal(date) {
+  const pad = value => String(value).padStart(2, '0');
+  return date.getFullYear() + '-' +
+    pad(date.getMonth() + 1) + '-' +
+    pad(date.getDate()) + 'T' +
+    pad(date.getHours()) + ':' +
+    pad(date.getMinutes());
+}
+
+function _getScheduleMinDate() {
+  const minimumDate = new Date(Date.now() + SCHEDULE_MIN_LEAD_MS);
+  if (minimumDate.getSeconds() || minimumDate.getMilliseconds()) {
+    minimumDate.setMinutes(minimumDate.getMinutes() + 1);
+  }
+  minimumDate.setSeconds(0, 0);
+  return minimumDate;
+}
+
+function _getDefaultScheduleDate() {
+  const stepMs = SCHEDULE_DEFAULT_STEP_MINUTES * 60 * 1000;
+  return new Date(Math.ceil(_getScheduleMinDate().getTime() / stepMs) * stepMs);
+}
+
+function _isScheduleEnabled() {
+  return document.getElementById('schedule-toggle-btn')?.getAttribute('aria-pressed') === 'true';
+}
+
+function _setScheduleControls(enabled) {
+  const btn = document.getElementById('schedule-toggle-btn');
+  const row = document.getElementById('schedule-start-row');
+  const input = document.getElementById('schedule-start-input');
+  const confirmBtn = document.getElementById('modal-confirm-btn');
+
+  if (btn) {
+    btn.classList.toggle('active', enabled);
+    btn.setAttribute('aria-pressed', String(enabled));
+  }
+  if (row) row.hidden = !enabled;
+  if (input) {
+    input.min = _formatDateTimeLocal(_getScheduleMinDate());
+    if (enabled && !input.value) input.value = _formatDateTimeLocal(_getDefaultScheduleDate());
+  }
+  if (!enabled) _clearFieldError('schedule-start-input', 'schedule-start-error');
+  if (confirmBtn) confirmBtn.textContent = enabled ? 'Schedule' : 'Activate';
+}
+
+function _resetScheduleControls() {
+  const input = document.getElementById('schedule-start-input');
+  if (input) {
+    input.value = '';
+    input.min = _formatDateTimeLocal(_getScheduleMinDate());
+  }
+  _setScheduleControls(false);
+}
+
+function _validateScheduledStart() {
+  if (!_isScheduleEnabled()) return { hasError: false, scheduledStartDateTime: null };
+
+  const input = document.getElementById('schedule-start-input');
+  const rawValue = input?.value || '';
+  if (!rawValue) {
+    _setFieldError('schedule-start-input', 'schedule-start-error', 'Choose a start date and time.');
+    input?.focus();
+    return { hasError: true, scheduledStartDateTime: null };
+  }
+
+  const selectedDate = new Date(rawValue);
+  if (Number.isNaN(selectedDate.getTime())) {
+    _setFieldError('schedule-start-input', 'schedule-start-error', 'Choose a valid start date and time.');
+    input?.focus();
+    return { hasError: true, scheduledStartDateTime: null };
+  }
+
+  if (selectedDate.getTime() < _getScheduleMinDate().getTime()) {
+    _setFieldError('schedule-start-input', 'schedule-start-error', 'Choose a future start time.');
+    input?.focus();
+    return { hasError: true, scheduledStartDateTime: null };
+  }
+
+  return { hasError: false, scheduledStartDateTime: selectedDate.toISOString() };
+}
 
 function showActivationModal(roles, opts = {}) {
   _pendingRoles = roles;
@@ -826,6 +1024,8 @@ function showActivationModal(roles, opts = {}) {
   const ticketInput = document.getElementById('ticket-input');
   if (justInput)   justInput.value   = opts.justification || '';
   if (ticketInput) ticketInput.value = opts.ticketNumber || '';
+
+  _resetScheduleControls();
 
   // Profile save checkbox
   const saveCb = document.getElementById('save-profile-checkbox');
@@ -1101,6 +1301,7 @@ function _clearFieldError(inputId, errorId) {
 function _clearValidationErrors() {
   _clearFieldError('justification-input', 'justification-error');
   _clearFieldError('ticket-input', 'ticket-error');
+  _clearFieldError('schedule-start-input', 'schedule-start-error');
 }
 
 // ── Activation handler ────────────────────────────────────────────────────────
@@ -1124,14 +1325,16 @@ async function handleActivate() {
 
   const justification = justInput?.value.trim()  || '';
   const ticketNumber  = ticketInput?.value.trim() || '';
+  const scheduleValidation = _validateScheduledStart();
+  const scheduledStartDateTime = scheduleValidation.scheduledStartDateTime;
 
   const anyNeedsJust   = _pendingRoles.some(r => r.requiresJustification);
   const anyNeedsTicket = _pendingRoles.some(r => r.requiresTicket);
 
-  let hasError = false;
+  let hasError = scheduleValidation.hasError;
   if (anyNeedsJust && !justification) {
     _setFieldError('justification-input', 'justification-error', 'Justification is required.');
-    justInput?.focus();
+    if (!hasError) justInput?.focus();
     hasError = true;
   }
   if (anyNeedsTicket && !ticketNumber) {
@@ -1200,33 +1403,49 @@ async function handleActivate() {
     }
   }
 
-  const activateLabel = 'Activating ' + cappedRoles.length + ' role' + (cappedRoles.length !== 1 ? 's' : '') + '\u2026';
+  const isScheduled = Boolean(scheduledStartDateTime);
+  const progressVerb = isScheduled ? 'Scheduling' : 'Activating';
+  const successLabel = isScheduled ? 'Scheduled' : 'Activated';
+  const resultVerb = isScheduled ? 'scheduled' : 'activated';
+  const errorTitle = isScheduled ? 'Scheduling error' : 'Activation error';
+  const activateLabel = progressVerb + ' ' + cappedRoles.length + ' role' + (cappedRoles.length !== 1 ? 's' : '') + '\u2026';
   _opOverlay.open(activateLabel, cappedRoles);
 
   try {
-    const outcome = await batchClient.bulkActivate(cappedRoles, {
+    const activateOptions = {
       justification,
       ticketNumber,
       onProgress: r => _opOverlay.update(r)
-    });
+    };
+    if (scheduledStartDateTime) activateOptions.scheduledStartDateTime = scheduledStartDateTime;
+
+    const outcome = await batchClient.bulkActivate(cappedRoles, activateOptions);
     const ok   = outcome.summary?.succeeded ?? outcome.results?.filter(r => r.success).length ?? 0;
     const fail = outcome.summary?.failed    ?? outcome.results?.filter(r => !r.success).length ?? 0;
     const pendingApproval = (outcome.results || []).filter(r => r.pendingApproval).length;
+    const activityDetails = _buildRoleActivityDetails(cappedRoles, outcome.results, {
+      action: isScheduled ? 'schedule' : 'activate',
+      label: isScheduled ? 'Scheduled activation' : 'Activation',
+      scheduledStartDateTime,
+      durationMinutes: requestedTotal,
+      justification,
+      ticketNumber
+    });
     _opOverlay.close(fail > 0 ? 2500 : 1400);
     if (fail === 0 && pendingApproval === 0) {
-      showToast({ title: 'Successfully activated', description: _formatRoleOutcomeList(cappedRoles, outcome.results), type: 'success', debugInfo: outcome.results });
+      showToast({ title: isScheduled ? 'Successfully scheduled' : 'Successfully activated', description: _formatRoleOutcomeList(cappedRoles, outcome.results, successLabel), type: 'success', debugInfo: outcome.results, activityDetails });
     } else if (pendingApproval > 0 && fail === 0) {
-      showToast({ title: ok + ' activated', description: pendingApproval + ' awaiting approval\n' + _formatRoleOutcomeList(cappedRoles, outcome.results), type: 'info', duration: 8000, debugInfo: outcome.results });
+      showToast({ title: ok + ' ' + resultVerb, description: pendingApproval + ' awaiting approval\n' + _formatRoleOutcomeList(cappedRoles, outcome.results, successLabel), type: 'info', duration: 8000, debugInfo: outcome.results, activityDetails });
     } else if (ok === 0 && pendingApproval === 0) {
-      const firstError = outcome.results?.find(r => r.error)?.error || 'Activation failed';
-      showToast({ title: 'Activation failed', description: firstError + '\n\n' + _formatRoleOutcomeList(cappedRoles, outcome.results), type: 'error', debugInfo: outcome.results });
+      const firstError = outcome.results?.find(r => r.error)?.error || (isScheduled ? 'Scheduling failed' : 'Activation failed');
+      showToast({ title: isScheduled ? 'Scheduling failed' : 'Activation failed', description: firstError + '\n\n' + _formatRoleOutcomeList(cappedRoles, outcome.results, successLabel), type: 'error', debugInfo: outcome.results, activityDetails });
     } else {
-      showToast({ title: ok + ' role' + (ok !== 1 ? 's' : '') + ' activated', description: fail + ' failed.\n' + _formatRoleOutcomeList(cappedRoles, outcome.results), type: 'warning', debugInfo: outcome.results });
+      showToast({ title: ok + ' role' + (ok !== 1 ? 's' : '') + ' ' + resultVerb, description: fail + ' failed.\n' + _formatRoleOutcomeList(cappedRoles, outcome.results, successLabel), type: 'warning', debugInfo: outcome.results, activityDetails });
     }
     await _refresh();
   } catch (err) {
     _opOverlay.close(0);
-    showToast({ title: 'Activation error', description: err.message, type: 'error', duration: 10000 });
+    showToast({ title: errorTitle, description: err.message, type: 'error', duration: 10000 });
     console.error('[App] Activate error:', err);
   } finally {
     portalAuth.setAuthContextClaims(null);
@@ -1254,11 +1473,15 @@ async function handleDeactivate() {
     if (succeededUids.length) roleManager.removeActiveRoles(succeededUids);
 
     _opOverlay.close(fail > 0 ? 2500 : 1400);
+    const activityDetails = _buildRoleActivityDetails(roles, outcome.results, {
+      action: 'deactivate',
+      label: 'Deactivation'
+    });
     if (fail === 0) {
-      showToast({ title: 'Successfully deactivated', description: _formatRoleOutcomeList(roles, outcome.results), type: 'success', debugInfo: outcome.results });
+      showToast({ title: 'Successfully deactivated', description: _formatRoleOutcomeList(roles, outcome.results, 'Deactivated'), type: 'success', debugInfo: outcome.results, activityDetails });
     } else {
       const firstError = outcome.results?.find(r => r.error)?.error || 'Deactivation failed';
-      showToast({ title: ok + ' deactivated', description: fail + ' failed. ' + firstError + '\n' + _formatRoleOutcomeList(roles, outcome.results), type: 'warning', debugInfo: outcome.results });
+      showToast({ title: ok + ' deactivated', description: fail + ' failed. ' + firstError + '\n' + _formatRoleOutcomeList(roles, outcome.results, 'Deactivated'), type: 'warning', debugInfo: outcome.results, activityDetails });
     }
     // Background sync — small delay gives the API time to propagate the deactivation
     // before we re-fetch, preventing the role from briefly reappearing.
@@ -1793,6 +2016,16 @@ async function bootstrap() {
   document.getElementById('save-profile-checkbox')?.addEventListener('change', e => {
     document.getElementById('profile-name-row').hidden = !e.target.checked;
     if (e.target.checked) document.getElementById('profile-name-input')?.focus();
+  });
+
+  document.getElementById('schedule-toggle-btn')?.addEventListener('click', e => {
+    const enabled = e.currentTarget.getAttribute('aria-pressed') !== 'true';
+    _setScheduleControls(enabled);
+    if (enabled) document.getElementById('schedule-start-input')?.focus();
+  });
+
+  document.getElementById('schedule-start-input')?.addEventListener('input', () => {
+    _clearFieldError('schedule-start-input', 'schedule-start-error');
   });
 
   // Profiles modal close

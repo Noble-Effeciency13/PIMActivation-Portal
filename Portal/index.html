@@ -586,6 +586,28 @@
             <div class="azure-scope-list" id="azure-scope-list"></div>
           </div>
 
+          <div class="form-row schedule-toggle-row">
+            <button type="button" class="btn btn-ghost btn-sm schedule-toggle-btn" id="schedule-toggle-btn"
+              aria-pressed="false" aria-controls="schedule-start-row">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+              Schedule activation
+            </button>
+          </div>
+          <div class="form-row schedule-start-row" id="schedule-start-row" hidden>
+            <div class="schedule-start-field">
+              <label class="form-label" for="schedule-start-input">Start date and time</label>
+              <input type="datetime-local" id="schedule-start-input" class="form-input schedule-start-input"
+                step="60" aria-describedby="schedule-start-error">
+              <p class="form-error" id="schedule-start-error" hidden></p>
+            </div>
+          </div>
+
           <div class="form-divider"></div>
 
           <div class="form-row profile-save-toggle-row">

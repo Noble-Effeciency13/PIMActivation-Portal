@@ -253,7 +253,7 @@ async function activateAzureRole(scopeId, roleId, options = {}) {
     justification:    options.justification || 'Activated via PIM Portal',
     ticketInfo:       options.ticketNumber ? { ticketNumber: options.ticketNumber, ticketSystem: '' } : undefined,
     scheduleInfo: {
-      startDateTime: new Date().toISOString(),
+      startDateTime: options.scheduledStartDateTime || new Date().toISOString(),
       expiration: {
         type:     'AfterDuration',
         duration: `PT${options.durationMinutes || 60}M`
