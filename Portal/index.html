@@ -62,9 +62,10 @@
           </button>
           <div class="quick-dropdown" id="help-dropdown" hidden>
             <button class="quick-dropdown-item" data-help="guide">Manual</button>
-            <button class="quick-dropdown-item" data-help="how-it-works">How it works</button>
             <button class="quick-dropdown-item" data-help="features">Features</button>
+            <button class="quick-dropdown-item" data-help="how-it-works">How it works</button>
             <button class="quick-dropdown-item" data-help="faq">FAQ</button>
+            <a class="quick-dropdown-item" href="https://github.com/Noble-Effeciency13/PIMActivation-Portal/issues" target="_blank" rel="noopener noreferrer">Report issue</a>
           </div>
         </div>
         <button class="icon-btn icon-btn-signout" id="sign-out-btn" aria-label="Sign out" title="Sign out">
@@ -650,22 +651,99 @@
         </button>
       </div>
       <div class="modal-body help-body">
+
         <!-- Manual / Guide -->
         <div id="help-content-guide">
           <div class="help-section">
-            <span class="help-eyebrow">Basics</span>
-            <div class="help-section-title">Quick start</div>
-            <p>Select one or more eligible roles in the <strong>Eligible Roles</strong> table, then click <strong>Activate</strong>. Fill in the duration and any required justification or ticket number, then confirm.</p>
+            <span class="help-eyebrow">Quick Start</span>
+            <div class="help-section-title">Activate a role in 3 steps</div>
+            <div class="help-steps">
+              <div class="help-step">
+                <div class="help-step-num">1</div>
+                <div class="help-step-body">
+                  <div class="help-step-label">Sign in</div>
+                  <div class="help-step-desc">Authenticate via the Microsoft button.</div>
+                </div>
+              </div>
+              <div class="help-step">
+                <div class="help-step-num">2</div>
+                <div class="help-step-body">
+                  <div class="help-step-label">Select roles</div>
+                  <div class="help-step-desc">Check one or more eligible roles in the table. Entra, Azure, and Group roles can be mixed in one selection.</div>
+                </div>
+              </div>
+              <div class="help-step">
+                <div class="help-step-num">3</div>
+                <div class="help-step-body">
+                  <div class="help-step-label">Activate</div>
+                  <div class="help-step-desc">Click <strong>Activate</strong>, set duration (capped by policy), add justification if required, and confirm.</div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="help-section">
-            <span class="help-eyebrow">Advanced</span>
-            <div class="help-section-title">Bulk operations</div>
-            <p>You can select multiple roles at once across Entra, Azure, and Groups. All selected roles are submitted in a single batch — each role's policy (max duration, MFA, approval) is respected individually.</p>
+          <div class="help-callout">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="help-callout-icon" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            <div class="help-callout-body">
+              <div class="help-callout-title">Multiple tenants?</div>
+              <div class="help-callout-text">Use the tenant selector in the header — repeat the 3 steps above for each tenant independently.</div>
+            </div>
           </div>
+          <div class="help-callout help-callout--success">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="help-callout-icon" aria-hidden="true"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
+            <div class="help-callout-body">
+              <div class="help-callout-title">Done this before?</div>
+              <div class="help-callout-text">Open <strong>Profiles</strong> and load a saved selection — it skips step 2 entirely and pre-fills duration and justification.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Features -->
+        <div id="help-content-features" hidden>
           <div class="help-section">
-            <span class="help-eyebrow">Profiles</span>
-            <div class="help-section-title">Activation profiles</div>
-            <p>Click <strong>Profiles</strong> to save your current selection. Profiles store role IDs, durations, and justifications in your browser's IndexedDB for one-click reuse.</p>
+            <span class="help-eyebrow">All Capabilities</span>
+            <div class="help-section-title">What this portal can do</div>
+            <div class="help-feature-grid">
+              <div class="help-feature-card help-feature-card--highlight">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="help-feature-icon" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                <div class="help-feature-title">Cross-Tenant</div>
+                <div class="help-feature-desc">Manage roles across multiple tenants. Each tenant authenticates independently with its own isolated session.</div>
+              </div>
+              <div class="help-feature-card help-feature-card--success">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="help-feature-icon" aria-hidden="true"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
+                <div class="help-feature-title">Activation Profiles</div>
+                <div class="help-feature-desc">Save named combinations of roles, duration, and justification for one-click reuse.</div>
+              </div>
+              <div class="help-feature-card">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="help-feature-icon" aria-hidden="true"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+                <div class="help-feature-title">Bulk Activation</div>
+                <div class="help-feature-desc">Select and activate roles across Entra, Azure, and Groups in a single batch submission.</div>
+              </div>
+              <div class="help-feature-card">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="help-feature-icon" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                <div class="help-feature-title">Policy Enforcement</div>
+                <div class="help-feature-desc">Duration caps, MFA step-up, and justification or ticket validation — enforced per-role automatically.</div>
+              </div>
+              <div class="help-feature-card">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="help-feature-icon" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <div class="help-feature-title">Expiry Tracking</div>
+                <div class="help-feature-desc">Live countdown timers and color-coded warnings — know exactly when each active role expires.</div>
+              </div>
+              <div class="help-feature-card">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="help-feature-icon" aria-hidden="true"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                <div class="help-feature-title">Smart Filtering</div>
+                <div class="help-feature-desc">Instant search, surface grouping, custom quick filters, and persistent filter bar state.</div>
+              </div>
+              <div class="help-feature-card">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="help-feature-icon" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                <div class="help-feature-title">Quick Actions</div>
+                <div class="help-feature-desc">Pin Appearance and the inactive policies toggle to the header for instant access.</div>
+              </div>
+              <div class="help-feature-card">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="help-feature-icon" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                <div class="help-feature-title">Zero Backend</div>
+                <div class="help-feature-desc">Static SPA — all calls go directly to Microsoft Graph and ARM. No server, no proxy, no secrets stored.</div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -673,41 +751,54 @@
         <div id="help-content-how-it-works" hidden>
           <div class="help-section">
             <span class="help-eyebrow">Architecture</span>
-            <div class="help-section-title">Zero-Backend SPA</div>
-            <p>This portal is a fully static single-page application. It talks directly to Microsoft Graph and Azure Resource Manager API endpoints using your delegated user token. No backend, no proxy, and no secrets are stored on any server.</p>
+            <div class="help-section-title">Direct API access, no backend</div>
+            <p>A fully static single-page application. Your browser authenticates via MSAL and calls Microsoft Graph and ARM directly — no backend, no proxy. Switching tenants starts a fresh auth flow; each tenant's token and session are fully isolated.</p>
+            <div class="help-flow">
+              <div class="help-flow-item">Browser authenticates via MSAL → Entra ID</div>
+              <div class="help-flow-item">Entra ID issues an access token (held in memory only)</div>
+              <div class="help-flow-item">Portal calls Microsoft Graph / ARM APIs directly</div>
+              <div class="help-flow-item">No backend — no proxy — nothing touches a server</div>
+            </div>
           </div>
           <div class="help-section">
-            <span class="help-eyebrow">Logic</span>
-            <div class="help-section-title">Direct Integration</div>
-            <p>By using the MSAL library, we authenticate you directly against Entra ID. The portal then orchestrates the PIM API calls on your behalf, ensuring your credentials never leave your browser session.</p>
-          </div>
-        </div>
-
-        <!-- Features -->
-        <div id="help-content-features" hidden>
-          <div class="help-section">
-            <span class="help-eyebrow">Capabilities</span>
-            <div class="help-section-title">Core Features</div>
-            <ul>
-              <li><strong>Multi-Surface</strong> — Bulk activation across Entra, Azure Resource roles, and PIM for Groups.</li>
-              <li><strong>Policy Enforcement</strong> — Automatic duration capping, justification validation, and ticket field handling.</li>
-              <li><strong>Step-up MFA</strong> — Full support for Conditional Access auth-context step-up when policies require it.</li>
-              <li><strong>Expiry Tracking</strong> — Real-time countdown timers and colour-coded warnings for active roles.</li>
-              <li><strong>Smart Filtering</strong> — Instant search and grouping by surface type.</li>
-            </ul>
+            <span class="help-eyebrow">Token &amp; Data Storage</span>
+            <div class="help-section-title">What lives where</div>
+            <table class="help-table">
+              <thead>
+                <tr><th>What</th><th>Where stored</th><th>Lifetime</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Access tokens</td><td>In-memory (MSAL)</td><td>~1 hr, auto-refreshed</td></tr>
+                <tr><td>Refresh tokens</td><td>sessionStorage</td><td>Tab lifetime</td></tr>
+                <tr><td>Activation profiles</td><td>IndexedDB (local)</td><td>Until deleted</td></tr>
+                <tr><td>Settings &amp; flags</td><td>localStorage</td><td>Persistent</td></tr>
+              </tbody>
+            </table>
           </div>
         </div>
 
         <!-- FAQ -->
         <div id="help-content-faq" hidden>
-          <div class="help-section">
-            <span class="help-eyebrow">Q&A</span>
-            <div class="help-section-title">Frequently Asked Questions</div>
-            <p><strong>Does it store my tokens?</strong> No, tokens are kept in browser memory and handled by MSAL.</p>
-            <p><strong>Does it need admin consent?</strong> Only if your tenant requires it for delegated permissions like reading role eligibility.</p>
-            <p><strong>Can I use it with my own app?</strong> Yes, the self-hosted version allows providing your own Client ID and Tenant ID.</p>
+          <div class="help-faq">
+            <div class="help-faq-item">
+              <div class="help-faq-q">Are my tokens stored anywhere?</div>
+              <div class="help-faq-a">Access tokens are in MSAL's in-memory cache only — never written to disk. Refresh tokens use sessionStorage and are cleared when the tab closes. See <em>How it works</em> for the full breakdown.</div>
+            </div>
+            <div class="help-faq-item">
+              <div class="help-faq-q">Is anything sent to a backend?</div>
+              <div class="help-faq-a">No. There is no backend. Every call goes directly from your browser to Microsoft's Graph and ARM endpoints — the app is static files only.</div>
+            </div>
+            <div class="help-faq-item">
+              <div class="help-faq-q">Does it need admin consent?</div>
+              <div class="help-faq-a">Delegated permissions to read PIM role eligibility may require admin consent. The portal will prompt if additional consent is needed.</div>
+            </div>
+            <div class="help-faq-item">
+              <div class="help-faq-q">Can I self-host it?</div>
+              <div class="help-faq-a">Yes. Provide your own Client ID and Tenant ID in the MSAL config. The portal is a static HTML/JS/CSS bundle — host it anywhere (Azure Static Web Apps, GitHub Pages, etc.). Go back to the home site for self-hosting option.</div>
+            </div>
           </div>
         </div>
+
       </div>
       <div class="modal-footer">
         <button class="btn btn-primary btn-sm" id="help-modal-close-footer">OK</button>
