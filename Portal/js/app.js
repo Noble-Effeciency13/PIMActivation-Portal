@@ -1368,7 +1368,8 @@ async function _renderProfilesList() {
               '<div class="profile-meta">' + p.roles.length + ' role' + (p.roles.length !== 1 ? 's' : '') + ' · ' + lastUsed + '</div>' +
             '</div>' +
             '<div class="profile-actions">' +
-              '<button class="btn btn-danger btn-sm profile-delete-btn" data-profile-id="' + escapeHtml(p.id) + '" aria-label="Delete profile" onclick="event.stopPropagation()">' +
+              '<button type="button" class="btn btn-primary btn-sm profile-activate-btn" data-profile-id="' + escapeHtml(p.id) + '" onclick="event.stopPropagation()">Activate</button>' +
+              '<button type="button" class="btn btn-danger btn-sm profile-delete-btn" data-profile-id="' + escapeHtml(p.id) + '" aria-label="Delete profile" onclick="event.stopPropagation()">' +
                 '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">' +
                   '<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>' +
                 '</svg>' +
@@ -1389,6 +1390,13 @@ async function _renderProfilesList() {
       e.preventDefault();
       _handleSaveProfile();
     }
+  });
+
+  body.querySelectorAll('.profile-activate-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      _handleActivateProfile(btn.dataset.profileId);
+    });
   });
 
   // Wire delete
