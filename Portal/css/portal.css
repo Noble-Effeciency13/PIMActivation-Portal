@@ -324,7 +324,9 @@ a { color: var(--primary); text-decoration: none; }
   display: none;
 }
 .quick-dropdown-item {
-  display:         block;
+  display:         flex;
+  align-items:     center;
+  gap:             8px;
   width:           100%;
   text-align:      left;
   padding:         8px 12px;
@@ -337,6 +339,10 @@ a { color: var(--primary); text-decoration: none; }
   border-radius:   var(--radius-xs);
   transition:      background 0.1s;
   text-decoration: none;
+}
+.quick-dropdown-item svg { flex-shrink: 0; color: var(--text-muted); }
+@media (hover: hover) and (pointer: fine) {
+  .quick-dropdown-item:hover svg { color: var(--primary); }
 }
 @media (hover: hover) and (pointer: fine) {
 
