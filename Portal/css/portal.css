@@ -1596,7 +1596,30 @@ body.show-inactive-policies .pol-none-label {
 .settings-hr {
   border:     none;
   border-top: 1px solid var(--border);
-  margin:     20px 0;
+  margin:     12px 0;
+}
+
+/* Collapsible settings groups */
+.settings-group-toggle {
+  display:     flex;
+  align-items: center;
+  gap:         8px;
+  width:       100%;
+  padding:     8px 0;
+  background:  none;
+  border:      none;
+  cursor:      pointer;
+  font-size:   13px;
+  font-weight: 600;
+  color:       var(--text);
+  text-align:  left;
+}
+.settings-group-toggle svg { transition: transform 0.2s ease; flex-shrink: 0; }
+.settings-group.collapsed .settings-group-toggle svg { transform: rotate(-90deg); }
+.settings-group-body { display: flex; flex-direction: column; gap: 16px; padding-top: 4px; }
+.settings-group.collapsed .settings-group-body { display: none; }
+@media (hover: hover) and (pointer: fine) {
+  .settings-group-toggle:hover { color: var(--accent); }
 }
 
 /* Flag pills (PIM surfaces) */

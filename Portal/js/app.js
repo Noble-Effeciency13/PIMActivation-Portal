@@ -1751,6 +1751,15 @@ async function bootstrap() {
     }
   });
 
+  // Settings group collapse toggles
+  document.querySelectorAll('.settings-group-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const group = btn.closest('.settings-group');
+      const nowCollapsed = group.classList.toggle('collapsed');
+      btn.setAttribute('aria-expanded', !nowCollapsed);
+    });
+  });
+
   // Section collapse buttons
   document.getElementById('section-active')?.querySelector('.section-collapse-btn')
     ?.addEventListener('click', () => _toggleSection('section-active'));
