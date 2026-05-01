@@ -12,6 +12,9 @@
 
 const msalInstance = new msal.PublicClientApplication(window.msalConfig);
 
+/** Resolves when MSAL v5 initialization completes. Awaited once in initAuth(). */
+const _msalReady = msalInstance.initialize();
+
 /** Currently active account */
 let _account = null;
 
@@ -28,6 +31,7 @@ let _activeAuthContextClaims = null;
  */
 async function initAuth() {
   try {
+    await _msalReady;
     const response = await msalInstance.handleRedirectPromise();
     if (response && response.account) {
       msalInstance.setActiveAccount(response.account);
