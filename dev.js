@@ -75,8 +75,8 @@ function serveFile(filePath, res) {
     let body = data;
     if (path.basename(filePath) === 'msal-config.js') {
       body = data.toString('utf8')
-        .replace(/__PORTAL_CLIENT_ID__/g, CLIENT_ID)
-        .replace(/__PORTAL_TENANT_ID__/g, TENANT_ID);
+        .replace(/__PORTAL_CLIENT_ID__/g, () => CLIENT_ID)
+        .replace(/__PORTAL_TENANT_ID__/g, () => TENANT_ID);
     }
 
     res.writeHead(200, { 'Content-Type': contentType, 'Cache-Control': 'no-cache' });
