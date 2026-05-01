@@ -59,6 +59,9 @@ async function graphGetAll(path, useBeta = false) {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
+/** Escape a value for use inside an OData single-quoted string literal (doubles any ' character). */
+const _odataEscape = s => String(s).replace(/'/g, "''");
+
 /**
  * Parse an ISO 8601 duration string (e.g. PT8H, PT30M, P1DT2H) to milliseconds.
  * Only days, hours, minutes, seconds are handled (weeks/months/years not needed for PIM).
@@ -95,7 +98,7 @@ function _resolveEndDateTime(scheduleInfo) {
 async function getEligibleEntraRoles() {
   const userId = portalAuth.getUserId();
   const data = await graphGetAll(
-    `/roleManagement/directory/roleEligibilityScheduleInstances?$filter=principalId eq '${userId}'&$expand=roleDefinition,principal`,
+    `/roleManagement/directory/roleEligibilityScheduleInstances?$filter=principalId eq '${_odataEscape(userId)}'&$expand=roleDefinition,principal`,
     false
   );
   return data.map(item => ({
@@ -117,7 +120,7 @@ async function getEligibleEntraRoles() {
 async function getEligibleGroupRoles() {
   const userId = portalAuth.getUserId();
   const data = await graphGetAll(
-    `/identityGovernance/privilegedAccess/group/eligibilityScheduleInstances?$filter=principalId eq '${userId}'&$expand=group,principal`,
+    `/identityGovernance/privilegedAccess/group/eligibilityScheduleInstances?$filter=principalId eq '${_odataEscape(userId)}'&$expand=group,principal`,
     false
   );
   return data.map(item => ({
@@ -143,7 +146,7 @@ async function getEligibleGroupRoles() {
 async function getActiveEntraRoles() {
   const userId = portalAuth.getUserId();
   const data = await graphGetAll(
-    `/roleManagement/directory/roleAssignmentScheduleInstances?$filter=principalId eq '${userId}'&$expand=roleDefinition,principal`,
+    `/roleManagement/directory/roleAssignmentScheduleInstances?$filter=principalId eq '${_odataEscape(userId)}'&$expand=roleDefinition,principal`,
     false
   );
   return data.map(item => ({
@@ -166,7 +169,7 @@ async function getActiveEntraRoles() {
 async function getActiveGroupRoles() {
   const userId = portalAuth.getUserId();
   const data = await graphGetAll(
-    `/identityGovernance/privilegedAccess/group/assignmentScheduleInstances?$filter=principalId eq '${userId}'&$expand=group`,
+    `/identityGovernance/privilegedAccess/group/assignmentScheduleInstances?$filter=principalId eq '${_odataEscape(userId)}'&$expand=group`,
     false
   );
   return data.map(item => ({
@@ -195,7 +198,7 @@ async function getActiveGroupRoles() {
  */
 async function getEntraRolePolicy(roleId, scopeId = '/') {
   const assignments = await graphGetAll(
-    `/policies/roleManagementPolicyAssignments?$filter=roleDefinitionId eq '${roleId}' and scopeId eq '${encodeURIComponent(scopeId)}' and scopeType eq 'DirectoryRole'&$expand=policy($expand=rules)`,
+    `/policies/roleManagementPolicyAssignments?$filter=roleDefinitionId eq '${_odataEscape(roleId)}' and scopeId eq '${encodeURIComponent(_odataEscape(scopeId))}' and scopeType eq 'DirectoryRole'&$expand=policy($expand=rules)`,
     false
   );
   return assignments[0]?.policy || null;
@@ -222,7 +225,7 @@ async function getAllEntraRolePolicies() {
  */
 async function getGroupPolicy(groupId, accessId = 'member') {
   const assignments = await graphGetAll(
-    `/policies/roleManagementPolicyAssignments?$filter=scopeId eq '${groupId}' and scopeType eq 'Group' and roleDefinitionId eq '${accessId}'&$expand=policy($expand=rules)`,
+    `/policies/roleManagementPolicyAssignments?$filter=scopeId eq '${_odataEscape(groupId)}' and scopeType eq 'Group' and roleDefinitionId eq '${_odataEscape(accessId)}'&$expand=policy($expand=rules)`,
     false
   );
   return assignments[0]?.policy || null;
@@ -358,11 +361,11 @@ async function getPendingActivationRequests() {
   try {
     const [entra, group] = await Promise.all([
       graphGetAll(
-        `/roleManagement/directory/roleAssignmentScheduleRequests?$filter=principalId eq '${userId}' and status eq 'PendingApproval'`,
+        `/roleManagement/directory/roleAssignmentScheduleRequests?$filter=principalId eq '${_odataEscape(userId)}' and status eq 'PendingApproval'`,
         false
       ).catch(() => []),
       graphGetAll(
-        `/identityGovernance/privilegedAccess/group/assignmentScheduleRequests?$filter=principalId eq '${userId}' and status eq 'PendingApproval'`,
+        `/identityGovernance/privilegedAccess/group/assignmentScheduleRequests?$filter=principalId eq '${_odataEscape(userId)}' and status eq 'PendingApproval'`,
         false
       ).catch(() => [])
     ]);
