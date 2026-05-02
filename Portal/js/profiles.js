@@ -48,6 +48,7 @@ class ProfileManager {
     const profile = {
       id:            crypto.randomUUID(),
       name:          name.trim(),
+      tenantId:      opts.tenantId || null,
       roles:         roles.map(r => ({ uid: r.uid, type: r.type, id: r.id, name: r.name, scope: r.scope })),
       justification: opts.justification || '',
       durationHours: opts.durationHours ?? 8,
@@ -60,11 +61,16 @@ class ProfileManager {
   }
 
   /**
-   * Get all saved profiles.
+   * Get saved profiles, optionally filtered to a tenant.
+   * When tenantId is provided, returns profiles scoped to that tenant
+   * plus profiles with no tenantId (saved while setting was off — global).
+   * @param {string|null} [tenantId]
    * @returns {Promise<object[]>}
    */
-  async getProfiles() {
-    return this._getAll();
+  async getProfiles(tenantId) {
+    const all = await this._getAll();
+    if (!tenantId) return all;
+    return all.filter(p => !p.tenantId || p.tenantId === tenantId);
   }
 
   /**

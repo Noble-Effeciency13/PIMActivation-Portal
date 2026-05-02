@@ -139,13 +139,15 @@ function _mapBatchResponses(roles, responses, action) {
   return roles.map(role => {
     const res = resMap[role.uid];
     if (!res) return { uid: role.uid, type: role.type, success: false, error: 'No response from batch' };
-    const ok  = res.status >= 200 && res.status < 300;
+    const ok         = res.status >= 200 && res.status < 300;
+    const isPending  = ok && res.body?.status === 'PendingApproval';
     return {
-      uid:     role.uid,
-      type:    role.type,
-      success: ok,
-      status:  res.status,
-      error:   ok ? undefined : (res.body?.error?.message || `HTTP ${res.status}`),
+      uid:            role.uid,
+      type:           role.type,
+      success:        ok,
+      ...(isPending ? { pendingApproval: true } : {}),
+      status:         res.status,
+      error:          ok ? undefined : (res.body?.error?.message || `HTTP ${res.status}`),
       [action === 'activate' ? 'activatedAt' : 'deactivatedAt']: ok ? new Date().toISOString() : undefined
     };
   });
@@ -167,8 +169,9 @@ async function _bulkActivateAzure(roles, options) {
       if (role.condition) azureOptions.condition = role.condition;
       if (role.conditionVersion) azureOptions.conditionVersion = role.conditionVersion;
 
-      await armClient.activateAzureRole(activationScopeId, role.id, azureOptions);
-      const r = { uid: role.uid, type: role.type, success: true, activatedAt: new Date().toISOString() };
+      const armResult  = await armClient.activateAzureRole(activationScopeId, role.id, azureOptions);
+      const isPending  = armResult?.properties?.status === 'PendingApproval';
+      const r = { uid: role.uid, type: role.type, success: true, ...(isPending ? { pendingApproval: true } : {}), activatedAt: new Date().toISOString() };
       options.onProgress && options.onProgress(r);
       return r;
     } catch (err) {

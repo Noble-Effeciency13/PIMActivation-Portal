@@ -9,6 +9,7 @@
 
 // ── Settings & Feature Flags ──────────────────────────────────────────────────
 const FLAGS_KEY = 'pim-portal-flags';
+const PENDING_ACTIVATION_KEY = 'pim-portal-pending-activation';
 const _flags = {
   entra:               true,
   azure:               true,
@@ -21,6 +22,7 @@ const _flags = {
   quickAppearance:      true,
   showInactivePolicies: true,
   quickInactivePolicies: true,
+  tenantScopedProfiles:  true,
   ...JSON.parse(localStorage.getItem(FLAGS_KEY) || '{}')
 };
 
@@ -169,16 +171,21 @@ function _formatRoleOutcomeList(roles, results) {
     return role.name + scopeSuffix;
   };
 
-  const succeeded = results.filter(r => r.success).map(formatRole);
-  
+  const succeeded = results.filter(r => r.success && !r.pendingApproval).map(formatRole);
+  const pending   = results.filter(r => r.pendingApproval).map(formatRole);
+
   const failed = results.filter(r => !r.success).map(r => {
     const role = roles.find(pr => (pr.uid || pr.id) === r.uid);
     const name = role ? formatRole(r) : r.uid;
     return name + (r.error ? ` (${r.error})` : '');
   });
-  
+
   let msg = '';
   if (succeeded.length) msg += 'Activated: ' + succeeded.join(', ');
+  if (pending.length) {
+    if (msg) msg += '\n';
+    msg += 'Pending approval: ' + pending.join(', ');
+  }
   if (failed.length) {
     if (msg) msg += '\n';
     msg += 'Failed: ' + failed.join(', ');
@@ -537,11 +544,12 @@ function showSettingsModal() {
 
   // Sync toggle switches
   [
-    ['flag-show-active',      'showActiveInEligible'],
-    ['flag-show-inactive',    'showInactivePolicies'],
-    ['flag-swap-sections',    'swapSections'],
-    ['flag-persist-sections',    'persistSectionState'],
+    ['flag-show-active',        'showActiveInEligible'],
+    ['flag-show-inactive',      'showInactivePolicies'],
+    ['flag-swap-sections',      'swapSections'],
+    ['flag-persist-sections',   'persistSectionState'],
     ['flag-persist-filter-bar', 'persistFilterBarState'],
+    ['flag-tenant-profiles',    'tenantScopedProfiles'],
   ].forEach(([id, key]) => {
     const btn = document.getElementById(id);
     if (btn) {
@@ -1103,6 +1111,43 @@ function _clearValidationErrors() {
   _clearFieldError('ticket-input', 'ticket-error');
 }
 
+// ── Activation execution (shared by handleActivate and post-CA-redirect resume) ─
+
+async function _executeActivation(cappedRoles, justification, ticketNumber) {
+  const activateLabel = 'Activating ' + cappedRoles.length + ' role' + (cappedRoles.length !== 1 ? 's' : '') + '…';
+  _opOverlay.open(activateLabel, cappedRoles);
+  try {
+    const outcome = await batchClient.bulkActivate(cappedRoles, {
+      justification,
+      ticketNumber,
+      onProgress: r => _opOverlay.update(r)
+    });
+    const results         = outcome.results || [];
+    const ok              = results.filter(r => r.success && !r.pendingApproval).length;
+    const pendingApproval = results.filter(r => r.pendingApproval).length;
+    const fail            = results.filter(r => !r.success).length;
+    _opOverlay.close(fail > 0 ? 2500 : 1400);
+    if (fail === 0 && pendingApproval === 0) {
+      showToast({ title: 'Successfully activated', description: _formatRoleOutcomeList(cappedRoles, results), type: 'success', debugInfo: results });
+    } else if (pendingApproval > 0 && ok === 0 && fail === 0) {
+      const roleWord = pendingApproval !== 1 ? 'roles' : 'role';
+      showToast({ title: 'Activation request sent', description: 'Awaiting approval for ' + pendingApproval + ' ' + roleWord + '\n' + _formatRoleOutcomeList(cappedRoles, results), type: 'info', duration: 8000, debugInfo: results });
+    } else if (pendingApproval > 0 && fail === 0) {
+      showToast({ title: ok + ' activated', description: pendingApproval + ' awaiting approval\n' + _formatRoleOutcomeList(cappedRoles, results), type: 'info', duration: 8000, debugInfo: results });
+    } else if (ok === 0 && pendingApproval === 0) {
+      const firstError = results.find(r => r.error)?.error || 'Activation failed';
+      showToast({ title: 'Activation failed', description: firstError + '\n\n' + _formatRoleOutcomeList(cappedRoles, results), type: 'error', debugInfo: results });
+    } else {
+      showToast({ title: (ok + pendingApproval) + ' submitted', description: fail + ' failed.\n' + _formatRoleOutcomeList(cappedRoles, results), type: 'warning', debugInfo: results });
+    }
+    await _refresh();
+  } catch (err) {
+    _opOverlay.close(0);
+    showToast({ title: 'Activation error', description: err.message, type: 'error', duration: 10000 });
+    console.error('[App] Activate error:', err);
+  }
+}
+
 // ── Activation handler ────────────────────────────────────────────────────────
 
 async function handleActivate() {
@@ -1152,6 +1197,7 @@ async function handleActivate() {
       return;
     }
     await profileManager.saveProfile(pName, _pendingRoles, {
+      tenantId:      _flags.tenantScopedProfiles ? portalAuth.getAccount()?.tenantId : null,
       justification,
       durationHours: hours,
       durationMins: mins,
@@ -1176,58 +1222,30 @@ async function handleActivate() {
 
   hideActivationModal();
 
-  // Proactive auth context step-up — collect unique acrs values from selected roles
-  // and acquire tokens with those claims before activation. Uses popup so the user
-  // can satisfy Conditional Access (MFA, compliant device, …) without navigating away.
+  // Proactive auth context step-up — collect unique acrs values from selected roles.
+  // Saves activation state to sessionStorage and uses acquireTokenRedirect (consistent with
+  // sign-in and MFA flows). Bootstrap resumes activation automatically on return.
   const authContextIds = [...new Set(
     cappedRoles
       .filter(r => r.requiresAuthContext && r.authContextId)
       .map(r => r.authContextId)
   )];
   if (authContextIds.length > 0) {
-    try {
-      showProgress('Completing authentication requirements\u2026');
-      await portalAuth.stepUpForAuthContexts(authContextIds, cappedRoles);
-      hideProgress();
-      // Thread the auth context claims into every subsequent token acquisition
-      // so both ARM and Graph tokens carry the required acrs claim.
-      portalAuth.setAuthContextClaims(authContextIds[0]);
-    } catch (err) {
-      hideProgress();
-      showToast({ title: 'Authentication failed', description: 'Step-up failed: ' + err.message, type: 'error', duration: 10000 });
-      console.error('[App] Auth context step-up error:', err);
-      return;
-    }
-  }
-
-  const activateLabel = 'Activating ' + cappedRoles.length + ' role' + (cappedRoles.length !== 1 ? 's' : '') + '\u2026';
-  _opOverlay.open(activateLabel, cappedRoles);
-
-  try {
-    const outcome = await batchClient.bulkActivate(cappedRoles, {
+    // Save the full activation intent so bootstrap can resume after the redirect returns.
+    sessionStorage.setItem(PENDING_ACTIVATION_KEY, JSON.stringify({
+      cappedRoles,
       justification,
       ticketNumber,
-      onProgress: r => _opOverlay.update(r)
-    });
-    const ok   = outcome.summary?.succeeded ?? outcome.results?.filter(r => r.success).length ?? 0;
-    const fail = outcome.summary?.failed    ?? outcome.results?.filter(r => !r.success).length ?? 0;
-    const pendingApproval = (outcome.results || []).filter(r => r.pendingApproval).length;
-    _opOverlay.close(fail > 0 ? 2500 : 1400);
-    if (fail === 0 && pendingApproval === 0) {
-      showToast({ title: 'Successfully activated', description: _formatRoleOutcomeList(cappedRoles, outcome.results), type: 'success', debugInfo: outcome.results });
-    } else if (pendingApproval > 0 && fail === 0) {
-      showToast({ title: ok + ' activated', description: pendingApproval + ' awaiting approval\n' + _formatRoleOutcomeList(cappedRoles, outcome.results), type: 'info', duration: 8000, debugInfo: outcome.results });
-    } else if (ok === 0 && pendingApproval === 0) {
-      const firstError = outcome.results?.find(r => r.error)?.error || 'Activation failed';
-      showToast({ title: 'Activation failed', description: firstError + '\n\n' + _formatRoleOutcomeList(cappedRoles, outcome.results), type: 'error', debugInfo: outcome.results });
-    } else {
-      showToast({ title: ok + ' role' + (ok !== 1 ? 's' : '') + ' activated', description: fail + ' failed.\n' + _formatRoleOutcomeList(cappedRoles, outcome.results), type: 'warning', debugInfo: outcome.results });
-    }
-    await _refresh();
-  } catch (err) {
-    _opOverlay.close(0);
-    showToast({ title: 'Activation error', description: err.message, type: 'error', duration: 10000 });
-    console.error('[App] Activate error:', err);
+      authContextId: authContextIds[0]
+    }));
+    showProgress('Redirecting for authentication…');
+    await portalAuth.stepUpForAuthContexts(authContextIds, cappedRoles);
+    // acquireTokenRedirect navigates away — execution does not continue here.
+    return;
+  }
+
+  try {
+    await _executeActivation(cappedRoles, justification, ticketNumber);
   } finally {
     portalAuth.setAuthContextClaims(null);
   }
@@ -1310,7 +1328,8 @@ async function _renderProfilesList() {
   const body = document.getElementById('profiles-modal-body');
   if (!body) return;
 
-  const profiles = await profileManager.getProfiles().catch(() => []);
+  const _profileTenantId = _flags.tenantScopedProfiles ? portalAuth.getAccount()?.tenantId : null;
+  const profiles = await profileManager.getProfiles(_profileTenantId).catch(() => []);
   const selected = roleManager.getSelectedEligibleRoles();
 
   let html = '';
@@ -1433,6 +1452,7 @@ async function _handleSaveProfile() {
   const roles = roleManager.getSelectedEligibleRoles();
   if (!roles.length) { showToast({ title: 'No roles', description: 'Select eligible roles first.', type: 'warning' }); return; }
   const opts = {
+    tenantId:      _flags.tenantScopedProfiles ? portalAuth.getAccount()?.tenantId : null,
     justification: justInput?.value.trim() || '',
     durationHours: parseInt(hrsInput?.value  || '8', 10) || 0,
     durationMins:  parseInt(minsInput?.value || '0', 10) || 0
@@ -1755,6 +1775,15 @@ async function bootstrap() {
     }
   });
 
+  // Per-tenant profiles toggle
+  document.getElementById('flag-tenant-profiles')?.addEventListener('click', () => {
+    const on = !_flags.tenantScopedProfiles;
+    _flags.tenantScopedProfiles = on;
+    localStorage.setItem(FLAGS_KEY, JSON.stringify(_flags));
+    const btn = document.getElementById('flag-tenant-profiles');
+    if (btn) { btn.classList.toggle('active', on); btn.setAttribute('aria-checked', on); }
+  });
+
   // Settings group collapse toggles
   document.querySelectorAll('.settings-group-toggle').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -2023,6 +2052,24 @@ async function bootstrap() {
 
   // ── Load roles ─────────────────────────────────────────────────────────────
   _refresh();
+
+  // ── Resume pending activation after CA auth-context redirect ──────────────
+  // If handleActivate saved activation state before an acquireTokenRedirect for
+  // Conditional Access step-up, resume the activation now that we're back.
+  const _savedActivation = sessionStorage.getItem(PENDING_ACTIVATION_KEY);
+  if (_savedActivation) {
+    sessionStorage.removeItem(PENDING_ACTIVATION_KEY);
+    try {
+      const { cappedRoles, justification, ticketNumber, authContextId } = JSON.parse(_savedActivation);
+      portalAuth.setAuthContextClaims(authContextId);
+      await _executeActivation(cappedRoles, justification, ticketNumber);
+    } catch (err) {
+      showToast({ title: 'Activation failed', description: 'Could not resume after authentication: ' + err.message, type: 'error', duration: 10000 });
+      console.error('[App] Post-redirect activation error:', err);
+    } finally {
+      portalAuth.setAuthContextClaims(null);
+    }
+  }
 }
 
 // No-op (removed duplicate definition)

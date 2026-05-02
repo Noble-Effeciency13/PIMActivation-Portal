@@ -179,9 +179,9 @@ async function getGraphTokenWithAuthContext(authContextId) {
 
 /**
  * Proactively step up authentication for Conditional Access auth context IDs.
- * Opens an MSAL popup so the user can satisfy Conditional Access (MFA,
- * compliant device, etc.) without navigating away from the page.
- * Returns normally when the popup completes; throws on cancellation or failure.
+ * Uses acquireTokenRedirect (same flow as sign-in and MFA challenges) so the
+ * user never sees a popup window. The page navigates away to Microsoft and
+ * returns; bootstrap detects the saved PENDING_ACTIVATION_KEY and resumes.
  *
  * @param {string[]} authContextIds  - unique auth context IDs (e.g. 'c2', 'c3')
  * @param {object[]} roles           - the roles being activated
@@ -197,8 +197,8 @@ async function stepUpForAuthContexts(authContextIds, roles) {
     access_token: { acrs: { essential: true, value: authContextIds[0] } }
   });
 
-  await msalInstance.acquireTokenPopup({ scopes, account: _account, authority: _authority(), claims });
-  // Returns normally — caller continues with activation
+  await msalInstance.acquireTokenRedirect({ scopes, account: _account, authority: _authority(), claims });
+  // Page navigates away — execution does not continue here.
 }
 
 /**
