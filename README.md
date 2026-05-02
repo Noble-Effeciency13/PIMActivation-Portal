@@ -45,7 +45,7 @@ The portal is a fully static single-page application. There is no backend, no pr
 ## Security
 
 ### No backend, no data retention
-The portal has no server component. There is nothing to breach server-side because there is no server. All tokens stay in browser memory (never `localStorage`); MSAL's default token cache is used.
+The portal has no server component. There is nothing to breach server-side because there is no server. All tokens are stored in `sessionStorage` (never `localStorage`): they are cleared when the tab is closed and are not shared across tabs. They are readable by same-origin JavaScript, so no XSS vulnerability must exist in the portal.
 
 ### Delegated permissions only
 The application uses delegated Microsoft Graph and ARM permissions exclusively. It can only do what the signed-in user is permitted to do. There is no application permission, no service principal secret, and no stored credential anywhere in the codebase.
