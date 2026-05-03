@@ -1,3 +1,6 @@
 .env
 .claude/*
 .local/*
+
+# E2E tests
+e2e/*
