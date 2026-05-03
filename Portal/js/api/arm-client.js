@@ -325,7 +325,7 @@ async function getAzureRolePolicy(scopeId, roleDefinitionId) {
   let policyId = null;
   let nextUrl  = `${ARM_BASE}${scopeId}/providers/Microsoft.Authorization/roleManagementPolicyAssignments` +
                  `?api-version=2020-10-01-preview` +
-                 `&$filter=roleDefinitionId eq '${encodeURIComponent(roleDefinitionId)}'`;
+                 `&$filter=roleDefinitionId eq '${encodeURIComponent(_armOdataEscape(roleDefinitionId))}'`;
 
   while (nextUrl && !policyId) {
     const listResp = await fetch(nextUrl, { headers });
@@ -380,7 +380,7 @@ async function getPendingAzureRequests() {
   const items = [];
   let url = `${ARM_BASE}/providers/Microsoft.Authorization/roleAssignmentScheduleRequests` +
             `?api-version=${ARM_VERSION_REQ}` +
-            `&$filter=principalId eq '${userId}'` +
+            `&$filter=principalId eq '${_armOdataEscape(userId)}'` +
             `&$expand=expandedProperties`;
 
   while (url) {
@@ -427,6 +427,9 @@ function _formatScope(scopePath, displayName) {
   if (s)   return s[1];
   return scopePath;
 }
+
+/** Escape a value for use inside an OData single-quoted string literal (doubles any ' character). */
+const _armOdataEscape = s => String(s).replace(/'/g, "''");
 
 function _normalizeScopeId(scopeId) {
   const scope = String(scopeId || '').trim();

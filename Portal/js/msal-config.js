@@ -22,8 +22,7 @@ window.msalConfig = {
     postLogoutRedirectUri: window.location.origin
   },
   cache: {
-    cacheLocation:        'sessionStorage',
-    storeAuthStateInCookie: false
+    cacheLocation: 'sessionStorage',
   },
   system: {
     loggerOptions: {

@@ -324,17 +324,25 @@ a { color: var(--primary); text-decoration: none; }
   display: none;
 }
 .quick-dropdown-item {
-  width:         100%;
-  text-align:    left;
-  padding:       8px 12px;
-  background:    none;
-  border:        none;
-  color:         var(--text);
-  font-size:     13px;
-  font-family:   inherit;
-  cursor:        pointer;
-  border-radius: var(--radius-xs);
-  transition:    background 0.1s;
+  display:         flex;
+  align-items:     center;
+  gap:             8px;
+  width:           100%;
+  text-align:      left;
+  padding:         8px 12px;
+  background:      none;
+  border:          none;
+  color:           var(--text);
+  font-size:       13px;
+  font-family:     inherit;
+  cursor:          pointer;
+  border-radius:   var(--radius-xs);
+  transition:      background 0.1s;
+  text-decoration: none;
+}
+.quick-dropdown-item svg { flex-shrink: 0; color: var(--text-muted); }
+@media (hover: hover) and (pointer: fine) {
+  .quick-dropdown-item:hover svg { color: var(--primary); }
 }
 @media (hover: hover) and (pointer: fine) {
 
@@ -517,10 +525,106 @@ a { color: var(--primary); text-decoration: none; }
 }
 
 /* ── Help modal ───────────────────────────────────────────────────────────── */
-.help-body    { gap: 20px; }
-.help-section { display: flex; flex-direction: column; gap: 6px; }
-.help-section-title { font-size: 13px; font-weight: 600; color: var(--text); }
-.help-section p     { font-size: 13px; color: var(--text-muted); line-height: 1.55; }
+.help-body              { gap: 0; }
+[id^="help-content-"]   { display: flex; flex-direction: column; gap: 16px; }
+.help-section           { display: flex; flex-direction: column; gap: 8px; }
+.help-section-title     { font-size: 13px; font-weight: 600; color: var(--text); }
+.help-section p         { font-size: 13px; color: var(--text-muted); line-height: 1.55; margin: 0; }
+
+.help-eyebrow {
+  font-size:      10px;
+  font-weight:    700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color:          var(--primary);
+}
+
+/* Numbered steps */
+.help-steps    { display: flex; flex-direction: column; gap: 10px; }
+.help-step     { display: flex; gap: 12px; align-items: flex-start; }
+.help-step-num {
+  width:           22px; height: 22px; min-width: 22px;
+  border-radius:   50%;
+  background:      var(--primary-dim);
+  color:           var(--primary);
+  font-size:       11px; font-weight: 700;
+  display:         flex; align-items: center; justify-content: center;
+  margin-top:      1px;
+}
+.help-step-body  { display: flex; flex-direction: column; gap: 2px; }
+.help-step-label { font-size: 13px; font-weight: 600; color: var(--text); }
+.help-step-desc  { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+
+/* Callout boxes */
+.help-callout {
+  display:       flex; gap: 10px;
+  padding:       10px 12px;
+  border-radius: var(--radius-sm);
+  border-left:   3px solid var(--primary);
+  background:    var(--primary-dim);
+}
+.help-callout--success              { border-left-color: var(--success); background: var(--success-dim); }
+.help-callout-icon                  { flex-shrink: 0; margin-top: 1px; color: var(--primary); }
+.help-callout--success .help-callout-icon { color: var(--success); }
+.help-callout-body                  { display: flex; flex-direction: column; gap: 2px; }
+.help-callout-title                 { font-size: 12px; font-weight: 700; color: var(--text); }
+.help-callout-text                  { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+
+/* Feature cards */
+.help-feature-grid {
+  display:               grid;
+  grid-template-columns: 1fr 1fr;
+  gap:                   8px;
+}
+.help-feature-card {
+  display:        flex; flex-direction: column; gap: 5px;
+  padding:        10px 12px;
+  background:     var(--bg-raised);
+  border:         1px solid var(--border);
+  border-radius:  var(--radius-sm);
+}
+.help-feature-card--highlight              { border-color: var(--primary); background: var(--primary-dim); }
+.help-feature-card--success                { border-color: var(--success); background: var(--success-dim); }
+.help-feature-card--highlight .help-feature-icon { color: var(--primary); }
+.help-feature-card--success   .help-feature-icon { color: var(--success); }
+.help-feature-icon  { color: var(--text-muted); }
+.help-feature-title { font-size: 12px; font-weight: 700; color: var(--text); }
+.help-feature-desc  { font-size: 11px; color: var(--text-muted); line-height: 1.45; }
+
+/* Token / data storage table */
+.help-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.help-table th {
+  text-align:     left; padding: 4px 8px 6px;
+  font-size:      10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  color:          var(--text-faint);
+  border-bottom:  1px solid var(--border);
+}
+.help-table td {
+  padding:        6px 8px;
+  color:          var(--text-muted);
+  border-bottom:  1px solid var(--border);
+  vertical-align: top;
+}
+.help-table td:first-child   { color: var(--text); font-weight: 500; }
+.help-table tr:last-child td  { border-bottom: none; }
+
+/* Architecture flow */
+.help-flow      { display: flex; flex-direction: column; gap: 4px; margin: 2px 0; }
+.help-flow-item {
+  display:     flex; align-items: center; gap: 8px;
+  font-size:   12px; color: var(--text-muted); padding: 2px 0;
+}
+.help-flow-item::before {
+  content: ''; width: 6px; height: 6px; min-width: 6px;
+  border-radius: 50%; background: var(--primary); opacity: 0.7;
+}
+
+/* FAQ */
+.help-faq      { display: flex; flex-direction: column; gap: 12px; }
+.help-faq-item { display: flex; flex-direction: column; gap: 3px; }
+.help-faq-q    { font-size: 13px; font-weight: 600; color: var(--text); }
+.help-faq-a    { font-size: 12px; color: var(--text-muted); line-height: 1.55; }
 .theme-option {
   display:    block;
   width:      100%;
@@ -1622,7 +1726,30 @@ body.show-inactive-policies .pol-none-label {
 .settings-hr {
   border:     none;
   border-top: 1px solid var(--border);
-  margin:     20px 0;
+  margin:     12px 0;
+}
+
+/* Collapsible settings groups */
+.settings-group-toggle {
+  display:     flex;
+  align-items: center;
+  gap:         8px;
+  width:       100%;
+  padding:     8px 0;
+  background:  none;
+  border:      none;
+  cursor:      pointer;
+  font-size:   13px;
+  font-weight: 600;
+  color:       var(--text);
+  text-align:  left;
+}
+.settings-group-toggle svg { transition: transform 0.2s ease; flex-shrink: 0; }
+.settings-group.collapsed .settings-group-toggle svg { transform: rotate(-90deg); }
+.settings-group-body { display: flex; flex-direction: column; gap: 16px; padding-top: 4px; }
+.settings-group.collapsed .settings-group-body { display: none; }
+@media (hover: hover) and (pointer: fine) {
+  .settings-group-toggle:hover { color: var(--accent); }
 }
 
 /* Flag pills (PIM surfaces) */

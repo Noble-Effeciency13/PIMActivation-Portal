@@ -16,8 +16,8 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/favicons/apple-touch-icon.png">
   <meta name="apple-mobile-web-app-title" content="PIM">
   <link rel="manifest" href="/favicons/site.webmanifest">
-  <!-- MSAL 2.x from jsDelivr (must be synchronous — app scripts depend on it) -->
-  <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.39.0/lib/msal-browser.min.js"
+  <!-- MSAL 5.x from jsDelivr (must be synchronous — app scripts depend on it) -->
+  <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@5.9.0/lib/msal-browser.min.js"
     crossorigin="anonymous"></script>
   <link rel="stylesheet" href="css/portal.css">
 </head>
@@ -61,10 +61,26 @@
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
           </button>
           <div class="quick-dropdown" id="help-dropdown" hidden>
-            <button class="quick-dropdown-item" data-help="guide">Manual</button>
-            <button class="quick-dropdown-item" data-help="how-it-works">How it works</button>
-            <button class="quick-dropdown-item" data-help="features">Features</button>
-            <button class="quick-dropdown-item" data-help="faq">FAQ</button>
+            <button class="quick-dropdown-item" data-help="guide">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 0 3-3h7z"/></svg>
+              Manual
+            </button>
+            <button class="quick-dropdown-item" data-help="features">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              Features
+            </button>
+            <button class="quick-dropdown-item" data-help="how-it-works">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="14" r="4"/><path d="M8 10V8M8 18V20M4 14H2M12 14H14M5.2 11.2l-1.4-1.4M10.8 16.8l1.4 1.4M10.8 11.2l1.4-1.4M5.2 16.8l-1.4 1.4"/><circle cx="15" cy="7" r="2"/><path d="M15 5V3.5M15 9V10.5M13 7H11.5M17 7H18.5M13.6 8.4l-1.1 1.1"/></svg>
+              How it works
+            </button>
+            <button class="quick-dropdown-item" data-help="faq">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+              FAQ
+            </button>
+            <a class="quick-dropdown-item" href="https://github.com/Noble-Effeciency13/PIMActivation-Portal/issues" target="_blank" rel="noopener noreferrer">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              Report issue
+            </a>
           </div>
         </div>
         <button class="icon-btn icon-btn-signout" id="sign-out-btn" aria-label="Sign out" title="Sign out">
@@ -349,33 +365,6 @@
       </div>
       <div class="modal-body">
 
-        <!-- PIM surfaces -->
-        <div class="settings-row">
-          <div class="settings-info">
-            <div class="settings-title">PIM surfaces</div>
-            <div class="settings-desc">Enable only what you need — consent is requested per surface.</div>
-          </div>
-          <div class="flag-pills">
-            <button class="flag-pill active" type="button" data-flag="entra" aria-pressed="true" title="Directory roles (Global Reader, User Admin, …)">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>
-              Entra roles
-              <span class="flag-dot" aria-hidden="true"></span>
-            </button>
-            <button class="flag-pill active" type="button" data-flag="azure" aria-pressed="true" title="Subscription / RG / resource-scoped RBAC">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
-              Azure resources
-              <span class="flag-dot" aria-hidden="true"></span>
-            </button>
-            <button class="flag-pill active" type="button" data-flag="group" aria-pressed="true" title="Just-in-time Member / Owner access">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-              PIM for Groups
-              <span class="flag-dot" aria-hidden="true"></span>
-            </button>
-          </div>
-        </div>
-
-        <hr class="settings-hr">
-
         <!-- Default duration -->
         <div class="settings-row">
           <div class="settings-info">
@@ -385,78 +374,6 @@
           <div class="settings-dur-ctrl">
             <input type="number" id="settings-default-duration" class="form-input settings-dur-input" min="0.5" max="24" step="0.5" value="8" aria-label="Default duration in hours">
             <span class="settings-dur-label">hours</span>
-          </div>
-        </div>
-
-        <hr class="settings-hr">
-
-        <!-- Show active in eligible list -->
-        <div class="settings-row">
-          <div class="settings-info">
-            <div class="settings-title">Show active roles in eligible list</div>
-            <div class="settings-desc">If disabled, already-active roles are hidden from the eligible table.</div>
-          </div>
-          <button class="toggle-switch" id="flag-show-active" type="button" role="switch" aria-checked="false">
-            <span class="toggle-thumb" aria-hidden="true"></span>
-          </button>
-        </div>
-
-        <div class="settings-row">
-          <div class="settings-info">
-            <div class="settings-title">Show inactive policies</div>
-            <div class="settings-desc">Display inactive policies (e.g. MFA) as greyed-out labels.</div>
-          </div>
-          <button class="toggle-switch" id="flag-show-inactive" type="button" role="switch" aria-checked="false">
-            <span class="toggle-thumb" aria-hidden="true"></span>
-          </button>
-        </div>
-
-        <hr class="settings-hr">
-
-        <!-- Swap sections -->
-        <div class="settings-row">
-          <div class="settings-info">
-            <div class="settings-title">Eligible roles on top</div>
-            <div class="settings-desc">Show eligible roles above active roles.</div>
-          </div>
-          <button class="toggle-switch" id="flag-swap-sections" type="button" role="switch" aria-checked="false">
-            <span class="toggle-thumb" aria-hidden="true"></span>
-          </button>
-        </div>
-
-        <div class="settings-row">
-          <div class="settings-info">
-            <div class="settings-title">Remember collapsed sections</div>
-            <div class="settings-desc">Sections remember their collapsed/expanded state across refreshes. Turn off to always expand all sections on load.</div>
-          </div>
-          <button class="toggle-switch" id="flag-persist-sections" type="button" role="switch" aria-checked="false">
-            <span class="toggle-thumb" aria-hidden="true"></span>
-          </button>
-        </div>
-
-        <div class="settings-row">
-          <div class="settings-info">
-            <div class="settings-title">Remember filter bar state</div>
-            <div class="settings-desc">Remembers whether the eligible roles filter bar is expanded or collapsed across refreshes.</div>
-          </div>
-          <button class="toggle-switch" id="flag-persist-filter-bar" type="button" role="switch" aria-checked="false">
-            <span class="toggle-thumb" aria-hidden="true"></span>
-          </button>
-        </div>
-
-        <hr class="settings-hr">
-
-        <!-- Appearance -->
-        <div class="settings-row">
-          <div class="settings-info">
-            <div class="settings-title">Appearance</div>
-            <div class="settings-desc">Choose your preferred color theme.</div>
-          </div>
-          <div class="theme-grid">
-            <button class="theme-card active" data-theme="system">System default</button>
-            <button class="theme-card" data-theme="dark">Dark</button>
-            <button class="theme-card" data-theme="light">Light</button>
-            <button class="theme-card" data-theme="hc">High Contrast</button>
           </div>
         </div>
 
@@ -477,6 +394,131 @@
               <input type="checkbox" id="flag-quick-inactive">
               <span class="form-label" style="margin:0">Inactive policies toggle</span>
             </label>
+          </div>
+        </div>
+
+        <hr class="settings-hr">
+
+        <!-- Appearance -->
+        <div class="settings-row">
+          <div class="settings-info">
+            <div class="settings-title">Appearance</div>
+            <div class="settings-desc">Choose your preferred color theme.</div>
+          </div>
+          <div class="theme-grid">
+            <button class="theme-card active" data-theme="system">System default</button>
+            <button class="theme-card" data-theme="dark">Dark</button>
+            <button class="theme-card" data-theme="light">Light</button>
+            <button class="theme-card" data-theme="hc">High Contrast</button>
+          </div>
+        </div>
+
+        <hr class="settings-hr">
+
+        <!-- Section settings (collapsible) -->
+        <div class="settings-group" id="settings-group-section">
+          <button class="settings-group-toggle" type="button" aria-expanded="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+            <span>Section settings</span>
+          </button>
+          <div class="settings-group-body">
+
+            <div class="settings-row">
+              <div class="settings-info">
+                <div class="settings-title">Show active roles in eligible list</div>
+                <div class="settings-desc">If disabled, already-active roles are hidden from the eligible table.</div>
+              </div>
+              <button class="toggle-switch" id="flag-show-active" type="button" role="switch" aria-checked="false">
+                <span class="toggle-thumb" aria-hidden="true"></span>
+              </button>
+            </div>
+
+            <div class="settings-row">
+              <div class="settings-info">
+                <div class="settings-title">Show inactive policies</div>
+                <div class="settings-desc">Display inactive policies (e.g. MFA) as greyed-out labels.</div>
+              </div>
+              <button class="toggle-switch" id="flag-show-inactive" type="button" role="switch" aria-checked="false">
+                <span class="toggle-thumb" aria-hidden="true"></span>
+              </button>
+            </div>
+
+            <div class="settings-row">
+              <div class="settings-info">
+                <div class="settings-title">Eligible roles on top</div>
+                <div class="settings-desc">Show eligible roles above active roles.</div>
+              </div>
+              <button class="toggle-switch" id="flag-swap-sections" type="button" role="switch" aria-checked="false">
+                <span class="toggle-thumb" aria-hidden="true"></span>
+              </button>
+            </div>
+
+            <div class="settings-row">
+              <div class="settings-info">
+                <div class="settings-title">Remember collapsed sections</div>
+                <div class="settings-desc">Sections remember their collapsed/expanded state across refreshes. Turn off to always expand all sections on load.</div>
+              </div>
+              <button class="toggle-switch" id="flag-persist-sections" type="button" role="switch" aria-checked="false">
+                <span class="toggle-thumb" aria-hidden="true"></span>
+              </button>
+            </div>
+
+            <div class="settings-row">
+              <div class="settings-info">
+                <div class="settings-title">Remember filter bar state</div>
+                <div class="settings-desc">Remembers whether the eligible roles filter bar is expanded or collapsed across refreshes.</div>
+              </div>
+              <button class="toggle-switch" id="flag-persist-filter-bar" type="button" role="switch" aria-checked="false">
+                <span class="toggle-thumb" aria-hidden="true"></span>
+              </button>
+            </div>
+
+            <div class="settings-row">
+              <div class="settings-info">
+                <div class="settings-title">Per-tenant profiles</div>
+                <div class="settings-desc">Show only profiles saved for the current tenant. Profiles saved while this is off are visible in all tenants.</div>
+              </div>
+              <button class="toggle-switch active" id="flag-tenant-profiles" type="button" role="switch" aria-checked="true">
+                <span class="toggle-thumb" aria-hidden="true"></span>
+              </button>
+            </div>
+
+          </div>
+        </div>
+
+        <hr class="settings-hr">
+
+        <!-- PIM surfaces (collapsible) -->
+        <div class="settings-group collapsed" id="settings-group-pim">
+          <button class="settings-group-toggle" type="button" aria-expanded="false">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+            <span>PIM surfaces</span>
+          </button>
+          <div class="settings-group-body">
+
+            <div class="settings-row">
+              <div class="settings-info">
+                <div class="settings-desc">Enable only what you need — consent is requested per surface.</div>
+              </div>
+              <div class="flag-pills">
+                <button class="flag-pill active" type="button" data-flag="entra" aria-pressed="true" title="Directory roles (Global Reader, User Admin, …)">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>
+                  Entra roles
+                  <span class="flag-dot" aria-hidden="true"></span>
+                </button>
+                <button class="flag-pill active" type="button" data-flag="azure" aria-pressed="true" title="Subscription / RG / resource-scoped RBAC">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+                  Azure resources
+                  <span class="flag-dot" aria-hidden="true"></span>
+                </button>
+                <button class="flag-pill active" type="button" data-flag="group" aria-pressed="true" title="Just-in-time Member / Owner access">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                  PIM for Groups
+                  <span class="flag-dot" aria-hidden="true"></span>
+                </button>
+              </div>
+            </div>
+
           </div>
         </div>
 
@@ -656,22 +698,99 @@
         </button>
       </div>
       <div class="modal-body help-body">
+
         <!-- Manual / Guide -->
         <div id="help-content-guide">
           <div class="help-section">
-            <span class="help-eyebrow">Basics</span>
-            <div class="help-section-title">Quick start</div>
-            <p>Select one or more eligible roles in the <strong>Eligible Roles</strong> table, then click <strong>Activate</strong>. Fill in the duration and any required justification or ticket number, then confirm.</p>
+            <span class="help-eyebrow">Quick Start</span>
+            <div class="help-section-title">Activate a role in 3 steps</div>
+            <div class="help-steps">
+              <div class="help-step">
+                <div class="help-step-num">1</div>
+                <div class="help-step-body">
+                  <div class="help-step-label">Sign in</div>
+                  <div class="help-step-desc">Authenticate via the Microsoft button.</div>
+                </div>
+              </div>
+              <div class="help-step">
+                <div class="help-step-num">2</div>
+                <div class="help-step-body">
+                  <div class="help-step-label">Select roles</div>
+                  <div class="help-step-desc">Check one or more eligible roles in the table. Entra, Azure, and Group roles can be mixed in one selection.</div>
+                </div>
+              </div>
+              <div class="help-step">
+                <div class="help-step-num">3</div>
+                <div class="help-step-body">
+                  <div class="help-step-label">Activate</div>
+                  <div class="help-step-desc">Click <strong>Activate</strong>, set duration (capped by policy), add justification if required, and confirm.</div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="help-section">
-            <span class="help-eyebrow">Advanced</span>
-            <div class="help-section-title">Bulk operations</div>
-            <p>You can select multiple roles at once across Entra, Azure, and Groups. All selected roles are submitted in a single batch — each role's policy (max duration, MFA, approval) is respected individually.</p>
+          <div class="help-callout">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="help-callout-icon" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            <div class="help-callout-body">
+              <div class="help-callout-title">Multiple tenants?</div>
+              <div class="help-callout-text">Use the tenant selector in the header — repeat the 3 steps above for each tenant independently.</div>
+            </div>
           </div>
+          <div class="help-callout help-callout--success">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="help-callout-icon" aria-hidden="true"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
+            <div class="help-callout-body">
+              <div class="help-callout-title">Done this before?</div>
+              <div class="help-callout-text">Open <strong>Profiles</strong> and load a saved selection — it skips step 2 entirely and pre-fills duration and justification.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Features -->
+        <div id="help-content-features" hidden>
           <div class="help-section">
-            <span class="help-eyebrow">Profiles</span>
-            <div class="help-section-title">Activation profiles</div>
-            <p>Click <strong>Profiles</strong> to save your current selection. Profiles store role IDs, durations, and justifications in your browser's IndexedDB for one-click reuse.</p>
+            <span class="help-eyebrow">All Capabilities</span>
+            <div class="help-section-title">What this portal can do</div>
+            <div class="help-feature-grid">
+              <div class="help-feature-card help-feature-card--highlight">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="help-feature-icon" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                <div class="help-feature-title">Cross-Tenant</div>
+                <div class="help-feature-desc">Manage roles across multiple tenants. Each tenant authenticates independently with its own isolated session.</div>
+              </div>
+              <div class="help-feature-card help-feature-card--success">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="help-feature-icon" aria-hidden="true"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
+                <div class="help-feature-title">Activation Profiles</div>
+                <div class="help-feature-desc">Save named combinations of roles, duration, and justification for one-click reuse.</div>
+              </div>
+              <div class="help-feature-card">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="help-feature-icon" aria-hidden="true"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+                <div class="help-feature-title">Bulk Activation</div>
+                <div class="help-feature-desc">Select and activate roles across Entra, Azure, and Groups in a single batch submission.</div>
+              </div>
+              <div class="help-feature-card">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="help-feature-icon" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                <div class="help-feature-title">Policy Enforcement</div>
+                <div class="help-feature-desc">Duration caps, MFA step-up, and justification or ticket validation — enforced per-role automatically.</div>
+              </div>
+              <div class="help-feature-card">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="help-feature-icon" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <div class="help-feature-title">Expiry Tracking</div>
+                <div class="help-feature-desc">Live countdown timers and color-coded warnings — know exactly when each active role expires.</div>
+              </div>
+              <div class="help-feature-card">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="help-feature-icon" aria-hidden="true"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                <div class="help-feature-title">Smart Filtering</div>
+                <div class="help-feature-desc">Instant search, surface grouping, custom quick filters, and persistent filter bar state.</div>
+              </div>
+              <div class="help-feature-card">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="help-feature-icon" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                <div class="help-feature-title">Quick Actions</div>
+                <div class="help-feature-desc">Pin Appearance and the inactive policies toggle to the header for instant access.</div>
+              </div>
+              <div class="help-feature-card">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="help-feature-icon" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                <div class="help-feature-title">Zero Backend</div>
+                <div class="help-feature-desc">Static SPA — all calls go directly to Microsoft Graph and ARM. No server, no proxy, no secrets stored.</div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -679,41 +798,54 @@
         <div id="help-content-how-it-works" hidden>
           <div class="help-section">
             <span class="help-eyebrow">Architecture</span>
-            <div class="help-section-title">Zero-Backend SPA</div>
-            <p>This portal is a fully static single-page application. It talks directly to Microsoft Graph and Azure Resource Manager API endpoints using your delegated user token. No backend, no proxy, and no secrets are stored on any server.</p>
+            <div class="help-section-title">Direct API access, no backend</div>
+            <p>A fully static single-page application. Your browser authenticates via MSAL and calls Microsoft Graph and ARM directly — no backend, no proxy. Switching tenants starts a fresh auth flow; each tenant's token and session are fully isolated.</p>
+            <div class="help-flow">
+              <div class="help-flow-item">Browser authenticates via MSAL → Entra ID</div>
+              <div class="help-flow-item">Entra ID issues an access token (held in memory only)</div>
+              <div class="help-flow-item">Portal calls Microsoft Graph / ARM APIs directly</div>
+              <div class="help-flow-item">No backend — no proxy — nothing touches a server</div>
+            </div>
           </div>
           <div class="help-section">
-            <span class="help-eyebrow">Logic</span>
-            <div class="help-section-title">Direct Integration</div>
-            <p>By using the MSAL library, we authenticate you directly against Entra ID. The portal then orchestrates the PIM API calls on your behalf, ensuring your credentials never leave your browser session.</p>
-          </div>
-        </div>
-
-        <!-- Features -->
-        <div id="help-content-features" hidden>
-          <div class="help-section">
-            <span class="help-eyebrow">Capabilities</span>
-            <div class="help-section-title">Core Features</div>
-            <ul>
-              <li><strong>Multi-Surface</strong> — Bulk activation across Entra, Azure Resource roles, and PIM for Groups.</li>
-              <li><strong>Policy Enforcement</strong> — Automatic duration capping, justification validation, and ticket field handling.</li>
-              <li><strong>Step-up MFA</strong> — Full support for Conditional Access auth-context step-up when policies require it.</li>
-              <li><strong>Expiry Tracking</strong> — Real-time countdown timers and colour-coded warnings for active roles.</li>
-              <li><strong>Smart Filtering</strong> — Instant search and grouping by surface type.</li>
-            </ul>
+            <span class="help-eyebrow">Token &amp; Data Storage</span>
+            <div class="help-section-title">What lives where</div>
+            <table class="help-table">
+              <thead>
+                <tr><th>What</th><th>Where stored</th><th>Lifetime</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Access tokens</td><td>In-memory (MSAL)</td><td>~1 hr, auto-refreshed</td></tr>
+                <tr><td>Refresh tokens</td><td>sessionStorage</td><td>Tab lifetime</td></tr>
+                <tr><td>Activation profiles</td><td>IndexedDB (local)</td><td>Until deleted</td></tr>
+                <tr><td>Settings &amp; flags</td><td>localStorage</td><td>Persistent</td></tr>
+              </tbody>
+            </table>
           </div>
         </div>
 
         <!-- FAQ -->
         <div id="help-content-faq" hidden>
-          <div class="help-section">
-            <span class="help-eyebrow">Q&A</span>
-            <div class="help-section-title">Frequently Asked Questions</div>
-            <p><strong>Does it store my tokens?</strong> No, tokens are kept in browser memory and handled by MSAL.</p>
-            <p><strong>Does it need admin consent?</strong> Only if your tenant requires it for delegated permissions like reading role eligibility.</p>
-            <p><strong>Can I use it with my own app?</strong> Yes, the self-hosted version allows providing your own Client ID and Tenant ID.</p>
+          <div class="help-faq">
+            <div class="help-faq-item">
+              <div class="help-faq-q">Are my tokens stored anywhere?</div>
+              <div class="help-faq-a">Access tokens are in MSAL's in-memory cache only — never written to disk. Refresh tokens use sessionStorage and are cleared when the tab closes. See <em>How it works</em> for the full breakdown.</div>
+            </div>
+            <div class="help-faq-item">
+              <div class="help-faq-q">Is anything sent to a backend?</div>
+              <div class="help-faq-a">No. There is no backend. Every call goes directly from your browser to Microsoft's Graph and ARM endpoints — the app is static files only.</div>
+            </div>
+            <div class="help-faq-item">
+              <div class="help-faq-q">Does it need admin consent?</div>
+              <div class="help-faq-a">Delegated permissions to read PIM role eligibility may require admin consent. The portal will prompt if additional consent is needed.</div>
+            </div>
+            <div class="help-faq-item">
+              <div class="help-faq-q">Can I self-host it?</div>
+              <div class="help-faq-a">Yes. Provide your own Client ID and Tenant ID in the MSAL config. The portal is a static HTML/JS/CSS bundle — host it anywhere (Azure Static Web Apps, GitHub Pages, etc.). Go back to the home site for self-hosting option.</div>
+            </div>
           </div>
         </div>
+
       </div>
       <div class="modal-footer">
         <button class="btn btn-primary btn-sm" id="help-modal-close-footer">OK</button>

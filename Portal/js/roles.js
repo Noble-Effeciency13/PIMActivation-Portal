@@ -1037,7 +1037,7 @@ class RoleManager {
 
   _loadRoleCache(tenantId) {
     try {
-      const raw = localStorage.getItem(ROLES_CACHE_KEY);
+      const raw = sessionStorage.getItem(ROLES_CACHE_KEY);
       if (!raw) return null;
       const parsed = JSON.parse(raw);
       if (parsed.v !== 1)                       return null;
@@ -1053,7 +1053,7 @@ class RoleManager {
       const tenantId = portalAuth.getAccount()?.tenantId
                      || portalAuth.getAccount()?.idTokenClaims?.tid
                      || 'default';
-      localStorage.setItem(ROLES_CACHE_KEY, JSON.stringify({
+      sessionStorage.setItem(ROLES_CACHE_KEY, JSON.stringify({
         v:               1,
         ts:              Date.now(),
         tenantId,
@@ -1064,7 +1064,7 @@ class RoleManager {
       }));
     } catch (err) {
       if (err.name === 'QuotaExceededError' || err.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
-        console.warn('[Roles] Cache write skipped — localStorage quota exceeded');
+        console.warn('[Roles] Cache write skipped — sessionStorage quota exceeded');
       }
     }
   }
