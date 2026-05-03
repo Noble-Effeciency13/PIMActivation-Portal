@@ -66,8 +66,10 @@ async function initAuth() {
  * picks up the response on the way back.
  */
 async function signIn() {
+  // Include ARM scope alongside Graph scopes so the admin/user only sees
+  // a single consent prompt covering all required permissions.
   await msalInstance.loginRedirect({
-    scopes: window.GRAPH_SCOPES,
+    scopes: [...window.GRAPH_SCOPES, window.ARM_SCOPE],
     prompt: 'select_account'
   });
   // Page navigates away — execution does not continue here.
@@ -222,9 +224,10 @@ async function grantArmConsent() {
 async function switchTenant(tenantId) {
   // Persist before the redirect so initAuth() restores the right account on return
   sessionStorage.setItem(PREFERRED_TENANT_KEY, tenantId);
+  // Include ARM scope so both Graph and ARM are consented in one single prompt.
   await msalInstance.loginRedirect({
     authority: `https://login.microsoftonline.com/${tenantId}`,
-    scopes:     window.GRAPH_SCOPES,
+    scopes:     [...window.GRAPH_SCOPES, window.ARM_SCOPE],
     loginHint:  _account?.username,
   });
   // Page navigates away — execution does not continue here.
