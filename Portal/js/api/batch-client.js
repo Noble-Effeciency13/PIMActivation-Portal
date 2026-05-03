@@ -19,7 +19,7 @@ const AZURE_PARALLEL_LIMIT = 4;
 
 /**
  * @param {object[]} roles   — array of role descriptors (uid, type, id, ...)
- * @param {object}   options — { durationMinutes, justification, ticketNumber, onProgress }
+ * @param {object}   options — { durationMinutes, justification, ticketNumber, scheduledStartDateTime, onProgress }
  * @returns {Promise<BulkResult>}
  */
 async function bulkActivate(roles, options = {}) {
@@ -57,6 +57,7 @@ async function bulkDeactivate(roles, options = {}) {
 
 async function _bulkActivateEntraGroup(roles, options) {
   if (roles.length === 0) return [];
+  const startDateTime = options.scheduledStartDateTime || new Date().toISOString();
 
   const requests = roles.map(role => {
     if (role.type === 'Group') {
@@ -72,7 +73,7 @@ async function _bulkActivateEntraGroup(roles, options) {
           justification: options.justification || 'Activated via PIM Portal',
           ticketInfo:  options.ticketNumber ? { ticketNumber: options.ticketNumber, ticketSystem: '' } : undefined,
           scheduleInfo: {
-            startDateTime: new Date().toISOString(),
+            startDateTime,
             expiration: { type: 'AfterDuration', duration: `PT${role._effectiveDurationMinutes || options.durationMinutes || 480}M` }
           }
         },
@@ -92,7 +93,7 @@ async function _bulkActivateEntraGroup(roles, options) {
         justification:    options.justification || 'Activated via PIM Portal',
         ticketInfo:       options.ticketNumber ? { ticketNumber: options.ticketNumber, ticketSystem: '' } : undefined,
         scheduleInfo: {
-          startDateTime: new Date().toISOString(),
+          startDateTime,
           expiration: { type: 'AfterDuration', duration: `PT${role._effectiveDurationMinutes || options.durationMinutes || 480}M` }
         }
       },
@@ -101,7 +102,7 @@ async function _bulkActivateEntraGroup(roles, options) {
   });
 
   const responses = await graphClient.graphBatch(requests);
-  const results = _mapBatchResponses(roles, responses, 'activate');
+  const results = _mapBatchResponses(roles, responses, 'activate', options.scheduledStartDateTime);
   results.forEach(r => options.onProgress && options.onProgress(r));
   return results;
 }
@@ -134,22 +135,22 @@ async function _bulkDeactivateEntraGroup(roles, options = {}) {
   return results;
 }
 
-function _mapBatchResponses(roles, responses, action) {
+function _mapBatchResponses(roles, responses, action, scheduledStartDateTime = null) {
   const resMap = Object.fromEntries(responses.map(r => [r.id, r]));
   return roles.map(role => {
     const res = resMap[role.uid];
     if (!res) return { uid: role.uid, type: role.type, success: false, error: 'No response from batch' };
-    const ok         = res.status >= 200 && res.status < 300;
-    const isPending  = ok && res.body?.status === 'PendingApproval';
-    return {
-      uid:            role.uid,
-      type:           role.type,
-      success:        ok,
-      ...(isPending ? { pendingApproval: true } : {}),
-      status:         res.status,
-      error:          ok ? undefined : (res.body?.error?.message || `HTTP ${res.status}`),
+    const ok  = res.status >= 200 && res.status < 300;
+    const result = {
+      uid:     role.uid,
+      type:    role.type,
+      success: ok,
+      status:  res.status,
+      error:   ok ? undefined : (res.body?.error?.message || `HTTP ${res.status}`),
       [action === 'activate' ? 'activatedAt' : 'deactivatedAt']: ok ? new Date().toISOString() : undefined
     };
+    if (ok && action === 'activate' && scheduledStartDateTime) result.scheduledFor = scheduledStartDateTime;
+    return result;
   });
 }
 
@@ -169,9 +170,9 @@ async function _bulkActivateAzure(roles, options) {
       if (role.condition) azureOptions.condition = role.condition;
       if (role.conditionVersion) azureOptions.conditionVersion = role.conditionVersion;
 
-      const armResult  = await armClient.activateAzureRole(activationScopeId, role.id, azureOptions);
-      const isPending  = armResult?.properties?.status === 'PendingApproval';
-      const r = { uid: role.uid, type: role.type, success: true, ...(isPending ? { pendingApproval: true } : {}), activatedAt: new Date().toISOString() };
+      await armClient.activateAzureRole(activationScopeId, role.id, azureOptions);
+      const r = { uid: role.uid, type: role.type, success: true, activatedAt: new Date().toISOString() };
+      if (options.scheduledStartDateTime) r.scheduledFor = options.scheduledStartDateTime;
       options.onProgress && options.onProgress(r);
       return r;
     } catch (err) {

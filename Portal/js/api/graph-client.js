@@ -245,7 +245,7 @@ async function activateEntraRole(roleId, scopeId, options = {}) {
     justification:   options.justification || 'Activated via PIM Portal',
     ticketInfo:      options.ticketNumber ? { ticketNumber: options.ticketNumber, ticketSystem: '' } : undefined,
     scheduleInfo: {
-      startDateTime: new Date().toISOString(),
+      startDateTime: options.scheduledStartDateTime || new Date().toISOString(),
       expiration: {
         type:     'AfterDuration',
         duration: `PT${options.durationMinutes || 60}M`
@@ -278,7 +278,7 @@ async function activateGroupRole(groupId, accessId, options = {}) {
     justification: options.justification || 'Activated via PIM Portal',
     ticketInfo: options.ticketNumber ? { ticketNumber: options.ticketNumber, ticketSystem: '' } : undefined,
     scheduleInfo: {
-      startDateTime: new Date().toISOString(),
+      startDateTime: options.scheduledStartDateTime || new Date().toISOString(),
       expiration: {
         type:     'AfterDuration',
         duration: `PT${options.durationMinutes || 60}M`

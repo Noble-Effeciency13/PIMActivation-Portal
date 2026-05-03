@@ -1682,7 +1682,33 @@ body.show-inactive-policies .pol-none-label {
   background: var(--border);
   margin: 16px 0;
 }
+.schedule-toggle-row { margin-top: 6px; }
+.schedule-toggle-btn { align-self: flex-start; }
+.schedule-toggle-btn svg { flex-shrink: 0; }
+.schedule-toggle-btn.active,
+.schedule-toggle-btn[aria-pressed="true"] {
+  color:        var(--primary);
+  background:   var(--primary-dim);
+  border-color: var(--primary);
+}
+.schedule-start-field {
+  display:        flex;
+  flex-direction: column;
+  gap:            6px;
+  width:          100%;
+  max-width:      280px;
+}
+.schedule-start-input { max-width: 280px; }
 .profile-save-toggle-row { margin-top: 4px; }
+
+@media (max-width: 560px) {
+  .schedule-toggle-btn,
+  .schedule-start-field,
+  .schedule-start-input {
+    width:     100%;
+    max-width: none;
+  }
+}
 
 /* ── Settings modal ───────────────────────────────────────────────────────── */
 
@@ -2068,9 +2094,9 @@ body.show-inactive-policies .pol-none-label {
   align-items:    flex-start;
   gap:            14px;
   padding:        16px;
-  border:         1px solid #1e293b;
+  border:         1px solid var(--border);
   border-radius:  var(--radius);
-  background:     #0d1627; /* Darker navy background */
+  background:     var(--bg-raised);
   font-size:      13px;
   line-height:    1.45;
   transition:     border-color 0.15s, background 0.15s;
@@ -2078,7 +2104,7 @@ body.show-inactive-policies .pol-none-label {
 }
 @media (hover: hover) and (pointer: fine) {
 
-  .notif-item:hover { border-color: #334155; background: #111b2d; }
+  .notif-item:hover { border-color: var(--border-strong); background: var(--bg-hover); }
 
 }
 
@@ -2090,30 +2116,90 @@ body.show-inactive-policies .pol-none-label {
   align-items:  center;
   justify-content: center;
   border-radius: 50%;
-  background:   rgba(255, 255, 255, 0.05);
+  background:   var(--bg-surface);
   color:        var(--text-muted);
 }
-.notif-icon-success { color: #10b981; background: rgba(16, 185, 129, 0.1); }
-.notif-icon-error   { color: #f43f5e; background: rgba(244, 63, 94, 0.1); }
-.notif-icon-warning { color: #f59e0b; background: rgba(245, 158, 11, 0.1); }
-.notif-icon-info    { color: #3b82f6; background: rgba(59, 130, 246, 0.1); }
+.notif-icon-success { color: var(--success); background: var(--success-dim); }
+.notif-icon-error   { color: var(--danger);  background: var(--danger-dim); }
+.notif-icon-warning { color: var(--warning); background: var(--warning-dim); }
+.notif-icon-info    { color: var(--primary); background: var(--primary-dim); }
 
 .notif-content { flex: 1; min-width: 0; }
 .notif-row-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 2px; }
-.notif-title { font-weight: 600; color: #f8fafc; font-size: 14px; }
-.notif-time  { font-size: 11px; color: #64748b; white-space: nowrap; margin-top: 2px; }
-.notif-desc  { color: #94a3b8; font-size: 13px; margin-bottom: 12px; word-break: break-word; white-space: pre-line; }
+.notif-title { font-weight: 600; color: var(--text); font-size: 14px; }
+.notif-time  { font-size: 11px; color: var(--text-faint); white-space: nowrap; margin-top: 2px; }
+.notif-desc  { color: var(--text-muted); font-size: 13px; margin-bottom: 12px; word-break: break-word; white-space: pre-line; }
 .notif-date  { display: none; } /* Hide the separate date line for a cleaner look like the reference */
+
+.notif-activity {
+  display:        flex;
+  flex-direction: column;
+  gap:            10px;
+  margin-bottom:  12px;
+}
+.notif-meta-grid {
+  display:   flex;
+  flex-wrap: wrap;
+  gap:       6px;
+}
+.notif-meta-pill {
+  display:       inline-flex;
+  align-items:   center;
+  flex-wrap:     wrap;
+  gap:           5px;
+  max-width:     100%;
+  padding:       4px 8px;
+  border:        1px solid var(--border);
+  border-radius: 999px;
+  background:    var(--bg-surface);
+  color:         var(--text-muted);
+  font-size:     11px;
+  line-height:   1.2;
+  word-break:    break-word;
+}
+.notif-meta-pill span { color: var(--text-faint); }
+.notif-role-list {
+  list-style: none;
+  display:    flex;
+  flex-direction: column;
+  gap:        6px;
+}
+.notif-role-row {
+  display:     flex;
+  align-items: flex-start;
+  gap:         10px;
+  padding:     8px 10px;
+  border:      1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background:  var(--bg-surface);
+}
+.notif-role-main { flex: 1; min-width: 0; }
+.notif-role-name { color: var(--text); font-weight: 600; font-size: 12px; }
+.notif-role-meta { color: var(--text-muted); font-size: 11px; margin-top: 2px; word-break: break-word; }
+.notif-role-error { color: var(--danger); font-size: 11px; margin-top: 4px; word-break: break-word; }
+.notif-role-status {
+  flex-shrink: 0;
+  min-width:   76px;
+  padding:     3px 7px;
+  border-radius: 999px;
+  font-size:   10px;
+  font-weight: 600;
+  text-align:  center;
+}
+.notif-role-status-success { color: var(--success); background: var(--success-dim); }
+.notif-role-status-error   { color: var(--danger);  background: var(--danger-dim); }
+.notif-role-status-pending { color: var(--warning); background: var(--warning-dim); }
+.notif-role-status-info    { color: var(--primary); background: var(--primary-dim); }
 
 .notif-copy-btn {
   display:       inline-flex;
   align-items:   center;
   gap:           8px;
   padding:       6px 12px;
-  background:    rgba(30, 41, 59, 0.5);
-  border:        1px solid #334155;
+  background:    var(--bg-surface);
+  border:        1px solid var(--border);
   border-radius: 6px;
-  color:         #cbd5e1;
+  color:         var(--text-muted);
   font-size:     12px;
   font-weight:   500;
   font-family:   inherit;
@@ -2122,7 +2208,7 @@ body.show-inactive-policies .pol-none-label {
 }
 @media (hover: hover) and (pointer: fine) {
 
-  .notif-copy-btn:hover { background: #1e293b; color: #f8fafc; border-color: #475569; }
+  .notif-copy-btn:hover { background: var(--bg-hover); color: var(--text); border-color: var(--border-strong); }
 
 }
 .notif-copy-btn svg { opacity: 0.7; }
@@ -2130,14 +2216,19 @@ body.show-inactive-policies .pol-none-label {
 .notif-debug {
   margin-top:    10px;
   padding:       10px;
-  background:    #020617;
-  color:         #94a3b8;
+  background:    var(--bg-surface);
+  color:         var(--text-muted);
   font-family:   ui-monospace, 'Cascadia Code', monospace;
   font-size:     11px;
   border-radius: 6px;
   overflow-x:    auto;
-  border:        1px solid #1e293b;
+  border:        1px solid var(--border);
   line-height:   1.6;
+}
+
+@media (max-width: 560px) {
+  .notif-role-row { flex-direction: column; }
+  .notif-role-status { min-width: 0; }
 }
 
 /* ── Duration slider ──────────────────────────────────────────────────────── */
