@@ -1,0 +1,57 @@
+title: "[Idea]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Got an idea for the portal? Drop it here. Ideas with strong community interest tend to graduate into [feature request issues](https://github.com/Noble-Effeciency13/PIMActivation-Portal/issues/new?template=feature_request.yml) and onto the [roadmap](https://github.com/Noble-Effeciency13/PIMActivation-Portal/wiki/Roadmap).
+
+        Before posting, please skim the [Roadmap](https://github.com/Noble-Effeciency13/PIMActivation-Portal/wiki/Roadmap) and existing ideas — yours might already be on the way.
+  - type: textarea
+    id: idea
+    attributes:
+      label: The idea
+      description: What would you like the portal to do?
+      placeholder: It would be useful if the portal could …
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem it solves
+      description: What user problem or workflow pain does this address?
+    validations:
+      required: true
+  - type: dropdown
+    id: plane
+    attributes:
+      label: Which surface would this touch?
+      multiple: true
+      options:
+        - Microsoft Entra ID roles
+        - Azure Resource roles
+        - PIM for Groups
+        - Activation profiles
+        - Notifications / activity history
+        - Settings / theming / accessibility
+        - Authentication / Conditional Access
+        - Self-hosted deployment
+        - Documentation
+        - Other
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you've considered
+    validations:
+      required: false
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Project constraints
+      description: The portal has a few non-negotiables. Confirm your idea fits within them — see [Contributing](https://github.com/Noble-Effeciency13/PIMActivation-Portal/wiki/Contributing) for context.
+      options:
+        - label: My idea does not require a backend, proxy, or any server-side component.
+          required: true
+        - label: My idea does not require persisting access tokens outside `sessionStorage`.
+          required: true
+        - label: My idea does not require application permissions, client secrets, or service-principal credentials.
+          required: true

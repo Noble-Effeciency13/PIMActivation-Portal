@@ -1,0 +1,62 @@
+title: "[Q&A]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for asking — Q&A is the right place for usage questions, "is this expected behavior?", and "how do I…?" topics.
+
+        Before posting, please:
+
+        - Check the [Wiki](https://github.com/Noble-Effeciency13/PIMActivation-Portal/wiki) — especially the [FAQ](https://github.com/Noble-Effeciency13/PIMActivation-Portal/wiki/FAQ) and [Troubleshooting](https://github.com/Noble-Effeciency13/PIMActivation-Portal/wiki/Troubleshooting) pages.
+        - Search [open and closed discussions](https://github.com/Noble-Effeciency13/PIMActivation-Portal/discussions?discussions_q=) and [issues](https://github.com/Noble-Effeciency13/PIMActivation-Portal/issues?q=).
+        - If you've identified a clear bug, please [open a bug report](https://github.com/Noble-Effeciency13/PIMActivation-Portal/issues/new?template=bug_report.yml) instead.
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: What are you trying to do, and what's getting in the way?
+      placeholder: I'm trying to … and I expected … but instead …
+    validations:
+      required: true
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: How are you running the portal?
+      options:
+        - Managed (portal.pimactivation.com)
+        - Self-hosted (Bicep / ARM)
+        - Local development
+        - Other / not sure
+    validations:
+      required: true
+  - type: dropdown
+    id: plane
+    attributes:
+      label: Which surface does the question relate to?
+      multiple: true
+      options:
+        - Microsoft Entra ID roles
+        - Azure Resource roles
+        - PIM for Groups
+        - Activation profiles
+        - Notifications / activity history
+        - Settings / theming
+        - Authentication / Conditional Access
+        - Self-hosted deployment
+        - Other / not sure
+  - type: textarea
+    id: context
+    attributes:
+      label: What you've already tried
+      description: Steps you've taken, docs you've read, or errors you've seen.
+    validations:
+      required: false
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Confirmation
+      options:
+        - label: I've checked the Wiki, FAQ, and existing discussions / issues.
+          required: true
+        - label: I'm not posting any access tokens, claims values, tenant secrets, or other sensitive data.
+          required: true

@@ -1,0 +1,40 @@
+title: "[Show and tell]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Show off how you're using the PIMActivation Portal — interesting deployment topologies, automation around it, screenshots of customizations, or workflows you've built around saved profiles.
+
+        > Reminder: please redact tenant names, user UPNs, role IDs, and anything else identifying before posting screenshots or terminal output.
+  - type: textarea
+    id: summary
+    attributes:
+      label: What you built or how you're using it
+    validations:
+      required: true
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Deployment style
+      options:
+        - Managed (portal.pimactivation.com)
+        - Self-hosted (Bicep / ARM)
+        - Self-hosted with custom domain
+        - Local / dev only
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: Architecture, customizations, workflow, automation around the portal — whatever's interesting.
+    validations:
+      required: false
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots or links
+      description: Drag-and-drop images directly into this box. Redact tenant-identifying info first.
+    validations:
+      required: false
