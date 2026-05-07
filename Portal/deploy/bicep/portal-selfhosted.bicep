@@ -75,8 +75,12 @@ var customDomainUrl = 'https://${customDomain}'
 var redirectUris = empty(customDomain) ? [ portalUrl ] : [ portalUrl, customDomainUrl ]
 var adminConsentUrl = uri(environment().authentication.loginEndpoint, '${tenantId}/adminconsent?client_id=${applicationClientId}')
 
-// Contributor role definition ID (built-in)
-var contributorRoleId = 'b24988ac-6180-42a0-ab88-20f7382dd24c'
+// Website Contributor role definition ID (built-in).
+// Scoped narrowly to the Static Web App resource so the deployment identity can
+// read the SWA deployment token via listSecrets() — no broader RG access is needed.
+// (Source-cache storage uses account-key auth from listKeys() in the bicep, and the
+// Microsoft Graph redirect-URI PATCH is authorized via Graph permissions, not Azure RBAC.)
+var websiteContributorRoleId = 'de139f84-1756-47ae-9be6-808fbbe84772'
 
 // ── Managed Identity ──────────────────────────────────────────────────────────
 // Required by the ARM deploymentScript resource — it runs inside a container
@@ -87,12 +91,14 @@ resource deployIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-0
   tags:     tags
 }
 
-// ── Contributor on resource group ─────────────────────────────────────────────
-// The identity needs Contributor on the RG so it can read SWA listSecrets().
+// ── Website Contributor on the Static Web App ────────────────────────────────
+// Scoped to the SWA resource only; lets the deploy identity call listSecrets()
+// for the deployment token used by the SWA CLI. No resource-group-wide access.
 resource roleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(resourceGroup().id, deployIdentity.id, contributorRoleId)
+  scope: staticWebApp
+  name: guid(staticWebApp.id, deployIdentity.id, websiteContributorRoleId)
   properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', contributorRoleId)
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', websiteContributorRoleId)
     principalId:      deployIdentity.properties.principalId
     principalType:    'ServicePrincipal'
   }

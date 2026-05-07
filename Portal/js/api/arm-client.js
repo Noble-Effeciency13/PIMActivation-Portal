@@ -14,6 +14,28 @@ const ARM_VERSION_ACTIVE = '2020-10-01-preview';
 const ARM_VERSION_REQ    = '2020-10-01-preview';
 const ARM_VERSION_CHILD_RESOURCES = '2020-10-01';
 
+/**
+ * On a non-OK ARM response, detect a Conditional Access "insufficient_claims"
+ * challenge (401 with WWW-Authenticate or a claims-bearing JSON body) and
+ * throw a typed `ClaimsChallengeError` so callers can step the user up via
+ * `acquireTokenRedirect({ claims })`. Otherwise throw a generic Error.
+ */
+function _throwArmError(resp, bodyText, label) {
+  if (resp.status === 401) {
+    const wwwAuth = resp.headers.get('www-authenticate') || resp.headers.get('WWW-Authenticate');
+    const claims  = portalAuth.parseClaimsChallenge(wwwAuth, bodyText);
+    if (claims) {
+      throw new portalAuth.ClaimsChallengeError({
+        claims,
+        scopes:  [window.ARM_SCOPE],
+        status:  401,
+        message: `${label} → 401 (claims challenge)`
+      });
+    }
+  }
+  throw new Error(`${label} → ${resp.status}: ${bodyText}`);
+}
+
 async function armGet(path, apiVersion) {
   const token = await portalAuth.getArmToken();
   const resp  = await fetch(`${ARM_BASE}${path}?api-version=${apiVersion}`, {
@@ -21,7 +43,7 @@ async function armGet(path, apiVersion) {
   });
   if (!resp.ok) {
     const body = await resp.text();
-    throw new Error(`ARM GET ${path} → ${resp.status}: ${body}`);
+    _throwArmError(resp, body, `ARM GET ${path}`);
   }
   return resp.json();
 }
@@ -35,7 +57,7 @@ async function armPost(path, body, apiVersion) {
   });
   if (!resp.ok) {
     const text = await resp.text();
-    throw new Error(`ARM POST ${path} → ${resp.status}: ${text}`);
+    _throwArmError(resp, text, `ARM POST ${path}`);
   }
   if (resp.status === 201 || resp.status === 204) return null;
   return resp.json();
@@ -53,7 +75,7 @@ async function armPut(path, body, apiVersion) {
   });
   if (!resp.ok) {
     const text = await resp.text();
-    throw new Error(`ARM PUT ${path} → ${resp.status}: ${text}`);
+    _throwArmError(resp, text, `ARM PUT ${path}`);
   }
   if (resp.status === 204) return null;
   return resp.json();
@@ -67,7 +89,7 @@ async function armGetAll(path, apiVersion) {
     const resp  = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
     if (!resp.ok) {
       const body = await resp.text();
-      throw new Error(`ARM paginated GET → ${resp.status}: ${body}`);
+      _throwArmError(resp, body, 'ARM paginated GET');
     }
     const page = await resp.json();
     if (page.value) items.push(...page.value);
@@ -83,7 +105,7 @@ async function armGetPagedUrl(url, label) {
     const resp  = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
     if (!resp.ok) {
       const body = await resp.text();
-      throw new Error(`${label} → ${resp.status}: ${body}`);
+      _throwArmError(resp, body, label);
     }
     const page = await resp.json();
     if (Array.isArray(page.value)) items.push(...page.value);

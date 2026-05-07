@@ -1314,15 +1314,61 @@ function _clearValidationErrors() {
 
 // ── Activation execution (shared by handleActivate and post-CA-redirect resume) ─
 
-async function _executeActivation(cappedRoles, justification, ticketNumber) {
-  const activateLabel = 'Activating ' + cappedRoles.length + ' role' + (cappedRoles.length !== 1 ? 's' : '') + '…';
+/**
+ * Persist activation state and trigger an MSAL redirect to satisfy a Conditional
+ * Access claims challenge surfaced by the API. The page navigates away; the
+ * bootstrap resume path picks up the saved payload and re-runs the activation
+ * with the new token.
+ * @returns {boolean} true if a step-up redirect was triggered (caller should stop).
+ */
+async function _handleClaimsChallenge(err, payload) {
+  if (!(err instanceof portalAuth.ClaimsChallengeError)) return false;
+  if (payload.claimsChallengeRetried) {
+    // We already redirected once for a claims challenge in this attempt — don't
+    // loop. Surface a clear error toast instead.
+    showToast({
+      title: 'Activation failed',
+      description: 'The role still requires additional authentication after step-up. Please sign out and try again.',
+      type: 'error',
+      duration: 10000
+    });
+    sessionStorage.removeItem(PENDING_ACTIVATION_KEY);
+    return true;
+  }
+  sessionStorage.setItem(PENDING_ACTIVATION_KEY, JSON.stringify({
+    ...payload,
+    claims: err.claims,
+    claimsChallengeRetried: true
+  }));
+  showProgress('Redirecting for authentication…');
+  try {
+    await portalAuth.stepUpWithClaims({ scopes: err.scopes, claims: err.claims });
+    // Page navigates away — execution does not continue here.
+  } catch (redirectErr) {
+    sessionStorage.removeItem(PENDING_ACTIVATION_KEY);
+    showToast({
+      title: 'Authentication redirect failed',
+      description: redirectErr.message,
+      type: 'error',
+      duration: 10000
+    });
+  }
+  return true;
+}
+
+async function _executeActivation(cappedRoles, justification, ticketNumber, extra = {}) {
+  const isScheduled = Boolean(extra.scheduledStartDateTime);
+  const verb = isScheduled ? 'Scheduling' : 'Activating';
+  const activateLabel = verb + ' ' + cappedRoles.length + ' role' + (cappedRoles.length !== 1 ? 's' : '') + '…';
   _opOverlay.open(activateLabel, cappedRoles);
   try {
-    const outcome = await batchClient.bulkActivate(cappedRoles, {
+    const opts = {
       justification,
       ticketNumber,
       onProgress: r => _opOverlay.update(r)
-    });
+    };
+    if (extra.scheduledStartDateTime) opts.scheduledStartDateTime = extra.scheduledStartDateTime;
+    const outcome = await batchClient.bulkActivate(cappedRoles, opts);
     const results         = outcome.results || [];
     const ok              = results.filter(r => r.success && !r.pendingApproval).length;
     const pendingApproval = results.filter(r => r.pendingApproval).length;
@@ -1344,6 +1390,15 @@ async function _executeActivation(cappedRoles, justification, ticketNumber) {
     await _refresh();
   } catch (err) {
     _opOverlay.close(0);
+    // Reactive Conditional Access step-up: persist state, redirect, resume on return.
+    const handled = await _handleClaimsChallenge(err, {
+      cappedRoles,
+      justification,
+      ticketNumber,
+      scheduledStartDateTime: extra.scheduledStartDateTime || null,
+      claimsChallengeRetried: extra.claimsChallengeRetried
+    });
+    if (handled) return;
     showToast({ title: 'Activation error', description: err.message, type: 'error', duration: 10000 });
     console.error('[App] Activate error:', err);
   }
@@ -1489,6 +1544,15 @@ async function handleActivate() {
     await _refresh();
   } catch (err) {
     _opOverlay.close(0);
+    // Reactive Conditional Access step-up: persist state and redirect for a
+    // new token with the required claims, then resume on return.
+    const handled = await _handleClaimsChallenge(err, {
+      cappedRoles,
+      justification,
+      ticketNumber,
+      scheduledStartDateTime: scheduledStartDateTime || null
+    });
+    if (handled) return;
     showToast({ title: errorTitle, description: err.message, type: 'error', duration: 10000 });
     console.error('[App] Activate error:', err);
   } finally {
@@ -2319,9 +2383,19 @@ async function bootstrap() {
   if (_savedActivation) {
     sessionStorage.removeItem(PENDING_ACTIVATION_KEY);
     try {
-      const { cappedRoles, justification, ticketNumber, authContextId } = JSON.parse(_savedActivation);
-      portalAuth.setAuthContextClaims(authContextId);
-      await _executeActivation(cappedRoles, justification, ticketNumber);
+      const saved = JSON.parse(_savedActivation);
+      const { cappedRoles, justification, ticketNumber, authContextId, claims, scheduledStartDateTime, claimsChallengeRetried } = saved;
+      // Reactive claims-challenge resume: replay the server-issued claims blob
+      // verbatim. Falls back to authContextId for the proactive step-up path.
+      if (claims) {
+        portalAuth.setRawClaims(claims);
+      } else if (authContextId) {
+        portalAuth.setAuthContextClaims(authContextId);
+      }
+      await _executeActivation(cappedRoles, justification, ticketNumber, {
+        scheduledStartDateTime: scheduledStartDateTime || null,
+        claimsChallengeRetried: !!claimsChallengeRetried
+      });
     } catch (err) {
       showToast({ title: 'Activation failed', description: 'Could not resume after authentication: ' + err.message, type: 'error', duration: 10000 });
       console.error('[App] Post-redirect activation error:', err);

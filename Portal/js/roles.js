@@ -177,7 +177,7 @@ class RoleManager {
   /** Resolve Administrative Unit GUIDs to human-readable names */
   getScopeDisplay(role) {
     if (role.type === 'AzureResource') return role.scope || role.scopeId || '';
-    if (role.type === 'Group')         return role.scope || 'Group membership';
+    if (role.type === 'Group')         return role.scope || role.accessLabel || 'Member';
     const s = role.scope || role.directoryScopeId || '';
     if (s === '/' || s === 'Directory') return 'Directory';
     

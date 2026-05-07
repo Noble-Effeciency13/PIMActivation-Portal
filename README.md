@@ -45,7 +45,7 @@ The portal is a fully static single-page application. There is no backend, no pr
 ## Security
 
 ### No backend, no data retention
-The portal has no server component. There is nothing to breach server-side because there is no server. All tokens are stored in `sessionStorage` (never `localStorage`): they are cleared when the tab is closed and are not shared across tabs. They are readable by same-origin JavaScript, so no XSS vulnerability must exist in the portal.
+The portal has no server component. There is nothing to breach server-side because there is no server. Authentication tokens are stored in `sessionStorage` and cleared when the tab is closed; `localStorage` is used only for non-sensitive UI state such as the active theme, filter preferences, and feature flags. Tokens are readable by same-origin JavaScript, so no XSS vulnerability must exist in the portal.
 
 ### Delegated permissions only
 The application uses delegated Microsoft Graph and ARM permissions exclusively. It can only do what the signed-in user is permitted to do. There is no application permission, no service principal secret, and no stored credential anywhere in the codebase.
@@ -132,21 +132,6 @@ pwsh ./scripts/sync-favicons.ps1
 ```
 
 The `Sync Favicons` workflow checks pull requests for drift and commits synced favicon copies back to `main` after direct source updates.
-
----
-
-## Local mobile testing
-
-Run the local dev server, then use Chrome or Edge DevTools device emulation for the first mobile pass:
-
-```powershell
-$env:PORT='0'
-node dev.js
-```
-
-Open the printed localhost URL, press `F12`, toggle device emulation with `Ctrl+Shift+M`, and test common widths such as 390, 375, 360, and 320 pixels. This keeps MSAL on a localhost redirect URI, so no extra app registration redirect URI is needed.
-
-For a real phone, expose the local server through an HTTPS tunnel such as VS Code port forwarding, Microsoft dev tunnels, or ngrok, then add that temporary HTTPS origin as a SPA redirect URI in the Entra app registration before signing in from the phone.
 
 ---
 

@@ -31,14 +31,13 @@ jobs:
         with:
           ref: ${{ github.ref_name }}
 
-      - name: Set up Bicep
-        uses: Azure/setup-bicep@v2
-        with:
-          bicep-version: latest
+      - name: Install Bicep CLI
+        run: az bicep install
 
       - name: Build ARM template from Bicep
         run: |
-          bicep build Portal/deploy/bicep/portal-selfhosted.bicep \
+          az bicep build \
+            --file Portal/deploy/bicep/portal-selfhosted.bicep \
             --outfile Portal/deploy/azuredeploy.json
 
       - name: Check for deployment template drift

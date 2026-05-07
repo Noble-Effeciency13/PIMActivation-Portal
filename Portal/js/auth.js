@@ -112,6 +112,101 @@ function setAuthContextClaims(authContextId) {
 }
 
 /**
+ * Set a raw claims JSON string (as MSAL expects) to include in every subsequent
+ * token acquisition. Used to resume after a reactive claims-challenge step-up
+ * where the server-provided claims blob is replayed verbatim.
+ * @param {string|null} claims
+ */
+function setRawClaims(claims) {
+  _activeAuthContextClaims = claims || null;
+}
+
+/**
+ * Error thrown by API clients when the server returns a 401 with an
+ * "insufficient_claims" challenge. Carries the raw MSAL-ready claims blob and
+ * the scopes the next token acquisition should request, so the caller can
+ * trigger acquireTokenRedirect({ claims, scopes }).
+ */
+class ClaimsChallengeError extends Error {
+  constructor({ claims, scopes, status, message }) {
+    super(message || 'Claims challenge required');
+    this.name    = 'ClaimsChallengeError';
+    this.claims  = claims;
+    this.scopes  = scopes;
+    this.status  = status;
+  }
+}
+
+/**
+ * Parse an "insufficient_claims" challenge from a 401 response.
+ * Looks for a `claims="<base64url>"` parameter in the WWW-Authenticate header
+ * (the standard CAE / Conditional Access claims-challenge format), falling
+ * back to scanning the response body for a `claims` field. Returns the decoded
+ * JSON string MSAL expects, or null if no challenge is present.
+ * @param {string|null} wwwAuthenticate
+ * @param {string|null} bodyText
+ * @returns {string|null}
+ */
+function parseClaimsChallenge(wwwAuthenticate, bodyText) {
+  // 1) WWW-Authenticate: Bearer realm="...", error="insufficient_claims", claims="<base64url>"
+  if (wwwAuthenticate) {
+    const match = wwwAuthenticate.match(/claims\s*=\s*"([^"]+)"/i);
+    if (match) {
+      const decoded = _decodeBase64UrlJson(match[1]);
+      if (decoded) return decoded;
+    }
+  }
+  // 2) JSON body fallback: { "error": "insufficient_claims", "claims": "<base64url|json>" }
+  if (bodyText) {
+    try {
+      const parsed = JSON.parse(bodyText);
+      // ARM/Graph sometimes nest under .error
+      const claimsField =
+        parsed?.claims ??
+        parsed?.error?.claims ??
+        parsed?.error?.additionalInfo?.find(i => i?.type === 'claims')?.info?.claims;
+      if (typeof claimsField === 'string' && claimsField.length > 0) {
+        const decoded = _decodeBase64UrlJson(claimsField);
+        if (decoded) return decoded;
+        // Some servers already return a JSON string
+        try { JSON.parse(claimsField); return claimsField; } catch { /* not JSON */ }
+      }
+    } catch { /* not JSON */ }
+  }
+  return null;
+}
+
+function _decodeBase64UrlJson(value) {
+  try {
+    let s = String(value).replace(/-/g, '+').replace(/_/g, '/');
+    while (s.length % 4) s += '=';
+    const json = atob(s);
+    // Validate it parses as JSON before returning
+    JSON.parse(json);
+    return json;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Trigger an interactive redirect to acquire a new token with the supplied
+ * claims challenge. The page navigates away — the caller must persist any
+ * state they want to resume in sessionStorage *before* awaiting this.
+ * @param {{ scopes: string[], claims: string }} opts
+ */
+async function stepUpWithClaims({ scopes, claims }) {
+  if (!_account) throw new Error('Not signed in');
+  await msalInstance.acquireTokenRedirect({
+    scopes,
+    claims,
+    account:   _account,
+    authority: _authority()
+  });
+  // Page navigates away — execution does not continue here.
+}
+
+/**
  * @returns {msal.AccountInfo|null}
  */
 function getAccount() {
@@ -234,4 +329,4 @@ async function switchTenant(tenantId) {
 }
 
 // Expose globally for other modules
-window.portalAuth = { initAuth, signIn, signOut, getGraphToken, getArmToken, getGraphTokenWithAuthContext, stepUpForAuthContexts, grantArmConsent, setAuthContextClaims, getAccount, getUserId, switchTenant };
+window.portalAuth = { initAuth, signIn, signOut, getGraphToken, getArmToken, getGraphTokenWithAuthContext, stepUpForAuthContexts, stepUpWithClaims, parseClaimsChallenge, ClaimsChallengeError, grantArmConsent, setAuthContextClaims, setRawClaims, getAccount, getUserId, switchTenant };

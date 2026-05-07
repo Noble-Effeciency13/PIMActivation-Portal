@@ -176,6 +176,9 @@ async function _bulkActivateAzure(roles, options) {
       options.onProgress && options.onProgress(r);
       return r;
     } catch (err) {
+      // Let claims-challenge errors escape so the orchestrator can step the
+      // user up via acquireTokenRedirect({ claims }) and then resume.
+      if (err instanceof portalAuth.ClaimsChallengeError) throw err;
       const r = { uid: role.uid, type: role.type, success: false, error: err.message };
       options.onProgress && options.onProgress(r);
       return r;

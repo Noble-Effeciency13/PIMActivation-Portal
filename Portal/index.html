@@ -16,8 +16,12 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/favicons/apple-touch-icon.png">
   <meta name="apple-mobile-web-app-title" content="PIM">
   <link rel="manifest" href="/favicons/site.webmanifest">
-  <!-- MSAL 5.x from jsDelivr (must be synchronous — app scripts depend on it) -->
+  <!-- MSAL 5.x from jsDelivr (must be synchronous — app scripts depend on it).
+       SRI hash pinned to msal-browser@5.9.0/lib/msal-browser.min.js. Regenerate when bumping the version:
+         Invoke-RestMethod 'https://data.jsdelivr.com/v1/packages/npm/@azure/msal-browser@<ver>?structure=flat' |
+           Select-Object -ExpandProperty files | Where-Object name -EQ '/lib/msal-browser.min.js' | Select-Object -ExpandProperty hash -->
   <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@5.9.0/lib/msal-browser.min.js"
+    integrity="sha256-pyYyv4DFweuJCo9XyIt1kqOhqirbtqsjznj6BKLigbU="
     crossorigin="anonymous"></script>
   <link rel="stylesheet" href="css/portal.css">
 </head>

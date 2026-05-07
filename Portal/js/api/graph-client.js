@@ -15,6 +15,29 @@ const BETA_BASE  = 'https://graph.microsoft.com/beta';
 const _auCache = new Map(); // GUID → displayName
 
 // ── Generic fetch wrapper ─────────────────────────────────────────────────────
+
+/**
+ * On a non-OK Graph response, detect a Conditional Access "insufficient_claims"
+ * challenge (401 with WWW-Authenticate or a claims-bearing JSON body) and
+ * throw a typed `ClaimsChallengeError` so callers can step the user up via
+ * `acquireTokenRedirect({ claims })`. Otherwise throw a generic Error.
+ */
+function _throwGraphError(resp, bodyText, label) {
+  if (resp.status === 401) {
+    const wwwAuth = resp.headers.get('www-authenticate') || resp.headers.get('WWW-Authenticate');
+    const claims  = portalAuth.parseClaimsChallenge(wwwAuth, bodyText);
+    if (claims) {
+      throw new portalAuth.ClaimsChallengeError({
+        claims,
+        scopes:  window.GRAPH_SCOPES,
+        status:  401,
+        message: `${label} → 401 (claims challenge)`
+      });
+    }
+  }
+  throw new Error(`${label} → ${resp.status}: ${bodyText}`);
+}
+
 async function graphGet(path, useBeta = false) {
   const token = await portalAuth.getGraphToken();
   const base  = useBeta ? BETA_BASE : GRAPH_BASE;
@@ -23,7 +46,7 @@ async function graphGet(path, useBeta = false) {
   });
   if (!resp.ok) {
     const body = await resp.text();
-    throw new Error(`Graph GET ${path} → ${resp.status}: ${body}`);
+    _throwGraphError(resp, body, `Graph GET ${path}`);
   }
   return resp.json();
 }
@@ -38,7 +61,7 @@ async function graphPost(path, body, useBeta = false) {
   });
   if (!resp.ok) {
     const text = await resp.text();
-    throw new Error(`Graph POST ${path} → ${resp.status}: ${text}`);
+    _throwGraphError(resp, text, `Graph POST ${path}`);
   }
   // 204 No Content
   if (resp.status === 204) return null;
@@ -123,18 +146,25 @@ async function getEligibleGroupRoles() {
     `/identityGovernance/privilegedAccess/group/eligibilityScheduleInstances?$filter=principalId eq '${_odataEscape(userId)}'&$expand=group,principal`,
     false
   );
-  return data.map(item => ({
-    uid:              item.id,
-    type:             'Group',
-    id:               item.groupId,
-    groupId:          item.groupId,
-    accessId:         item.accessId,
-    name:             item.group?.displayName || item.groupId,
-    scope:            'Group',
-    directoryScopeId: '/',
-    memberType:       item.memberType || 'Direct',
-    scheduleInfo:     item.scheduleInfo
-  }));
+  return data.map(item => {
+    const accessId    = item.accessId || 'member';
+    const accessLabel = accessId.charAt(0).toUpperCase() + accessId.slice(1);
+    const groupName   = item.group?.displayName || item.groupId;
+    return {
+      uid:              item.id,
+      type:             'Group',
+      id:               item.groupId,
+      groupId:          item.groupId,
+      accessId:         accessId,
+      accessLabel:      accessLabel,
+      groupDisplayName: groupName,
+      name:             groupName,
+      scope:            accessLabel,
+      directoryScopeId: '/',
+      memberType:       item.memberType || 'Direct',
+      scheduleInfo:     item.scheduleInfo
+    };
+  });
 }
 
 // ── Active roles ──────────────────────────────────────────────────────────────
@@ -172,18 +202,26 @@ async function getActiveGroupRoles() {
     `/identityGovernance/privilegedAccess/group/assignmentScheduleInstances?$filter=principalId eq '${_odataEscape(userId)}'&$expand=group`,
     false
   );
-  return data.map(item => ({
-    uid:            item.id,
-    type:           'Group',
-    id:             item.groupId,
-    groupId:        item.groupId,
-    accessId:       item.accessId,
-    name:           item.group?.displayName || item.groupId,
-    scope:          'Group',
-    memberType:     item.memberType || 'Direct',
-    assignmentType: item.assignmentType || 'Assigned',
-    endDateTime:    item.endDateTime || _resolveEndDateTime(item.scheduleInfo)
-  }));
+  return data.map(item => {
+    const accessId    = item.accessId || 'member';
+    const accessLabel = accessId.charAt(0).toUpperCase() + accessId.slice(1);
+    const groupName   = item.group?.displayName || item.groupId;
+    return {
+      uid:              item.id,
+      type:             'Group',
+      id:               item.groupId,
+      groupId:          item.groupId,
+      accessId:         accessId,
+      accessLabel:      accessLabel,
+      groupDisplayName: groupName,
+      name:             groupName,
+      scope:            accessLabel,
+      directoryScopeId: '/',
+      memberType:       item.memberType || 'Direct',
+      assignmentType:   item.assignmentType || 'Assigned',
+      endDateTime:      item.endDateTime || _resolveEndDateTime(item.scheduleInfo)
+    };
+  });
 }
 
 // ── Policy ────────────────────────────────────────────────────────────────────
@@ -333,6 +371,30 @@ async function _sendBatchChunk(chunk, retrying = false) {
   const data = await resp.json();
 
   if (retrying) return data.responses || [];
+
+  // Detect Conditional Access "insufficient_claims" sub-responses (401 with a
+  // claims challenge in WWW-Authenticate or the body). One challenge for the
+  // whole chunk is enough — step-up is session-level so a redirect satisfies
+  // every subsequent sub-request once the user returns.
+  const challenged = (data.responses || []).find(r => {
+    if (r.status !== 401) return false;
+    const headers = r.headers || {};
+    const wwwAuth = headers['WWW-Authenticate'] || headers['www-authenticate'] || headers['Www-Authenticate'];
+    const bodyStr = typeof r.body === 'string' ? r.body : (r.body ? JSON.stringify(r.body) : '');
+    return !!portalAuth.parseClaimsChallenge(wwwAuth, bodyStr);
+  });
+  if (challenged) {
+    const headers = challenged.headers || {};
+    const wwwAuth = headers['WWW-Authenticate'] || headers['www-authenticate'] || headers['Www-Authenticate'];
+    const bodyStr = typeof challenged.body === 'string' ? challenged.body : (challenged.body ? JSON.stringify(challenged.body) : '');
+    const claims  = portalAuth.parseClaimsChallenge(wwwAuth, bodyStr);
+    throw new portalAuth.ClaimsChallengeError({
+      claims,
+      scopes:  window.GRAPH_SCOPES,
+      status:  401,
+      message: 'Graph $batch → 401 (claims challenge)'
+    });
+  }
 
   // Check for throttled sub-requests
   const throttled = (data.responses || []).filter(r => r.status === 429);

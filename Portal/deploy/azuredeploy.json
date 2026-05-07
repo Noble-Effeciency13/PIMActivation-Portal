@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.42.1.51946",
-      "templateHash": "15078456402088789042"
+      "templateHash": "2326282386380526626"
     },
     "description": "PIMActivation Portal - Self-Hosted Deployment. Provisions an Azure Static Web App and deploys the portal SPA configured for an existing Entra app registration.",
     "source": "https://github.com/Noble-Effeciency13/PIMActivation-Portal"
@@ -97,7 +97,7 @@
     },
     "customDomainUrl": "[format('https://{0}', parameters('customDomain'))]",
     "adminConsentUrl": "[uri(environment().authentication.loginEndpoint, format('{0}/adminconsent?client_id={1}', parameters('tenantId'), parameters('applicationClientId')))]",
-    "contributorRoleId": "b24988ac-6180-42a0-ab88-20f7382dd24c"
+    "websiteContributorRoleId": "de139f84-1756-47ae-9be6-808fbbe84772"
   },
   "resources": [
     {
@@ -110,14 +110,16 @@
     {
       "type": "Microsoft.Authorization/roleAssignments",
       "apiVersion": "2022-04-01",
-      "name": "[guid(resourceGroup().id, resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('idName')), variables('contributorRoleId'))]",
+      "scope": "[resourceId('Microsoft.Web/staticSites', variables('appName'))]",
+      "name": "[guid(resourceId('Microsoft.Web/staticSites', variables('appName')), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('idName')), variables('websiteContributorRoleId'))]",
       "properties": {
-        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('contributorRoleId'))]",
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('websiteContributorRoleId'))]",
         "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('idName')), '2023-01-31').principalId]",
         "principalType": "ServicePrincipal"
       },
       "dependsOn": [
-        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('idName'))]"
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('idName'))]",
+        "[resourceId('Microsoft.Web/staticSites', variables('appName'))]"
       ]
     },
     {
@@ -235,7 +237,7 @@
       },
       "dependsOn": [
         "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('idName'))]",
-        "[resourceId('Microsoft.Authorization/roleAssignments', guid(resourceGroup().id, resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('idName')), variables('contributorRoleId')))]",
+        "[extensionResourceId(resourceId('Microsoft.Web/staticSites', variables('appName')), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.Web/staticSites', variables('appName')), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('idName')), variables('websiteContributorRoleId')))]",
         "[resourceId('Microsoft.Storage/storageAccounts/blobServices/containers', split(format('{0}/default/{1}', variables('sourceCacheStorageName'), variables('sourceCacheContainerName')), '/')[0], split(format('{0}/default/{1}', variables('sourceCacheStorageName'), variables('sourceCacheContainerName')), '/')[1], split(format('{0}/default/{1}', variables('sourceCacheStorageName'), variables('sourceCacheContainerName')), '/')[2])]",
         "[resourceId('Microsoft.Storage/storageAccounts', variables('sourceCacheStorageName'))]",
         "[resourceId('Microsoft.Web/staticSites', variables('appName'))]"
