@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and ideas
+    url: https://github.com/Noble-Effeciency13/PIMActivation-Portal/discussions
+    about: Use GitHub Discussions for questions, ideas, and general help.
+  - name: Project Wiki and FAQ
+    url: https://github.com/Noble-Effeciency13/PIMActivation-Portal/wiki
+    about: Check the Wiki for usage guides, deployment walkthroughs, and FAQ before opening an issue.
+  - name: Live portal
+    url: https://portal.pimactivation.com
+    about: The managed portal you can sign in to today.
+  - name: PIMActivation PowerShell module
+    url: https://github.com/Noble-Effeciency13/PIMActivation
+    about: Issues about the PowerShell module belong in its own repository.

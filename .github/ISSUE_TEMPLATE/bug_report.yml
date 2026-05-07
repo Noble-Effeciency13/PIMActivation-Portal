@@ -1,0 +1,181 @@
+name: Bug report
+description: Report a defect in the PIMActivation Portal browser application or its self-hosted Azure deployment.
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report.
+
+        Before submitting, please make sure the same issue is not already covered by an existing [issue](https://github.com/Noble-Effeciency13/PIMActivation-Portal/issues), the [FAQ](https://github.com/Noble-Effeciency13/PIMActivation-Portal/wiki/FAQ), or the [Troubleshooting wiki page](https://github.com/Noble-Effeciency13/PIMActivation-Portal/wiki/Troubleshooting).
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: A clear and concise description of what the bug is.
+      placeholder: When I do X, the portal does Y instead of Z.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps from a clean session to the unexpected behavior.
+      placeholder: |
+        1. Sign in to https://portal.pimactivation.com
+        2. Open the Eligible Roles tab
+        3. Select two roles
+        4. Click Activate
+        5. Observe the error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What actually happened? Include error messages.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Deployment type
+      description: Which deployment of the portal are you using?
+      options:
+        - Managed (portal.pimactivation.com)
+        - Self-hosted (Azure Static Web App via Bicep / ARM template)
+        - Local development (running Portal/ on localhost)
+        - Other / not sure
+    validations:
+      required: true
+
+  - type: input
+    id: portal-version
+    attributes:
+      label: Portal version or commit
+      description: For self-hosted deployments, the commit hash or release tag of the deployed source. For the managed portal, leave blank.
+      placeholder: e.g. v1.0.0 or 7f3c8a1
+
+  - type: dropdown
+    id: browser
+    attributes:
+      label: Browser
+      options:
+        - Microsoft Edge (Chromium)
+        - Google Chrome
+        - Mozilla Firefox
+        - Apple Safari
+        - Other Chromium (Brave, Opera, Vivaldi, Arc, etc.)
+        - Other (specify in additional context)
+    validations:
+      required: true
+
+  - type: input
+    id: browser-version
+    attributes:
+      label: Browser version
+      placeholder: e.g. 124.0.6367.92
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows 11
+        - Windows 10
+        - Windows Server
+        - macOS
+        - Linux
+        - iOS
+        - Android
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: tenant-context
+    attributes:
+      label: Tenant context
+      description: Which directory were you signed in to when the bug occurred?
+      options:
+        - Home tenant
+        - Guest in another tenant
+        - Multiple tenants used in the same session
+        - Not applicable
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: planes
+    attributes:
+      label: Affected PIM plane(s)
+      description: Tick every plane involved in the failing operation.
+      options:
+        - label: Microsoft Entra ID roles
+        - label: Azure Resource roles (ARM)
+        - label: PIM for Groups
+        - label: Not applicable / UI-only
+
+  - type: checkboxes
+    id: policy-traits
+    attributes:
+      label: Policy traits on the affected role(s)
+      description: Helpful for narrowing down policy and Conditional Access edge cases.
+      options:
+        - label: Justification required
+        - label: Ticket information required
+        - label: MFA required
+        - label: Conditional Access auth context (acrs) required
+        - label: Approval required
+        - label: None / unsure
+
+  - type: textarea
+    id: console
+    attributes:
+      label: Browser DevTools console output
+      description: Open DevTools (F12) → Console tab. Paste any errors or warnings logged during the failing operation. Redact tenant IDs, user principal names, and tokens.
+      render: text
+
+  - type: textarea
+    id: network
+    attributes:
+      label: Network errors
+      description: Open DevTools → Network tab. Paste any failed Graph or ARM request URLs and their status codes / response bodies. Redact identifiers.
+      render: text
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: Drag and drop images directly into this field. Avoid pasting tenant identifiers in the visible UI.
+
+  - type: dropdown
+    id: regression
+    attributes:
+      label: Is this a regression?
+      options:
+        - "No / I don't know"
+        - "Yes — it used to work"
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Anything else worth knowing — recent changes, intermittent vs consistent, workarounds you have tried.

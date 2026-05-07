@@ -1,0 +1,45 @@
+name: Documentation issue
+description: Report missing, unclear, or incorrect documentation in the README, the Wiki, in-app help, or code comments.
+title: "[Docs]: "
+labels: ["documentation", "triage"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is missing, unclear, or incorrect?
+      description: A clear description of the documentation problem.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: location
+    attributes:
+      label: Location
+      description: Where does the issue live?
+      options:
+        - label: README.md
+        - label: Wiki (https://github.com/Noble-Effeciency13/PIMActivation-Portal/wiki)
+        - label: In-app Help / Settings panels
+        - label: Code comments
+        - label: Issue / pull-request templates
+        - label: Self-hosted deployment (Bicep / ARM) docs
+        - label: Other (describe below)
+
+  - type: input
+    id: link
+    attributes:
+      label: Link or path
+      description: Direct URL or file path of the affected documentation.
+      placeholder: e.g. docs/wiki/Self-Hosted-Deployment.md or https://…/wiki/Getting-Started
+
+  - type: textarea
+    id: improvement
+    attributes:
+      label: Suggested improvement
+      description: How could this be made clearer? If you can, propose specific wording.
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Anything else that would help — examples, screenshots, related issues.
