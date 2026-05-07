@@ -57,6 +57,7 @@ First public release. The portal is live at <https://portal.pimactivation.com> a
 - Filter pills with quick role-type toggles and saveable named filters.
 - Help and settings menus surfaced from the header (in-app guide, FAQ, feature flags).
 - Responsive layout from phone-width up to ultra-wide displays.
+- Installable as a Progressive Web App on desktop and mobile via the shipped Web App Manifest (`Portal/manifest.json`), maskable 192 / 512 icons, `display: standalone`, theme-color, Apple touch icon, and `apple-mobile-web-app-*` meta tags. Launches in a standalone window with its own app icon — no browser chrome.
 
 #### Architecture and engine
 

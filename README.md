@@ -31,6 +31,7 @@ The portal is a pure single-page application. There is no backend, no proxy, and
 - **Conditional Access ready** — claims challenges (`acrs`) handled with a re-auth, then threaded through every subsequent token request in the operation
 - **Activation profiles** — saved role sets persisted in IndexedDB for one-click repeat activations
 - **Live expiry countdowns** with colour-coded urgency on active roles
+- **Installable PWA** — add to your phone or desktop home screen and launch in a standalone window with a real app icon
 - **Three themes** (dark, light, high-contrast) with system auto-detect; fully responsive
 - **Zero backend, zero data retention** — direct browser-to-Microsoft API calls under a strict Content Security Policy
 
@@ -83,6 +84,7 @@ The portal is a pure single-page application. There is no backend, no proxy, and
 - **Filter pills** — quick toggles between role types; saved filters can be pinned as named pills
 - **Help and settings** — in-app guide, FAQ, feature flags, and theme selector all reachable from the header
 - **Responsive** — works from phone-width up to ultra-wide displays
+- **Installable PWA** — Web App Manifest with maskable icons, standalone display mode, and Apple touch icons; install from Chrome / Edge "Install app" or iOS Safari "Add to Home Screen" to launch the portal in its own window without browser chrome
 
 ### State and caching
 
