@@ -23,6 +23,7 @@
 - [Features](#features)
 - [Screenshots](#screenshots)
 - [Use the managed portal](#use-the-managed-portal)
+- [Install as an app (PWA)](#install-as-an-app-pwa)
 - [Self-hosted Azure deployment](#self-hosted-azure-deployment)
 - [Architecture at a glance](#architecture-at-a-glance)
 - [Security](#security)
@@ -110,7 +111,7 @@ The portal is a pure single-page application. There is no backend, no proxy, and
 - **Filter pills** — quick toggles between role types; saved filters can be pinned as named pills
 - **Help and settings** — in-app guide, FAQ, feature flags, and theme selector all reachable from the header
 - **Responsive** — works from phone-width up to ultra-wide displays
-- **Installable PWA** — Web App Manifest with maskable icons, standalone display mode, and Apple touch icons; install from Chrome / Edge "Install app" or iOS Safari "Add to Home Screen" to launch the portal in its own window without browser chrome
+- **Installable as an app** — see [Install as an app (PWA)](#install-as-an-app-pwa) for details
 
 ### State and caching
 
@@ -150,6 +151,24 @@ What this means in practice:
 - Tokens are stored in `sessionStorage` and disappear when you close the tab.
 - Telemetry: none. The portal makes no calls to any analytics, logging, or tracking endpoint. The Content Security Policy only allows connections to `login.microsoftonline.com`, `graph.microsoft.com`, and `management.azure.com`.
 - If your tenant requires admin consent, an administrator can pre-consent the application using the standard `/adminconsent` endpoint for the published multi-tenant app.
+
+---
+
+## Install as an app (PWA)
+
+The portal is a Progressive Web App. Once you've signed in once and confirmed it works in your tenant, you can install it on your phone or desktop and launch it from a home-screen icon — in its own window, with no browser chrome.
+
+| Platform | How to install |
+|---|---|
+| **Desktop — Chrome / Edge** | Click the **Install app** icon in the address bar, or browser menu → **Install PIMActivation Portal**. |
+| **Android — Chrome** | Browser menu → **Install app** / **Add to Home screen**. |
+| **iOS / iPadOS — Safari** | Share sheet → **Add to Home Screen**. The home-screen icon launches the portal full-screen with the title "PIM". |
+
+Under the hood, the portal ships a Web App Manifest (`Portal/manifest.json`) with `display: standalone`, maskable 192 / 512 icons, a theme-color, an Apple touch icon, and the `apple-mobile-web-app-*` meta tags Safari needs.
+
+> **No offline mode.** The portal is installable, but it does not ship a service worker. Every privileged call still goes to Microsoft Graph or Azure Resource Manager, so a network connection is required even from the installed app.
+
+The same install flow works for self-hosted deployments — the manifest ships with the SPA.
 
 ---
 
