@@ -16,6 +16,32 @@
 
 ---
 
+## Table of contents
+
+- [The idea](#the-idea)
+- [Highlights](#highlights)
+- [Features](#features)
+- [Screenshots](#screenshots)
+- [Use the managed portal](#use-the-managed-portal)
+- [Self-hosted Azure deployment](#self-hosted-azure-deployment)
+- [Architecture at a glance](#architecture-at-a-glance)
+- [Security](#security)
+- [Required permissions](#required-permissions)
+- [Companion landing site](#companion-landing-site)
+- [Repository structure](#repository-structure)
+- [Local development](#local-development)
+- [CI / CD workflows](#ci--cd-workflows)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [Changelog](#changelog)
+- [Support](#support)
+- [Acknowledgments](#acknowledgments)
+- [Development transparency](#development-transparency)
+- [The PIMActivation ecosystem](#the-pimactivation-ecosystem)
+- [License](#license)
+
+---
+
 ## The idea
 
 Managing Privileged Identity Management activations across three separate planes — Entra ID roles, Azure Resource roles, and PIM for Groups — usually means context-switching between the Azure portal, the Entra admin center, and several approval flows. The PIMActivation ecosystem started as a PowerShell module to collapse that into one command. The portal extends the same model to the browser: select any combination of eligible roles across all three planes, fill in the policy-required fields once, and activate them in a single bulk operation.
@@ -278,6 +304,27 @@ All scopes are **delegated** (user-consented). No application permissions are re
 
 ---
 
+## Companion landing site
+
+The portal has a small marketing / discovery site at **<https://pimactivation.com>** that introduces the project to people who land there before they know what it does.
+
+It is intentionally separate from the portal itself:
+
+- **Different audience.** The portal is for signed-in users activating roles. The landing site is for first-time visitors evaluating the project, looking for the GitHub repo, the Wiki, or the PowerShell module.
+- **Different hosting plane.** The landing site is a static GitHub Pages site published from [`website/`](website) by the **Deploy GitHub Pages** workflow. The portal is an Azure Static Web App. Each can ship independently.
+- **Different security profile.** Because the landing site holds no tokens and never talks to Microsoft Graph, it can stay extremely simple — vanilla HTML / CSS, no framework, no third-party scripts, no analytics, and no tracking.
+
+What lives there:
+
+- A short pitch and the same hero screenshot used in this README.
+- Direct links to the live portal at <https://portal.pimactivation.com>, the GitHub repository, the Wiki, and the [PIMActivation PowerShell module](https://github.com/Noble-Effeciency13/PIMActivation).
+- The same favicon set as the portal, kept in sync automatically by the **Sync Favicons** workflow so both surfaces stay visually identical.
+- Responsive layout with the same dark / light theming language as the portal (`prefers-color-scheme` aware).
+
+If you only want to use the portal, go straight to <https://portal.pimactivation.com>. The landing site exists for everything else: blog posts that link to the project, search results, social previews, and people sharing the URL with a teammate who hasn't seen it before.
+
+---
+
 ## Repository structure
 
 ```text
@@ -318,23 +365,6 @@ PIMActivation-Portal/
 
 ---
 
-## Companion landing site
-
-The static landing page at <https://pimactivation.com> lives in [`website/`](website) and is published from `main` to GitHub Pages by the **Deploy GitHub Pages** workflow. It links to the live portal, the PowerShell module, and the source repository.
-
----
-
-## CI / CD workflows
-
-| Workflow | File | Trigger | What it does |
-|---|---|---|---|
-| Deploy Portal | [`deploy-portal.yml`](.github/workflows/deploy-portal.yml) | Push to `main` touching `Portal/**` | Injects `PORTAL_CLIENT_ID` / `organizations` into `msal-config.js` and deploys to Azure Static Web Apps. |
-| Deploy GitHub Pages | [`deploy-pages.yml`](.github/workflows/deploy-pages.yml) | Push to `main` touching `website/**` | Publishes the landing site to GitHub Pages. |
-| Sync Deployment Templates | [`sync-deployment-templates.yml`](.github/workflows/sync-deployment-templates.yml) | Push / PR touching Bicep or `azuredeploy.json` | Builds Bicep → ARM and fails PRs that drift; auto-commits the synced template on `main`. |
-| Sync Favicons | [`sync-favicons.yml`](.github/workflows/sync-favicons.yml) | Changes to favicon sources | Runs `scripts/sync-favicons.ps1`, fails PRs with drift, auto-commits on `main`. |
-
----
-
 ## Local development
 
 `Portal/` is static — any HTTP server will work. A minimal flow:
@@ -348,6 +378,17 @@ npx http-server -p 5500 -c-1
 Then create a development app registration with `http://localhost:5500` as a SPA redirect URI and edit `js/msal-config.js` locally to swap the placeholders for your dev `clientId` and `tenantId`. **Do not commit those edits.**
 
 The full walkthrough — including running under HTTPS, CSP relaxations to avoid in production, and tips for debugging the batch engine — lives in the [Local Development wiki page](docs/wiki/Local-Development.md).
+
+---
+
+## CI / CD workflows
+
+| Workflow | File | Trigger | What it does |
+|---|---|---|---|
+| Deploy Portal | [`deploy-portal.yml`](.github/workflows/deploy-portal.yml) | Push to `main` touching `Portal/**` | Injects `PORTAL_CLIENT_ID` / `organizations` into `msal-config.js` and deploys to Azure Static Web Apps. |
+| Deploy GitHub Pages | [`deploy-pages.yml`](.github/workflows/deploy-pages.yml) | Push to `main` touching `website/**` | Publishes the landing site to GitHub Pages. |
+| Sync Deployment Templates | [`sync-deployment-templates.yml`](.github/workflows/sync-deployment-templates.yml) | Push / PR touching Bicep or `azuredeploy.json` | Builds Bicep → ARM and fails PRs that drift; auto-commits the synced template on `main`. |
+| Sync Favicons | [`sync-favicons.yml`](.github/workflows/sync-favicons.yml) | Changes to favicon sources | Runs `scripts/sync-favicons.ps1`, fails PRs with drift, auto-commits on `main`. |
 
 ---
 
@@ -390,6 +431,13 @@ All notable changes are recorded in [`CHANGELOG.md`](CHANGELOG.md). The portal f
 ---
 
 ## Acknowledgments
+
+### Authors
+
+- **[Sebastian Flæng Markdanner](https://github.com/Noble-Effeciency13)** — Microsoft MVP, project maintainer, and author of the [PIMActivation PowerShell module](https://github.com/Noble-Effeciency13/PIMActivation) the portal grew from. Owns the activation engine, the security model, the deployment template, and the overall design of the portal.
+- **[Lukas Gosling](https://github.com/l-gosling)** — community co-creator. Co-designed and co-implemented the portal alongside Sebastian, with significant contributions to the UI, the bulk activation flow, and the policy-awareness surface.
+
+### Built on
 
 - The [PIMActivation PowerShell module](https://github.com/Noble-Effeciency13/PIMActivation) — the original tool, and the model the portal grew from.
 - The [Microsoft Authentication Library for JavaScript (MSAL.js)](https://github.com/AzureAD/microsoft-authentication-library-for-js) team — every secure browser-side token in this project is theirs.
