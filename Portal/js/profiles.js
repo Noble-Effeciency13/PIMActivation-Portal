@@ -93,6 +93,34 @@ class ProfileManager {
     return this._delete(id);
   }
 
+  /**
+   * Get all saved profiles (no filtering).
+   * @returns {Promise<object[]>}
+   */
+  async getAllProfiles() {
+    return this._getAll();
+  }
+
+  /**
+   * Import multiple profiles.
+   * @param {object[]} profiles
+   */
+  async importProfiles(profiles) {
+    if (!Array.isArray(profiles)) throw new Error('Invalid profiles format');
+    
+    for (const p of profiles) {
+      if (!p.name || !Array.isArray(p.roles)) continue;
+      
+      const imported = {
+        ...p,
+        id:            crypto.randomUUID(), // Always give new ID to avoid collisions
+        createdAt:     p.createdAt || new Date().toISOString(),
+        lastUsedAt:    null // Reset usage on import
+      };
+      await this._put(imported);
+    }
+  }
+
   // ── Private IndexedDB helpers ──────────────────────────────────────────────
 
   _tx(mode) {

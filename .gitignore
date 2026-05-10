@@ -1,6 +1,8 @@
 .env
+dev.js
 .claude/*
 .local/*
 
 # E2E tests
 e2e/*
+

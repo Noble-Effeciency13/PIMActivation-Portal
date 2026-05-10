@@ -1779,6 +1779,57 @@ async function _handleSaveProfile() {
   }
 }
 
+/**
+ * Export all saved profiles to a JSON file.
+ */
+async function _handleExportProfiles() {
+  try {
+    const profiles = await profileManager.getAllProfiles();
+    if (profiles.length === 0) {
+      showToast({ title: 'No profiles', description: 'There are no profiles to export.', type: 'info' });
+      return;
+    }
+    const blob = new Blob([JSON.stringify(profiles, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0];
+    const timeStr = String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0');
+    a.href = url;
+    a.download = `pim-activation-profiles-${dateStr}-${timeStr}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast({ title: 'Exported', description: `${profiles.length} profile${profiles.length === 1 ? '' : 's'} exported.`, type: 'success' });
+  } catch (err) {
+    showToast({ title: 'Export failed', description: err.message, type: 'error' });
+  }
+}
+
+/**
+ * Handle import file selection.
+ */
+async function _handleImportProfiles(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = async (event) => {
+    try {
+      const json = JSON.parse(event.target.result);
+      if (!Array.isArray(json)) throw new Error('Invalid format: expected an array of profiles');
+      
+      await profileManager.importProfiles(json);
+      showToast({ title: 'Imported', description: `${json.length} profile${json.length === 1 ? '' : 's'} imported successfully.`, type: 'success' });
+      _renderProfilesList();
+    } catch (err) {
+      showToast({ title: 'Import failed', description: 'Invalid JSON file or format.', type: 'error' });
+    } finally {
+      e.target.value = ''; // Reset input so same file can be imported again
+    }
+  };
+  reader.readAsText(file);
+}
+
 async function _handleActivateProfile(profileId) {
   const profiles = await profileManager.getProfiles().catch(() => []);
   const profile  = profiles.find(p => p.id === profileId);
@@ -2169,6 +2220,14 @@ async function bootstrap() {
     ?.addEventListener('click', e => {
       if (e.target === e.currentTarget) hideProfilesModal();
     });
+
+  // Profiles Export/Import
+  document.getElementById('profiles-export-btn')
+    ?.addEventListener('click', _handleExportProfiles);
+  document.getElementById('profiles-import-btn')
+    ?.addEventListener('click', () => document.getElementById('profiles-import-input')?.click());
+  document.getElementById('profiles-import-input')
+    ?.addEventListener('change', _handleImportProfiles);
 
   // Select all — eligible
   document.getElementById('select-all-eligible')
