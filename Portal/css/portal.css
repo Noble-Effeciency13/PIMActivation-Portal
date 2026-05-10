@@ -292,10 +292,12 @@ a { color: var(--primary); text-decoration: none; }
   color: var(--text-muted);
 }
 @media (hover: hover) and (pointer: fine) {
+  .header-quick-actions .icon-btn:hover { color: var(--primary); background: var(--bg-hover); }
+}
 
-  .header-quick-actions .icon-btn:hover { color: var(--primary);
-  background: var(--bg-hover); }
-
+.header-quick-actions .quick-dropdown {
+  right: auto;
+  left: 0;
 }
 
 /* Quick Actions Dropdown */
