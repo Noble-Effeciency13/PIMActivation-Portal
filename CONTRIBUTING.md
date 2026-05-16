@@ -9,7 +9,7 @@ This file is the short version. The long-form contributor guide — architecture
 1. **Fork** the repository.
 2. **Clone** your fork: `git clone https://github.com/<your-username>/PIMActivation-Portal.git`.
 3. **Create** a topic branch: `git checkout -b feature/short-description`.
-4. **Develop** locally — see [Local Development](docs/wiki/Local-Development.md).
+4. **Develop** locally — see [Local Development](https://github.com/Noble-Effeciency13/PIMActivation-Portal/wiki/Local-Development).
 5. **Test** in at least the latest Chromium and Firefox builds; prefer also testing in WebKit / Safari when UI changes are involved.
 6. **Commit** with a clear, descriptive message: `git commit -m "feat(profiles): support tenant-scoped imports"`.
 7. **Push** and **open a pull request** against `main`. The PR template will guide you through the rest.
