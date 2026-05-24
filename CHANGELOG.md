@@ -35,6 +35,7 @@ First public release. The portal is live at <https://portal.pimactivation.com> a
 - Per-profile pre-filled justification, ticket number, and duration override.
 - Opt-in tenant scoping for profiles (useful for guest scenarios).
 - Last-used sorting so frequent rotations stay at the top.
+- JSON import / export to move profiles between browsers, devices, and teammates; tenant scoping preserved on import.
 
 #### Active role management
 

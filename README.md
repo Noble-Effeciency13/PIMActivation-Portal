@@ -89,6 +89,7 @@ The portal is a pure single-page application. There is no backend, no proxy, and
 - **Per-profile defaults** — optional pre-filled justification, ticket number, and duration override per profile
 - **Tenant scoping** — opt-in flag to scope profiles to a specific tenant (useful for guests across multiple directories)
 - **Last-used tracking** — profiles are sorted by last use so your common rotations stay at the top
+- **Import / export** — download profiles to a JSON file and re-import them on another browser, another device, or a teammate's machine; tenant scoping is preserved on import
 
 ### Active role management
 
@@ -417,7 +418,6 @@ This is the first public release of the portal. Near-term ideas being considered
 
 - Activation history view sourced from the Entra audit log
 - Per-role notes inside profiles
-- Import / export profiles as JSON for sharing
 - Dark-mode-aware favicon switch
 - Keyboard-only navigation polish
 - Accessibility audit pass against WCAG 2.2 AA
