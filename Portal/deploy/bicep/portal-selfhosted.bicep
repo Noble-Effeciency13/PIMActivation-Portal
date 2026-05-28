@@ -75,12 +75,16 @@ var customDomainUrl = 'https://${customDomain}'
 var redirectUris = empty(customDomain) ? [ portalUrl ] : [ portalUrl, customDomainUrl ]
 var adminConsentUrl = uri(environment().authentication.loginEndpoint, '${tenantId}/adminconsent?client_id=${applicationClientId}')
 
-// Website Contributor role definition ID (built-in).
+// Contributor role definition ID (built-in).
 // Scoped narrowly to the Static Web App resource so the deployment identity can
-// read the SWA deployment token via listSecrets() — no broader RG access is needed.
+// read the SWA deployment token via listSecrets() — no broader RG access is granted.
+// Website Contributor's Microsoft.Web/staticSites/* wildcard does not authorize
+// Microsoft.Web/staticSites/listSecrets/action in practice, which blocks
+// `az staticwebapp secrets list`. Contributor (scoped to the SWA only) is the
+// narrowest built-in role that reliably grants the listSecrets action.
 // (Source-cache storage uses account-key auth from listKeys() in the bicep, and the
 // Microsoft Graph redirect-URI PATCH is authorized via Graph permissions, not Azure RBAC.)
-var websiteContributorRoleId = 'de139f84-1756-47ae-9be6-808fbbe84772'
+var contributorRoleId = 'b24988ac-6180-42a0-ab88-20f7382dd24c'
 
 // ── Managed Identity ──────────────────────────────────────────────────────────
 // Required by the ARM deploymentScript resource — it runs inside a container
@@ -91,14 +95,17 @@ resource deployIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-0
   tags:     tags
 }
 
-// ── Website Contributor on the Static Web App ────────────────────────────────
+// ── Contributor on the Static Web App ────────────────────────────────────────
 // Scoped to the SWA resource only; lets the deploy identity call listSecrets()
 // for the deployment token used by the SWA CLI. No resource-group-wide access.
+// Contributor (not Website Contributor) is required because the staticSites/*
+// wildcard in Website Contributor does not authorize listSecrets/action in
+// practice. Scope stays at the single SWA resource to keep blast radius minimal.
 resource roleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   scope: staticWebApp
-  name: guid(staticWebApp.id, deployIdentity.id, websiteContributorRoleId)
+  name: guid(staticWebApp.id, deployIdentity.id, contributorRoleId)
   properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', websiteContributorRoleId)
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', contributorRoleId)
     principalId:      deployIdentity.properties.principalId
     principalType:    'ServicePrincipal'
   }
