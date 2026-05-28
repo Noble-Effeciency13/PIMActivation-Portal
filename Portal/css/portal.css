@@ -1998,6 +1998,12 @@ body.show-inactive-policies .pol-none-label {
 .peek-item.missing { color: var(--text-faint); text-decoration: line-through; }
 .peek-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--primary); flex-shrink: 0; }
 .peek-item.missing .peek-dot { background: var(--text-faint); }
+.peek-reduced-scope {
+  font-size:  9px;
+  color:      var(--primary);
+  opacity:    0.85;
+  margin-top: 1px;
+}
 
 /* ── Azure Scope Controls ─────────────────────────────────────────────────── */
 .azure-scope-item {
@@ -2322,6 +2328,19 @@ body.show-inactive-policies .pol-none-label {
   display:        flex;
   flex-direction: column;
   gap:            8px;
+}
+.profiles-scope-heading {
+  font-size:     12px;
+  font-weight:   600;
+  color:         var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom:  6px;
+}
+.profiles-scope-subheading {
+  font-weight:   400;
+  text-transform: none;
+  letter-spacing: 0;
 }
 .profile-save-row {
   display: flex;

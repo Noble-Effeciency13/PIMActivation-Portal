@@ -966,7 +966,7 @@ function _validateScheduledStart() {
 
 function showActivationModal(roles, opts = {}) {
   _pendingRoles = roles;
-  _initAzureScopeSelections(roles);
+  _initAzureScopeSelections(roles, opts.reducedScopes);
   const modal = document.getElementById('activation-modal');
   if (!modal) return;
 
@@ -1048,6 +1048,11 @@ function showActivationModal(roles, opts = {}) {
 
   _renderAzureScopeControls();
 
+  // Kick off child-scope loading for any pre-configured reduced scopes (e.g. restored from a profile).
+  _azureScopeSelections.forEach((state, uid) => {
+    if (state.enabled) _loadAzureScopeChildren(uid);
+  });
+
   modal.hidden = false;
   modal.querySelector('.modal')?.classList.add('fade-in');
   if (justInput && needsJust && !opts.justification) justInput.focus();
@@ -1058,17 +1063,78 @@ function hideActivationModal() {
   const modal = document.getElementById('activation-modal');
   if (modal) modal.hidden = true;
   _pendingRoles = [];
-  _azureScopeSelections.clear();
+  // Intentionally not clearing _azureScopeSelections here — the Map is preserved
+  // so that _handleSaveProfile (profiles modal) can capture the most-recently-
+  // configured reduced scopes even after the activation modal has closed.
+  // _initAzureScopeSelections (called by showActivationModal) will reinitialise it.
 }
 
 function _scopeDisplayForModal(role) {
   return roleManager.getScopeDisplay(role);
 }
 
-function _initAzureScopeSelections(roles) {
+function _initAzureScopeSelections(roles, savedScopes) {
   _azureScopeSelections = new Map();
+  const savedMap = new Map((savedScopes || []).map(s => [s.uid, s]));
   roles.filter(r => r.type === 'AzureResource').forEach(role => {
     const uid = role.uid || role.id;
+    const baseScopeId = _normalizeScopeId(role.scopeId || role.scope);
+    const baseDisplayName = role.scope || role.scopeId || 'Original scope';
+    const saved = savedMap.get(uid);
+
+    if (saved && saved.scopeId && !_sameScopeId(saved.scopeId, baseScopeId)) {
+      // Restore a previously saved reduced scope from an activation profile.
+      const savedPath = Array.isArray(saved.path) && saved.path.length
+        ? saved.path
+        : [
+            { scopeId: baseScopeId, displayName: baseDisplayName, type: 'Original scope' },
+            { scopeId: saved.scopeId, displayName: saved.displayName || saved.scopeId, type: 'Scope' }
+          ];
+      _azureScopeSelections.set(uid, {
+        uid,
+        enabled: true,
+        baseScopeId,
+        baseDisplayName,
+        selectedScopeId: saved.scopeId,
+        selectedDisplayName: saved.displayName || saved.scopeId,
+        selectedType: 'Scope',
+        currentParentScopeId: saved.scopeId,
+        currentParentDisplayName: saved.displayName || saved.scopeId,
+        path: savedPath,
+        children: [],
+        loading: false,
+        error: '',
+        requestId: 0
+      });
+    } else {
+      _azureScopeSelections.set(uid, {
+        uid,
+        enabled: false,
+        baseScopeId,
+        baseDisplayName,
+        selectedScopeId: baseScopeId,
+        selectedDisplayName: baseDisplayName,
+        selectedType: 'Original scope',
+        currentParentScopeId: baseScopeId,
+        currentParentDisplayName: baseDisplayName,
+        path: [{ scopeId: baseScopeId, displayName: baseDisplayName, type: 'Original scope' }],
+        children: [],
+        loading: false,
+        error: '',
+        requestId: 0
+      });
+    }
+  });
+}
+
+// Ensure _azureScopeSelections has entries for every currently-selected Azure
+// Resource role without overwriting any state that was already configured
+// (e.g. from a prior activation or from the profiles modal itself).
+function _initProfilesAzureScopes() {
+  const azureRoles = roleManager.getSelectedEligibleRoles().filter(r => r.type === 'AzureResource');
+  for (const role of azureRoles) {
+    const uid = role.uid || role.id;
+    if (_azureScopeSelections.has(uid)) continue; // preserve existing state
     const baseScopeId = _normalizeScopeId(role.scopeId || role.scope);
     const baseDisplayName = role.scope || role.scopeId || 'Original scope';
     _azureScopeSelections.set(uid, {
@@ -1087,7 +1153,7 @@ function _initAzureScopeSelections(roles) {
       error: '',
       requestId: 0
     });
-  });
+  }
 }
 
 function _renderAzureScopeControls() {
@@ -1099,6 +1165,7 @@ function _renderAzureScopeControls() {
   row.hidden = azureRoles.length === 0;
   if (!azureRoles.length) {
     list.innerHTML = '';
+    _renderProfilesReducedScopes();
     return;
   }
 
@@ -1122,10 +1189,114 @@ function _renderAzureScopeControls() {
     ).join('');
 
     let hint = 'Activate at the original Azure scope unless a reduced scope is selected.';
-    if (state.loading) hint = 'Loading child scopes...';
-    else if (state.error) hint = state.error;
-    else if (state.enabled && state.children.length === 0) hint = 'No child scopes were found below the selected scope.';
-    else if (state.enabled) hint = 'Select a child scope, or drill down by selecting another scope from the list.';
+    if (state.loading) {
+      hint = 'Loading child scopes…';
+    } else if (state.error) {
+      hint = state.error;
+    } else if (state.enabled) {
+      const atBase = _sameScopeId(state.selectedScopeId, state.baseScopeId);
+      if (atBase) {
+        hint = state.children.length
+          ? 'Select a child scope, or drill down by selecting another scope from the list.'
+          : 'No child scopes were found below the selected scope.';
+      } else if (state.children.length) {
+        hint = 'Activation scope: ' + (state.selectedDisplayName || state.selectedScopeId) + '. Select below to refine further, or activate at this scope.';
+      } else {
+        hint = 'Activation scope: ' + (state.selectedDisplayName || state.selectedScopeId) + '. No further refinement available.';
+      }
+    }
+
+    return '<div class="azure-scope-item" data-uid="' + escapeHtml(uid) + '">' +
+      '<div class="azure-scope-head">' +
+        '<div class="azure-scope-role">' +
+          '<span class="azure-scope-name">' + escapeHtml(role.name || role.id) + '</span>' +
+          '<span class="azure-scope-current">' + escapeHtml(selectedText) + '</span>' +
+        '</div>' +
+        '<label class="azure-scope-toggle">' +
+          '<input type="checkbox" class="azure-scope-toggle-input" data-uid="' + escapeHtml(uid) + '" ' + (state.enabled ? 'checked' : '') + '>' +
+          '<span>Reduced scope</span>' +
+        '</label>' +
+      '</div>' +
+      '<div class="azure-scope-controls"' + controlsHidden + '>' +
+        '<div class="azure-scope-path" title="' + escapeHtml(pathText) + '">' + escapeHtml(pathText) + '</div>' +
+        '<div class="azure-scope-picker-row">' +
+          '<select class="form-select azure-scope-select" data-uid="' + escapeHtml(uid) + '"' + selectDisabled + '>' +
+            '<option value="">Select child scope...</option>' + childOptions +
+          '</select>' +
+          '<button type="button" class="btn btn-ghost btn-sm azure-scope-back" data-uid="' + escapeHtml(uid) + '"' + backDisabled + '>Back</button>' +
+          '<button type="button" class="btn btn-ghost btn-sm azure-scope-reset" data-uid="' + escapeHtml(uid) + '"' + resetDisabled + '>Reset</button>' +
+        '</div>' +
+        '<div class="scope-hint ' + (state.error ? 'scope-hint-error' : '') + '">' + escapeHtml(hint) + '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+
+  list.querySelectorAll('.azure-scope-toggle-input').forEach(input => {
+    input.addEventListener('change', () => _toggleAzureReducedScope(input.dataset.uid, input.checked));
+  });
+  list.querySelectorAll('.azure-scope-select').forEach(select => {
+    select.addEventListener('change', () => _selectAzureChildScope(select.dataset.uid, select.value));
+  });
+  list.querySelectorAll('.azure-scope-back').forEach(btn => {
+    btn.addEventListener('click', () => _stepAzureScopeBack(btn.dataset.uid));
+  });
+  list.querySelectorAll('.azure-scope-reset').forEach(btn => {
+    btn.addEventListener('click', () => _resetAzureScopeSelection(btn.dataset.uid, true));
+  });
+  _renderProfilesReducedScopes();
+}
+
+// Renders scope pickers for the profiles modal save form.
+// Mirrors _renderAzureScopeControls but targets the profiles modal container
+// and sources roles from the current eligible selection rather than _pendingRoles.
+function _renderProfilesReducedScopes() {
+  const section = document.getElementById('profiles-scope-section');
+  const list    = document.getElementById('profiles-azure-scope-list');
+  if (!section || !list) return;
+
+  const azureRoles = roleManager.getSelectedEligibleRoles().filter(r => r.type === 'AzureResource');
+  section.hidden = azureRoles.length === 0;
+  if (!azureRoles.length) {
+    list.innerHTML = '';
+    return;
+  }
+
+  list.innerHTML = azureRoles.map(role => {
+    const uid = role.uid || role.id;
+    const state = _azureScopeSelections.get(uid);
+    if (!state) return '';
+
+    const pathText = state.path.map(p => p.displayName || p.scopeId).join(' / ');
+    const selectedText = state.enabled
+      ? (state.selectedDisplayName || state.selectedScopeId || state.baseDisplayName)
+      : state.baseDisplayName;
+    const controlsHidden = state.enabled ? '' : ' hidden';
+    const backDisabled   = state.path.length <= 1 || state.loading ? ' disabled' : '';
+    const resetDisabled  = state.path.length <= 1 || state.loading ? ' disabled' : '';
+    const selectDisabled = state.loading || state.children.length === 0 ? ' disabled' : '';
+    const childOptions   = state.children.map(scope =>
+      '<option value="' + escapeHtml(scope.scopeId) + '">' +
+        escapeHtml((scope.type ? scope.type + ': ' : '') + (scope.displayName || scope.scopeId)) +
+      '</option>'
+    ).join('');
+
+    let hint = 'Profile will use the original Azure scope unless a reduced scope is selected.';
+    if (state.loading) {
+      hint = 'Loading child scopes…';
+    } else if (state.error) {
+      hint = state.error;
+    } else if (state.enabled) {
+      const atBase = _sameScopeId(state.selectedScopeId, state.baseScopeId);
+      if (atBase) {
+        hint = state.children.length
+          ? 'Select a child scope, or drill down by selecting another scope from the list.'
+          : 'No child scopes were found below the selected scope.';
+      } else if (state.children.length) {
+        hint = 'Saved scope: ' + (state.selectedDisplayName || state.selectedScopeId) + '. Select below to refine further, or save at this scope.';
+      } else {
+        hint = 'Saved scope: ' + (state.selectedDisplayName || state.selectedScopeId) + '. No further refinement available.';
+      }
+    }
 
     return '<div class="azure-scope-item" data-uid="' + escapeHtml(uid) + '">' +
       '<div class="azure-scope-head">' +
@@ -1454,12 +1625,19 @@ async function handleActivate() {
       nameInput?.focus();
       return;
     }
+    const reducedScopes = [];
+    _azureScopeSelections.forEach((state, uid) => {
+      if (state.enabled && state.selectedScopeId && !_sameScopeId(state.selectedScopeId, state.baseScopeId)) {
+        reducedScopes.push({ uid, scopeId: state.selectedScopeId, displayName: state.selectedDisplayName || state.selectedScopeId, path: state.path });
+      }
+    });
     await profileManager.saveProfile(pName, _pendingRoles, {
       tenantId:      _flags.tenantScopedProfiles ? portalAuth.getAccount()?.tenantId : null,
       justification,
       durationHours: hours,
       durationMins: mins,
-      ticketNumber
+      ticketNumber,
+      reducedScopes
     }).catch(e => console.error('Failed to save profile:', e));
   }
 
@@ -1641,6 +1819,8 @@ async function _renderProfilesList() {
   const body = document.getElementById('profiles-modal-body');
   if (!body) return;
 
+  _initProfilesAzureScopes();
+
   const _profileTenantId = _flags.tenantScopedProfiles ? portalAuth.getAccount()?.tenantId : null;
   const profiles = await profileManager.getProfiles(_profileTenantId).catch(() => []);
   const selected = roleManager.getSelectedEligibleRoles();
@@ -1655,6 +1835,10 @@ async function _renderProfilesList() {
         (selected.length === 0 ? ' disabled title="Select eligible roles first"' : '') + '>' +
         'Save (' + selected.length + ' role' + (selected.length !== 1 ? 's' : '') + ')' +
       '</button>' +
+    '</div>' +
+    '<div id="profiles-scope-section" hidden>' +
+      '<div class="profiles-scope-heading">Reduced scopes <span class="profiles-scope-subheading">(optional \u2014 Azure Resource roles only)</span></div>' +
+      '<div id="profiles-azure-scope-list" class="azure-scope-list"></div>' +
     '</div>' +
     '<div class="profile-save-extras">' +
       '<textarea id="profiles-justification-input" class="form-textarea profile-justification" rows="2" maxlength="500" placeholder="Default justification (optional)…"></textarea>' +
@@ -1683,11 +1867,13 @@ async function _renderProfilesList() {
       const peekItems = p.roles.map(pr => {
         const found = roleManager.eligibleRoles.find(r => (r.uid || r.id) === (pr.uid || pr.id));
         const scope = found ? roleManager.getScopeDisplay(found) : (pr.scope || pr.directoryScopeId || '');
+        const reducedScope = (p.reducedScopes || []).find(s => s.uid === (pr.uid || pr.id));
         return '<li class="peek-item ' + (found ? '' : 'missing') + '">' +
           '<span class="peek-dot"></span>' +
           '<div style="flex:1; min-width:0; display:flex; flex-direction:column;">' +
             '<span>' + escapeHtml(pr.name) + '</span>' +
             '<span style="font-size:9px; opacity:0.7;">' + escapeHtml(scope) + '</span>' +
+            (reducedScope ? '<span class="peek-reduced-scope">&#8594; ' + escapeHtml(reducedScope.displayName || reducedScope.scopeId) + '</span>' : '') +
           '</div>' +
           (found ? '' : ' (unavailable)') + '</li>';
       }).join('');
@@ -1752,6 +1938,9 @@ async function _renderProfilesList() {
       }
     });
   });
+
+  // Render Azure reduced scope pickers for the save form
+  _renderProfilesReducedScopes();
 }
 
 async function _handleSaveProfile() {
@@ -1764,11 +1953,24 @@ async function _handleSaveProfile() {
   if (!name) { nameInput?.focus(); showToast({ title: 'Missing name', description: 'Enter a profile name.', type: 'warning' }); return; }
   const roles = roleManager.getSelectedEligibleRoles();
   if (!roles.length) { showToast({ title: 'No roles', description: 'Select eligible roles first.', type: 'warning' }); return; }
+  // Capture any reduced scopes configured for matching Azure roles — the Map persists
+  // from the most recent activation modal session so the user can configure scopes,
+  // activate (or cancel), and still have them picked up when saving from here.
+  const reducedScopes = [];
+  roles.forEach(role => {
+    if (role.type !== 'AzureResource') return;
+    const uid = role.uid || role.id;
+    const state = _azureScopeSelections.get(uid);
+    if (state && state.enabled && state.selectedScopeId && !_sameScopeId(state.selectedScopeId, state.baseScopeId)) {
+      reducedScopes.push({ uid, scopeId: state.selectedScopeId, displayName: state.selectedDisplayName || state.selectedScopeId, path: state.path });
+    }
+  });
   const opts = {
     tenantId:      _flags.tenantScopedProfiles ? portalAuth.getAccount()?.tenantId : null,
     justification: justInput?.value.trim() || '',
     durationHours: parseInt(hrsInput?.value  || '8', 10) || 0,
-    durationMins:  parseInt(minsInput?.value || '0', 10) || 0
+    durationMins:  parseInt(minsInput?.value || '0', 10) || 0,
+    reducedScopes
   };
   try {
     await profileManager.saveProfile(name, roles, opts);
@@ -1857,9 +2059,10 @@ async function _handleActivateProfile(profileId) {
   await profileManager.touchProfile(profileId).catch(() => {});
   hideProfilesModal();
   showActivationModal(resolved, {
-    justification: profile.justification || '',
-    durationHours: profile.durationHours ?? 8,
-    durationMins:  profile.durationMins  ?? 0
+    justification:  profile.justification || '',
+    durationHours:  profile.durationHours ?? 8,
+    durationMins:   profile.durationMins  ?? 0,
+    reducedScopes:  profile.reducedScopes || []
   });
 }
 

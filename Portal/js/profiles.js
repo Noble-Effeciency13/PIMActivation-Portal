@@ -50,6 +50,7 @@ class ProfileManager {
       name:          name.trim(),
       tenantId:      opts.tenantId || null,
       roles:         roles.map(r => ({ uid: r.uid, type: r.type, id: r.id, name: r.name, scope: r.scope })),
+      reducedScopes: opts.reducedScopes || [],
       justification: opts.justification || '',
       durationHours: opts.durationHours ?? 8,
       durationMins:  opts.durationMins  ?? 0,
