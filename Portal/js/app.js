@@ -1001,9 +1001,11 @@ function showActivationModal(roles, opts = {}) {
     slider.value = fillHours * 60 + fillMins;
   }
 
-  // Highlight matching preset button (if any)
+  // Highlight matching preset button (if any) and hide those exceeding max duration
   document.querySelectorAll('.preset-btn').forEach(b => {
     b.classList.toggle('active', Number(b.dataset.h) === fillHours && Number(b.dataset.m) === fillMins);
+    const btnMins = Number(b.dataset.h) * 60 + Number(b.dataset.m);
+    b.style.display = (isFinite(sliderMax) && btnMins > sliderMax) ? 'none' : '';
   });
 
   if (hint) {

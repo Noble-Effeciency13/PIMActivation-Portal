@@ -323,7 +323,7 @@ class RoleManager {
 
       // Human-readable policy values for the mobile expand panel
       const maxText     = role.maxDurationHours != null
-        ? (role.maxDurationHours % 1 === 0 ? role.maxDurationHours + 'h' : Math.round(role.maxDurationHours * 60) + 'm')
+        ? _maxDuration(role.maxDurationHours)
         : 'Loading\u2026';
       const mfaText     = role.requiresMfa          ? 'Required'     : 'Not required';
       const authCtxText = role.requiresAuthContext
@@ -694,6 +694,7 @@ class RoleManager {
 
     const eligBtn = document.getElementById('activate-btn');
     const actBtn  = document.getElementById('deactivate-btn');
+    const profBtn = document.getElementById('profiles-btn');
 
     if (eligBtn) {
       eligBtn.disabled    = ne === 0;
@@ -702,6 +703,14 @@ class RoleManager {
     if (actBtn) {
       actBtn.disabled    = na === 0;
       actBtn.textContent = na > 0 ? 'Deactivate (' + na + ')' : 'Deactivate';
+    }
+    if (profBtn) {
+      const btnText = profBtn.querySelector('.btn-text');
+      if (btnText) {
+        btnText.textContent = ne > 0 ? 'Save Profile' : 'Profiles';
+      } else {
+        profBtn.textContent = ne > 0 ? 'Save Profile' : 'Profiles';
+      }
     }
   }
 
@@ -1215,7 +1224,10 @@ function _typeBadge(type) {
 function _maxDuration(hours) {
   if (hours == null) return '&ndash;';
   if (hours % 1 === 0) return hours + 'h';
-  return Math.round(hours * 60) + 'm';
+  const h = Math.floor(hours);
+  const m = Math.round((hours % 1) * 60);
+  if (h === 0) return m + 'm';
+  return h + 'h ' + m + 'm';
 }
 
 function _polDot(required, letter, colorClass, tooltip) {

@@ -72,8 +72,15 @@ class PolicyCache {
 
     let maxHours = 8;
     if (expiryRule?.maximumDuration) {
-      const m = expiryRule.maximumDuration.match(/PT(\d+)H/);
-      if (m) maxHours = parseInt(m[1], 10);
+      const dur = expiryRule.maximumDuration;
+      let h = 0;
+      const mD = dur.match(/(\d+)D/);
+      const mH = dur.match(/(\d+)H/);
+      const mM = dur.match(/T.*?(\d+)M/);
+      if (mD) h += parseInt(mD[1], 10) * 24;
+      if (mH) h += parseInt(mH[1], 10);
+      if (mM) h += parseInt(mM[1], 10) / 60;
+      if (h > 0) maxHours = h;
     }
 
     return {
