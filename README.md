@@ -211,7 +211,7 @@ The Bicep file at [`Portal/deploy/bicep/portal-selfhosted.bicep`](Portal/deploy/
 | `applicationClientId` | yes | — | Application (client) ID of an existing single-tenant Entra ID SPA app registration for the portal. |
 | `tenantId` | no | `subscription().tenantId` | Tenant ID. Defaults to the current subscription tenant. |
 | `customDomain` | no | `''` | Optional custom domain (e.g. `pim.contoso.com`). Included in the redirect URI auto-merge attempt. The Static Web App custom domain itself must still be added manually after DNS validates. |
-| `portalSourceBranch` | no | `main` | Repository branch to download. Each deployment pulls the latest commit at deployment time. |
+| `portalSourceBranch` | no | `''` | Deploy from a branch instead of the latest release. Leave blank to deploy the latest published release asset (`portal-source.zip`); set to e.g. `main` to pull the newest commit at deployment time. |
 | `portalSourceArchiveUrl` | no | `''` | Override the source download with a publicly reachable ZIP. The archive must contain `Portal/index.html`. ZIPs from PowerShell `Compress-Archive` are supported. |
 | `deploymentScriptRunId` | no | `utcNow('yyyyMMddHHmmss')` | Forces the deployment script to rerun and gives each run a fresh resource name to avoid Azure Files sharing violations on retry. |
 | `location` | no | `resourceGroup().location` | Azure region for the Static Web App. |
@@ -241,7 +241,7 @@ If you pass `customDomain`, the Static Web App custom domain itself must still b
 
 ### Reruns and source-archive fallback
 
-The deployment script uses a fresh resource name on each run (driven by `deploymentScriptRunId`), which sidesteps the Azure Files sharing violations that previously blocked retries. Reruns therefore pick up the newest commit on `portalSourceBranch` automatically, or — if both the branch download and `portalSourceArchiveUrl` fail — fall back to the cached source archive in the customer-owned storage account.
+The deployment script uses a fresh resource name on each run (driven by `deploymentScriptRunId`), which sidesteps the Azure Files sharing violations that previously blocked retries. By default each rerun pulls the latest published release asset (`portal-source.zip`); set `portalSourceBranch` to deploy a branch's newest commit instead. If both the download and `portalSourceArchiveUrl` fail, the script falls back to the cached source archive in the customer-owned storage account.
 
 If the repository is private, GitHub returns `404` to the unauthenticated deployment script. In that case, pass `portalSourceArchiveUrl` with a publicly reachable or pre-signed ZIP that contains `Portal/index.html`.
 

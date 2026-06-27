@@ -6,7 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-_Nothing yet — open a [discussion](https://github.com/Noble-Effeciency13/PIMActivation-Portal/discussions) or [feature request](https://github.com/Noble-Effeciency13/PIMActivation-Portal/issues/new?template=feature_request.yml) if you have an idea._
+### Changed
+
+- Self-hosted deployments now pull the portal source from the latest published GitHub **release asset** (`portal-source.zip`) by default instead of the `main` branch archive, so each deployment tracks a tagged, tested release (and registers a release download). Set the `portalSourceBranch` parameter to deploy a branch's latest commit instead.
 
 ## [1.1.0] — 2026-06-28
 
