@@ -36,6 +36,8 @@ class RoleManager {
     this._activeDragId         = null; // active section: id being dragged
     this._enrichedPhase1 = false; // true when Phase 1 policy enrichment settles
     this._enrichedPhase2 = false; // true when Phase 2 policy enrichment settles (or Azure skipped)
+    this._customExtensionsById = null;
+    this._customExtensionsByIdPromise = null;
   }
 
   // ── Load ──────────────────────────────────────────────────────────────────
@@ -200,16 +202,19 @@ class RoleManager {
     // This avoids per-role queries that 403 on AU-scoped roles (the caller
     // does not need AU-admin permissions — tenant-root policies cover all
     // role definitions and work for both directory-wide and AU-scoped assignments).
-    const policyAssignments = await graphClient.getAllEntraRolePolicies().catch(err => {
-      console.warn('[Roles] Entra policy bulk fetch failed:', err.message);
-      return [];
-    });
+    const [policyAssignments, customExtensionsById] = await Promise.all([
+      graphClient.getAllEntraRolePolicies({ preferBeta: true }).catch(err => {
+        console.warn('[Roles] Entra policy bulk fetch failed:', err.message);
+        return [];
+      }),
+      this._getCustomExtensionsById()
+    ]);
     const policyByRoleId = new Map(policyAssignments.map(a => [a.roleDefinitionId, a.policy]));
 
     for (const role of this.eligibleRoles) {
       if (role.type !== 'User') continue;
       const policy = policyByRoleId.get(role.id);
-      if (policy) Object.assign(role, PolicyCache.extractPolicyDetails(policy));
+      if (policy) Object.assign(role, this._extractPolicyDetails(policy, customExtensionsById));
     }
 
     // Group roles: per-group policy (Group policies aren't scoped the same way)
@@ -219,7 +224,7 @@ class RoleManager {
         .map(async role => {
           try {
             const policy = await policyCache.getGroupPolicy(tenantId, role.groupId || role.id, role.accessId || 'member');
-            if (policy) Object.assign(role, PolicyCache.extractPolicyDetails(policy));
+            if (policy) Object.assign(role, this._extractPolicyDetails(policy, customExtensionsById));
           } catch { /* non-fatal */ }
         })
     );
@@ -240,18 +245,60 @@ class RoleManager {
   // ── Azure policy enrichment ───────────────────────────────────────────
 
   async _enrichAzurePolicy(roles) {
+    const customExtensionsById = await this._getCustomExtensionsById();
     await Promise.allSettled(roles.map(async azureRole => {
       if (!azureRole.scopeId || !azureRole.id) return;
       try {
         const policy = await armClient.getAzureRolePolicy(azureRole.scopeId, azureRole.id);
         if (policy) {
           const live = this.eligibleRoles.find(r => r.uid === azureRole.uid);
-          if (live) Object.assign(live, PolicyCache.extractPolicyDetails(policy));
+          if (live) Object.assign(live, this._extractPolicyDetails(policy, customExtensionsById));
         }
       } catch (err) {
         console.warn('[Roles] Azure policy fetch failed for', azureRole.name, err.message);
       }
     }));
+  }
+
+  async _getCustomExtensionsById() {
+    if (this._customExtensionsById) return this._customExtensionsById;
+    if (!this._customExtensionsByIdPromise) {
+      this._customExtensionsByIdPromise = graphClient.getPimCustomExtensions()
+        .then(extensions => {
+          const map = new Map();
+          (extensions || []).forEach(extension => {
+            const id = extension.id || extension.customExtensionId;
+            _customExtensionLookupKeys(id).forEach(key => map.set(key, extension));
+          });
+          this._customExtensionsById = map;
+          return map;
+        })
+        .catch(err => {
+          console.warn('[Roles] PIM custom extension fetch failed:', err.message);
+          this._customExtensionsById = new Map();
+          return this._customExtensionsById;
+        });
+    }
+    return this._customExtensionsByIdPromise;
+  }
+
+  _extractPolicyDetails(policy, customExtensionsById = new Map()) {
+    const details = PolicyCache.extractPolicyDetails(policy);
+    if (!details.requiresCustomExtension) return details;
+
+    const names = new Set(details.customExtensionNames || []);
+    for (const id of details.customExtensionIds || []) {
+      for (const key of _customExtensionLookupKeys(id)) {
+        const extension = customExtensionsById.get(key);
+        const name = extension?.displayName || extension?.name;
+        if (name) {
+          names.add(name);
+          break;
+        }
+      }
+    }
+    details.customExtensionNames = [...names];
+    return details;
   }
 
   // ── Pending approval annotation ───────────────────────────────────────────
@@ -307,7 +354,7 @@ class RoleManager {
 
     if (n === 0) {
       const msg = this.eligibleRoles.length === 0 ? 'No eligible roles found.' : 'No roles match the current filters.';
-      tbody.innerHTML = '<tr class="row-placeholder"><td colspan="9">' + msg + '</td></tr>';
+      tbody.innerHTML = '<tr class="row-placeholder"><td colspan="10">' + msg + '</td></tr>';
       this._updateBars();
       return;
     }
@@ -329,6 +376,7 @@ class RoleManager {
       const authCtxText = role.requiresAuthContext
         ? (role.authContextId ? escapeHtml(role.authContextId) : 'Required')
         : 'Not required';
+      const customExtensionText = _customExtensionText(role);
 
       const mainRow =
         '<tr class="' + selCls + '" data-uid="' + escapeHtml(uid) + '">' +
@@ -346,6 +394,7 @@ class RoleManager {
               _polDot(role.requiresJustification, 'Just.',  'pol-warning', 'Justification required') +
               _polDot(role.requiresTicket,        'Ticket', 'pol-warning', 'Ticket required') +
               _polDot(role.requiresApproval,      'Apprv.', 'pol-purple',  'Approval required') +
+              _polCustomExtension(role) +
             '</div>' +
           '</div></td>' +
           '<td class="col-policy" data-label="Max"><span class="pol-max">' + maxDisp + '</span></td>' +
@@ -353,6 +402,7 @@ class RoleManager {
           '<td class="col-policy" data-label="Just.">'  + _polDot(role.requiresJustification, 'Just.',  'pol-warning', 'Justification required') + '</td>' +
           '<td class="col-policy" data-label="Ticket">' + _polDot(role.requiresTicket,        'Ticket', 'pol-warning', 'Ticket required')        + '</td>' +
           '<td class="col-policy" data-label="Apprv.">' + _polDot(role.requiresApproval,      'Apprv.', 'pol-purple',  'Approval required')       + '</td>' +
+          '<td class="col-policy" data-label="Ext">'    + _polCustomExtension(role)                         + '</td>' +
           '<td class="col-expand">' +
             '<button class="expand-btn" data-uid="' + escapeHtml(uid) + '" aria-label="Show policy details" aria-expanded="false">' +
               '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">' +
@@ -372,6 +422,7 @@ class RoleManager {
               '<span class="pd-label">Justification</span><span class="pd-value">' + (role.requiresJustification ? 'Required' : 'Not required') + '</span>' +
               '<span class="pd-label">Ticket</span><span class="pd-value">' + (role.requiresTicket ? 'Required' : 'Not required') + '</span>' +
               '<span class="pd-label">Approval</span><span class="pd-value">' + (role.requiresApproval ? 'Required' : 'Not required') + '</span>' +
+              '<span class="pd-label">Custom extension</span><span class="pd-value">' + customExtensionText + '</span>' +
             '</div>' +
           '</td>' +
         '</tr>';
@@ -1107,9 +1158,19 @@ function _mergePolicy(roles, cacheMap) {
     role.requiresApproval      = prev.requiresApproval;
     role.requiresAuthContext   = prev.requiresAuthContext;
     role.authContextId         = prev.authContextId;
+    role.requiresCustomExtension = prev.requiresCustomExtension;
+    role.customExtensionIds    = prev.customExtensionIds;
+    role.customExtensionNames  = prev.customExtensionNames;
     role.maxDurationHours      = prev.maxDurationHours;
     return role;
   });
+}
+
+function _customExtensionLookupKeys(id) {
+  const value = String(id || '').trim();
+  if (!value) return [];
+  const tail = value.split('/').filter(Boolean).pop();
+  return [...new Set([value, value.toLowerCase(), tail, tail?.toLowerCase()].filter(Boolean))];
 }
 
 function _sort(roles) {
@@ -1232,7 +1293,7 @@ function _maxDuration(hours) {
 
 function _polDot(required, letter, colorClass, tooltip) {
   if (required) {
-    return '<span class="pol-dot ' + colorClass + '" title="' + tooltip + '">' + letter + '</span>';
+    return '<span class="pol-dot ' + colorClass + '" title="' + escapeHtml(tooltip || '') + '">' + letter + '</span>';
   }
   return '<span class="pol-none" title="Not required"><span class="pol-none-dash">&ndash;</span><span class="pol-none-label">' + letter + '</span></span>';
 }
@@ -1248,6 +1309,22 @@ function _polMfa(role) {
   }
   if (parts.length === 0) return '<span class="pol-none" title="No MFA or auth context required"><span class="pol-none-dash">&ndash;</span><span class="pol-none-label">MFA</span></span>';
   return '<div class="pol-mfa-cell">' + parts.join('') + '</div>';
+}
+
+function _customExtensionNames(role) {
+  return Array.isArray(role.customExtensionNames) ? role.customExtensionNames.filter(Boolean) : [];
+}
+
+function _customExtensionText(role) {
+  if (!role.requiresCustomExtension) return 'Not required';
+  const names = _customExtensionNames(role);
+  return names.length > 0 ? 'Required: ' + names.map(name => escapeHtml(name)).join(', ') : 'Required';
+}
+
+function _polCustomExtension(role) {
+  const names = _customExtensionNames(role);
+  const tooltip = names.length > 0 ? 'Custom extension: ' + names.join(', ') : 'Custom extension required';
+  return _polDot(role.requiresCustomExtension, 'Ext', 'pol-extension', tooltip);
 }
 
 // Module-level map for Administrative Unit display names (populated during _enrichPolicy)

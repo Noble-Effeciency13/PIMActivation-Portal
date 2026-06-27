@@ -2,6 +2,7 @@
 dev.js
 .claude/*
 .local/*
+RELEASE_NOTES.md
 
 # E2E tests
 e2e/*

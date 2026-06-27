@@ -54,7 +54,7 @@ The portal is a pure single-page application. There is no backend, no proxy, and
 ## Highlights
 
 - **Bulk activation across all three PIM planes** in one operation
-- **Policy-aware** — per-role requirements (justification, ticket, MFA, auth context, approval, max duration) detected and enforced before submit
+- **Policy-aware** — per-role requirements (justification, ticket, MFA, auth context, approval, custom extension, max duration) detected and enforced before submit
 - **Conditional Access ready** — claims challenges (`acrs`) handled with a re-auth, then threaded through every subsequent token request in the operation
 - **Activation profiles** — saved role sets persisted in IndexedDB for one-click repeat activations
 - **Live expiry countdowns** with colour-coded urgency on active roles
@@ -77,10 +77,11 @@ The portal is a pure single-page application. There is no backend, no proxy, and
 
 ### Policy awareness
 
-- **Per-role policy matrix** — each eligible row shows exactly which requirements apply: justification, ticket number, MFA, Conditional Access auth context, approval, and the maximum duration
+- **Per-role policy matrix** — each eligible row shows exactly which requirements apply: justification, ticket number, MFA, Conditional Access auth context, approval, custom extension, and the maximum duration
 - **Duration capping** — the requested duration is capped to the policy maximum at submit time, eliminating "over-request" failures
 - **Justification and ticket enforcement** — required fields are validated client-side per role before any request is sent
 - **Auth context step-up** — when a role requires a Conditional Access auth context (`acrs` claim), the portal detects it from the policy, triggers a re-auth with the required claims challenge, and threads the resulting claims into every subsequent token acquisition in the operation
+- **Custom extension awareness** — roles whose policy requires a pre-approval custom extension (callout) are flagged with a dedicated **Ext** column; the extension's display name is resolved from Microsoft Graph and shown in the tooltip and policy-detail panel
 - **Approval roles** — handled inline; the request is submitted with the user's justification and surfaces in activity history pending approver action
 
 ### Activation profiles
@@ -318,6 +319,7 @@ All scopes are **delegated** (user-consented). No application permissions are re
 | `RoleManagement.ReadWrite.Directory` | Microsoft Graph | List eligibilities and activate / deactivate Entra ID roles |
 | `PrivilegedAccess.ReadWrite.AzureADGroup` | Microsoft Graph | Activate / deactivate PIM for Groups (member and owner) |
 | `RoleManagementPolicy.Read.AzureADGroup` | Microsoft Graph | Read PIM for Groups policy settings |
+| `PrivilegedAccess-CustomExt.Read.All` | Microsoft Graph | Resolve PIM custom-extension display names for the policy matrix |
 | `Policy.Read.All` | Microsoft Graph | Read policy definitions used to enrich eligible roles |
 | `AdministrativeUnit.Read.All` | Microsoft Graph | Resolve AU display names for AU-scoped Entra roles |
 | `AuditLog.Read.All` | Microsoft Graph | Read audit logs to surface activation history |
@@ -410,6 +412,7 @@ The full walkthrough — including running under HTTPS, CSP relaxations to avoid
 | Deploy GitHub Pages | [`deploy-pages.yml`](.github/workflows/deploy-pages.yml) | Push to `main` touching `website/**` | Publishes the landing site to GitHub Pages. |
 | Sync Deployment Templates | [`sync-deployment-templates.yml`](.github/workflows/sync-deployment-templates.yml) | Push / PR touching Bicep or `azuredeploy.json` | Builds Bicep → ARM and fails PRs that drift; auto-commits the synced template on `main`. |
 | Sync Favicons | [`sync-favicons.yml`](.github/workflows/sync-favicons.yml) | Changes to favicon sources | Runs `scripts/sync-favicons.ps1`, fails PRs with drift, auto-commits on `main`. |
+| Attach Release Assets | [`release.yml`](.github/workflows/release.yml) | A GitHub Release is published | Attaches `azuredeploy.json` and `portal-source.zip` to the release for download (and per-asset download-count tracking). |
 
 ---
 

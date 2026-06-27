@@ -1,0 +1,39 @@
+name: Attach Release Assets
+
+# When a GitHub Release is published, attach the deployable artefacts so they are
+# downloadable from the Releases page — and counted via each asset's download_count:
+#   • azuredeploy.json  — versioned ARM template snapshot (manual download)
+#   • portal-source.zip — the SPA source the self-hosted deploy script pulls
+#
+# NOTE: portal-source.zip ships the UN-injected source — Portal/js/msal-config.js
+# keeps its __PORTAL_CLIENT_ID__ / __PORTAL_TENANT_ID__ placeholders, which the
+# self-hosted deployment script replaces at deploy time.
+#
+# The "Deploy to Azure" button intentionally stays on raw.githubusercontent.com:
+# release-asset URLs redirect to a signed host that sends no CORS headers and an
+# attachment content-disposition, which the Azure portal template loader cannot read.
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  attach-assets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Package portal source archive
+        run: zip -r portal-source.zip Portal
+
+      - name: Upload assets to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${{ github.event.release.tag_name }}" \
+            Portal/deploy/azuredeploy.json \
+            portal-source.zip \
+            --clobber

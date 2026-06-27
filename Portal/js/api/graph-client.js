@@ -13,6 +13,7 @@ const BETA_BASE  = 'https://graph.microsoft.com/beta';
 
 // Module-level cache for Administrative Unit display names
 const _auCache = new Map(); // GUID → displayName
+const _pimCustomExtensionCache = { promise: null, items: null };
 
 // ── Generic fetch wrapper ─────────────────────────────────────────────────────
 
@@ -78,6 +79,15 @@ async function graphGetAll(path, useBeta = false) {
     url = page['@odata.nextLink'] || null;
   }
   return items;
+}
+
+async function graphGetAllWithBetaFallback(path, preferBeta = false) {
+  if (!preferBeta) return graphGetAll(path, false);
+  try {
+    return await graphGetAll(path, true);
+  } catch {
+    return graphGetAll(path, false);
+  }
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -234,10 +244,10 @@ async function getActiveGroupRoles() {
  * @param {string} scopeId — directory scope ID
  * @returns {Promise<object>}
  */
-async function getEntraRolePolicy(roleId, scopeId = '/') {
-  const assignments = await graphGetAll(
+async function getEntraRolePolicy(roleId, scopeId = '/', options = {}) {
+  const assignments = await graphGetAllWithBetaFallback(
     `/policies/roleManagementPolicyAssignments?$filter=roleDefinitionId eq '${_odataEscape(roleId)}' and scopeId eq '${encodeURIComponent(_odataEscape(scopeId))}' and scopeType eq 'DirectoryRole'&$expand=policy($expand=rules)`,
-    false
+    options.preferBeta === true
   );
   return assignments[0]?.policy || null;
 }
@@ -248,10 +258,10 @@ async function getEntraRolePolicy(roleId, scopeId = '/') {
  * Use this instead of getEntraRolePolicy() to avoid 403s on AU-scoped role queries.
  * @returns {Promise<object[]>}
  */
-async function getAllEntraRolePolicies() {
-  return graphGetAll(
+async function getAllEntraRolePolicies(options = {}) {
+  return graphGetAllWithBetaFallback(
     `/policies/roleManagementPolicyAssignments?$filter=scopeId eq '%2F' and scopeType eq 'DirectoryRole'&$expand=policy($expand=rules)`,
-    false
+    options.preferBeta === true
   );
 }
 
@@ -261,12 +271,33 @@ async function getAllEntraRolePolicies() {
  * @param {string} accessId — 'member' | 'owner'
  * @returns {Promise<object>}
  */
-async function getGroupPolicy(groupId, accessId = 'member') {
-  const assignments = await graphGetAll(
+async function getGroupPolicy(groupId, accessId = 'member', options = {}) {
+  const assignments = await graphGetAllWithBetaFallback(
     `/policies/roleManagementPolicyAssignments?$filter=scopeId eq '${_odataEscape(groupId)}' and scopeType eq 'Group' and roleDefinitionId eq '${_odataEscape(accessId)}'&$expand=policy($expand=rules)`,
-    false
+    options.preferBeta === true
   );
   return assignments[0]?.policy || null;
+}
+
+/**
+ * List PIM custom extensions from Microsoft Graph beta.
+ * This preview endpoint may fail when the tenant lacks the feature, license, or delegated consent.
+ * @returns {Promise<object[]>}
+ */
+async function getPimCustomExtensions() {
+  if (_pimCustomExtensionCache.items) return _pimCustomExtensionCache.items;
+  if (!_pimCustomExtensionCache.promise) {
+    _pimCustomExtensionCache.promise = graphGetAll('/identityGovernance/privilegedAccess/customExtensions', true)
+      .then(items => {
+        _pimCustomExtensionCache.items = items;
+        return items;
+      })
+      .catch(err => {
+        _pimCustomExtensionCache.promise = null;
+        throw err;
+      });
+  }
+  return _pimCustomExtensionCache.promise;
 }
 
 // ── Activation (single) ───────────────────────────────────────────────────────
@@ -484,6 +515,7 @@ window.graphClient = {
   getEntraRolePolicy,
   getAllEntraRolePolicies,
   getGroupPolicy,
+  getPimCustomExtensions,
   activateEntraRole,
   deactivateEntraRole,
   activateGroupRole,

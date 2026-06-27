@@ -8,6 +8,39 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 _Nothing yet — open a [discussion](https://github.com/Noble-Effeciency13/PIMActivation-Portal/discussions) or [feature request](https://github.com/Noble-Effeciency13/PIMActivation-Portal/issues/new?template=feature_request.yml) if you have an idea._
 
+## [1.1.0] — 2026-06-28
+
+### Added
+
+#### Policy awareness
+
+- Custom extension (pre-approval callout) detection — eligible roles whose PIM policy requires a custom extension now show a dedicated **Ext** column in the policy matrix, alongside a badge in the mobile policy strip and an entry in the expandable policy-detail panel.
+- Custom extension display names are resolved from the Microsoft Graph beta `privilegedAccess/customExtensions` endpoint and surfaced in the column tooltip and detail panel; the portal falls back to a generic "Required" label when a name cannot be resolved (e.g. missing licence or consent).
+
+#### Activation profiles
+
+- Per-role reduced Azure Resource scopes are now saved with a profile and restored into the activation modal, so a narrowed scope (management group / subscription / resource group / resource) persists across sessions and is shown in the profiles overview.
+
+#### Interface
+
+- Sticky section headers keep the Active and Eligible toolbars visible while scrolling long role lists.
+- Duration presets that exceed a role's policy maximum are hidden in the activation modal, preventing over-requests.
+- The **Profiles** button changes to **Save Profile** when one or more eligible roles are selected, making the save action discoverable.
+
+### Changed
+
+- Entra and Group role policy lookups now prefer the Microsoft Graph beta endpoint, with automatic fallback to v1.0, so custom-extension rules are returned wherever the tenant exposes them.
+- Maximum-duration parsing now understands multi-unit ISO 8601 durations (days, hours, and minutes), so policies such as `P1D` or `PT30M` are rendered and capped correctly — previously only whole hours were recognised.
+- Self-hosted deployment now assigns the built-in **Contributor** role to the deployment identity on the Static Web App resource, which is required for the `listSecrets` call the SWA CLI performs during content upload.
+
+### Fixed
+
+- Mobile dropdown menus are no longer clipped at the screen edge.
+
+### Security
+
+- Added the delegated `PrivilegedAccess-CustomExt.Read.All` Microsoft Graph scope, requested solely to read PIM custom-extension definitions for display. It remains delegated and user-consented — no application permissions or stored credentials are introduced.
+
 ## [1.0.0] — 2026-05-07
 
 First public release. The portal is live at <https://portal.pimactivation.com> and the self-hosted Bicep / ARM template is published.
@@ -105,5 +138,6 @@ First public release. The portal is live at <https://portal.pimactivation.com> a
 - GitHub issue forms (bug, feature, documentation) and pull-request template under [`.github/`](.github).
 - Wiki content authored under [`docs/wiki/`](docs/wiki) for upload to the GitHub Wiki.
 
-[Unreleased]: https://github.com/Noble-Effeciency13/PIMActivation-Portal/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/Noble-Effeciency13/PIMActivation-Portal/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/Noble-Effeciency13/PIMActivation-Portal/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Noble-Effeciency13/PIMActivation-Portal/releases/tag/v1.0.0

@@ -928,7 +928,8 @@ a { color: var(--primary); text-decoration: none; }
 .pol-warning  { background: var(--warning-dim); color: var(--warning); border: 1px solid var(--warning); }
 .pol-danger   { background: var(--danger-dim);  color: var(--danger);  border: 1px solid var(--danger); }
 .pol-purple   { background: var(--purple-dim);  color: var(--purple);  border: 1px solid var(--purple); }
-.pol-auth-ctx { background: var(--danger-dim);  color: var(--danger);  border: 1px solid var(--danger); }
+.pol-auth-ctx   { background: var(--danger-dim);  color: var(--danger);  border: 1px solid var(--danger); }
+.pol-extension  { background: var(--success-dim); color: var(--success); border: 1px solid var(--success); }
 .pol-none     { color: var(--text-faint); font-size: 14px; line-height: 1; }
 .pol-none-label {
   display: none;
