@@ -39,10 +39,10 @@ param tenantId string = subscription().tenantId
 @description('Optional custom domain to add as an Entra SPA redirect URI (e.g. pim.contoso.com). The Static Web App custom domain must be added manually after deployment, once DNS can point at the generated default hostname.')
 param customDomain string = ''
 
-@description('Optional repository branch to deploy from instead of the latest published release. Leave blank (default) to deploy the latest release asset (portal-source.zip). Set e.g. to "main" to pull the newest commit at deployment time.')
-param portalSourceBranch string = ''
+@description('Repository branch to download when portalSourceArchiveUrl is not provided. Defaults to main so each deployment pulls the latest commit from main at deployment time.')
+param portalSourceBranch string = 'main'
 
-@description('Optional publicly reachable ZIP archive containing the repository files. Takes precedence over portalSourceBranch and the default release asset. The archive must include Portal/index.html. Private GitHub repositories return 404 to the deployment script unless you provide an authenticated or pre-signed archive URL.')
+@description('Optional publicly reachable ZIP archive containing the repository files. Leave blank to download the latest commit from portalSourceBranch. The archive must include Portal/index.html. Private GitHub repositories return 404 to the deployment script unless you provide an authenticated or pre-signed archive URL.')
 param portalSourceArchiveUrl string = ''
 
 @description('Unique value used to force the deployment script to run on each deployment. The default also gives each run a fresh deployment script resource name to avoid Azure Files sharing violations during retries.')
@@ -67,9 +67,7 @@ var scriptName  = 'script-pimactivation-deploy-${suffix}-${deploymentScriptRunId
 var sourceCacheStorageName = 'stpimact${suffix}'
 var sourceCacheContainerName = 'portal-source'
 var sourceCacheBlobName = 'portal-source.zip'
-var releaseSourceArchiveUrl = 'https://github.com/Noble-Effeciency13/PIMActivation-Portal/releases/latest/download/portal-source.zip'
-var branchSourceArchiveUrl = 'https://github.com/Noble-Effeciency13/PIMActivation-Portal/archive/refs/heads/${portalSourceBranch}.zip'
-var defaultSourceArchiveUrl = empty(portalSourceBranch) ? releaseSourceArchiveUrl : branchSourceArchiveUrl
+var defaultSourceArchiveUrl = 'https://github.com/Noble-Effeciency13/PIMActivation-Portal/archive/refs/heads/${portalSourceBranch}.zip'
 var resolvedSourceArchiveUrl = empty(portalSourceArchiveUrl) ? defaultSourceArchiveUrl : portalSourceArchiveUrl
 var tags        = { project: resourceTag }
 var portalUrl   = 'https://${staticWebApp.properties.defaultHostname}'
@@ -140,14 +138,21 @@ resource sourceCacheStorage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   }
   kind: 'StorageV2'
   properties: {
-    allowBlobPublicAccess: false
-    minimumTlsVersion:     'TLS1_2'
+    allowBlobPublicAccess:   false
+    minimumTlsVersion:       'TLS1_2'
     supportsHttpsTrafficOnly: true
   }
 }
 
 resource sourceCacheContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
   name: '${sourceCacheStorage.name}/default/${sourceCacheContainerName}'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+resource brandingContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  name: '${sourceCacheStorage.name}/default/branding'
   properties: {
     publicAccess: 'None'
   }
@@ -316,11 +321,42 @@ resource deployScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
       mkdir -p "${DEPLOY_DIR}"
       cp "${PORTAL_DIR}/index.html" "${DEPLOY_DIR}/"
       cp "${PORTAL_DIR}/staticwebapp.config.json" "${DEPLOY_DIR}/"
-      for asset_dir in css js images; do
+      for asset_dir in css js images favicons branding; do
         if [ -d "${PORTAL_DIR}/${asset_dir}" ]; then
           cp -R "${PORTAL_DIR}/${asset_dir}" "${DEPLOY_DIR}/"
         fi
       done
+
+      echo "==> Syncing custom branding from private storage account..."
+      mkdir -p "${DEPLOY_DIR}/branding"
+      if [ -f "${PORTAL_DIR}/branding/branding.schema.json" ]; then
+        az storage blob upload \
+          --account-name "${SOURCE_CACHE_ACCOUNT}" \
+          --account-key "${SOURCE_CACHE_KEY}" \
+          --container-name branding \
+          --name "branding.schema.json" \
+          --file "${PORTAL_DIR}/branding/branding.schema.json" \
+          --overwrite false \
+          --only-show-errors >/dev/null 2>&1 || true
+      fi
+      if [ -f "${PORTAL_DIR}/branding/config.sample.json" ]; then
+        az storage blob upload \
+          --account-name "${SOURCE_CACHE_ACCOUNT}" \
+          --account-key "${SOURCE_CACHE_KEY}" \
+          --container-name branding \
+          --name "config.sample.json" \
+          --file "${PORTAL_DIR}/branding/config.sample.json" \
+          --overwrite false \
+          --only-show-errors >/dev/null 2>&1 || true
+      fi
+
+      az storage blob download-batch \
+        --account-name "${SOURCE_CACHE_ACCOUNT}" \
+        --account-key "${SOURCE_CACHE_KEY}" \
+        --source branding \
+        --destination "${DEPLOY_DIR}/branding" \
+        --overwrite true \
+        --only-show-errors >/dev/null 2>&1 || true
 
       if [ ! -f "${DEPLOY_DIR}/index.html" ] || [ ! -f "${DEPLOY_DIR}/staticwebapp.config.json" ]; then
         echo "ERROR: deployment payload is missing index.html or staticwebapp.config.json."
@@ -457,6 +493,7 @@ resource deployScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
   dependsOn: [
     roleAssignment
     sourceCacheContainer
+    brandingContainer
   ]
 }
 
@@ -469,6 +506,9 @@ output staticWebAppName string = staticWebApp.name
 
 @description('Customer-owned storage account used to keep a private copy of the portal source archive.')
 output sourceArchiveCache string = '${sourceCacheStorage.name}/${sourceCacheContainerName}/${sourceCacheBlobName}'
+
+@description('Name of the private storage account hosting branding assets.')
+output brandingStorageAccountName string = sourceCacheStorage.name
 
 @description('Application (client) ID of the existing Entra ID app registration configured for the portal.')
 output clientId string = applicationClientId

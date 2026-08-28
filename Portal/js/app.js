@@ -615,6 +615,285 @@ async function _grantAzureAccess() {
   }
 }
 
+// ── Corporate Branding ────────────────────────────────────────────────────────
+const DEFAULT_BRANDING = {
+  companyName: 'PIM Activation Portal',
+  logo: null,
+  theme: {
+    primaryColor: '#2563eb',
+    accentColor: '#3b82f6',
+    backgroundColor: '#0f172a',
+    navBackgroundColor: 'rgba(15, 23, 42, 0.97)',
+    navTextColor: '#f1f5f9'
+  },
+  navigation: null
+};
+
+let _brandingConfig = { ...DEFAULT_BRANDING };
+
+function applyBrandingTheme(theme) {
+  if (!document || !document.documentElement) return;
+  const root = document.documentElement;
+  const t = { ...DEFAULT_BRANDING.theme, ...(theme || {}) };
+
+  root.style.setProperty('--brand-primary', t.primaryColor);
+  root.style.setProperty('--brand-accent', t.accentColor);
+  root.style.setProperty('--brand-nav-bg', t.navBackgroundColor);
+  root.style.setProperty('--brand-nav-text', t.navTextColor);
+  if (t.backgroundColor) {
+    root.style.setProperty('--brand-bg', t.backgroundColor);
+    root.style.setProperty('--bg', t.backgroundColor);
+  }
+
+  // Synchronize dependent variables
+  root.style.setProperty('--header-bg', t.navBackgroundColor);
+  root.style.setProperty('--primary', t.primaryColor);
+  root.style.setProperty('--brand-600', t.primaryColor);
+  root.style.setProperty('--brand-500', t.accentColor);
+}
+
+function _getNavIconSvg(iconName) {
+  const name = (iconName || '').toLowerCase().trim();
+  switch (name) {
+    case 'help':
+      return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+    case 'book':
+      return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 0 3-3h7z"/></svg>';
+    case 'shield':
+      return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>';
+    case 'link':
+      return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
+    case 'phone':
+      return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>';
+    case 'info':
+      return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>';
+    case 'home':
+      return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>';
+    case 'star':
+      return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
+    case 'external':
+    default:
+      return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
+  }
+}
+
+function renderBrandingUI(config) {
+  const activeCfg = config || _brandingConfig;
+  if (!activeCfg) return;
+
+  // Header Logo (with company name fallback)
+  const headerBrand = document.querySelector('.header-brand');
+  if (headerBrand) {
+    const brandIcon = headerBrand.querySelector('.brand-icon');
+    const logoImg = headerBrand.querySelector('.brand-logo-img');
+
+    if (activeCfg.logo && (activeCfg.logo.light || activeCfg.logo.dark)) {
+      const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+      const logoSrc = isDark && activeCfg.logo.dark ? activeCfg.logo.dark : (activeCfg.logo.light || activeCfg.logo.dark);
+      const height = activeCfg.logo.height || '28px';
+
+      if (!logoImg) {
+        const img = document.createElement('img');
+        img.className = 'brand-logo-img';
+        img.alt = activeCfg.companyName || 'Logo';
+        img.title = activeCfg.companyName || 'PIM Activation Portal';
+        img.style.height = height;
+        img.style.maxHeight = '36px';
+        img.style.width = 'auto';
+        img.style.objectFit = 'contain';
+        img.style.display = 'block';
+
+        img.onerror = function () {
+          img.hidden = true;
+          if (brandIcon) {
+            brandIcon.hidden = false;
+            if (activeCfg.companyName) {
+              brandIcon.setAttribute('title', activeCfg.companyName);
+            }
+          }
+        };
+
+        if (brandIcon) {
+          brandIcon.hidden = true;
+          headerBrand.insertBefore(img, brandIcon);
+        } else {
+          headerBrand.prepend(img);
+        }
+        img.src = logoSrc;
+      } else {
+        logoImg.src = logoSrc;
+        logoImg.alt = activeCfg.companyName || 'Logo';
+        logoImg.title = activeCfg.companyName || 'PIM Activation Portal';
+        logoImg.style.height = height;
+        logoImg.hidden = false;
+        if (brandIcon) brandIcon.hidden = true;
+      }
+    } else {
+      // Default uncustomized state: restore default lightning bolt icon
+      if (brandIcon) {
+        brandIcon.hidden = false;
+        brandIcon.removeAttribute('title');
+      }
+      if (logoImg) {
+        logoImg.remove();
+      }
+    }
+  }
+
+  // Update Favicon (if custom favicon is configured)
+  if (activeCfg.logo && activeCfg.logo.favicon) {
+    const faviconUrl = activeCfg.logo.favicon;
+    const icons = document.querySelectorAll('link[rel="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]');
+    icons.forEach(el => {
+      el.href = faviconUrl;
+      if (faviconUrl.endsWith('.svg')) {
+        el.type = 'image/svg+xml';
+      } else if (faviconUrl.endsWith('.ico')) {
+        el.type = 'image/x-icon';
+      } else if (faviconUrl.endsWith('.png')) {
+        el.type = 'image/png';
+      }
+    });
+  }
+
+  // Update Custom Enterprise Navigation Links (Up to 3 links)
+  let linksContainer = document.getElementById('header-enterprise-links');
+  if (!linksContainer) {
+    const headerRight = document.querySelector('.header-right');
+    if (headerRight) {
+      linksContainer = document.createElement('div');
+      linksContainer.id = 'header-enterprise-links';
+      linksContainer.className = 'header-enterprise-links';
+      headerRight.insertBefore(linksContainer, headerRight.firstChild);
+    }
+  }
+
+  if (linksContainer) {
+    linksContainer.innerHTML = '';
+    if (Array.isArray(activeCfg.navigation) && activeCfg.navigation.length > 0) {
+      const links = activeCfg.navigation.slice(0, 3);
+      links.forEach(item => {
+        if (!item || !item.url || !item.label) return;
+        const linkBtn = document.createElement('a');
+        linkBtn.href = item.url;
+        linkBtn.target = item.target || '_blank';
+        linkBtn.rel = 'noopener noreferrer';
+        linkBtn.className = 'enterprise-nav-btn';
+        linkBtn.title = item.label;
+
+        const iconSvg = _getNavIconSvg(item.icon);
+        linkBtn.innerHTML = `${iconSvg}<span></span>`;
+        const span = linkBtn.querySelector('span');
+        if (span) span.textContent = item.label;
+
+        linksContainer.appendChild(linkBtn);
+      });
+    }
+  }
+}
+
+function _stripJsonComments(str) {
+  if (typeof str !== 'string') return '';
+  let result = '';
+  let inString = false;
+  let inSingleComment = false;
+  let inMultiComment = false;
+  let escape = false;
+
+  for (let i = 0; i < str.length; i++) {
+    const char = str[i];
+    const next = str[i + 1];
+
+    if (inSingleComment) {
+      if (char === '\n' || char === '\r') {
+        inSingleComment = false;
+        result += char;
+      }
+      continue;
+    }
+
+    if (inMultiComment) {
+      if (char === '*' && next === '/') {
+        inMultiComment = false;
+        i++;
+      }
+      continue;
+    }
+
+    if (inString) {
+      result += char;
+      if (escape) {
+        escape = false;
+      } else if (char === '\\') {
+        escape = true;
+      } else if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+      result += char;
+      continue;
+    }
+
+    if (char === '/' && next === '/') {
+      inSingleComment = true;
+      i++;
+      continue;
+    }
+
+    if (char === '/' && next === '*') {
+      inMultiComment = true;
+      i++;
+      continue;
+    }
+
+    result += char;
+  }
+
+  return result;
+}
+
+async function initBranding() {
+  applyBrandingTheme(DEFAULT_BRANDING.theme);
+  try {
+    const resp = await fetch('/branding/config.json', {
+      method: 'GET',
+      headers: { 'Accept': 'application/json, text/plain, */*' },
+      cache: 'no-cache'
+    });
+
+    if (resp.ok) {
+      const rawText = await resp.text();
+      const raw = JSON.parse(_stripJsonComments(rawText));
+      _brandingConfig = {
+        companyName: (typeof raw.companyName === 'string' && raw.companyName.trim()) || DEFAULT_BRANDING.companyName,
+        logo: (raw.logo && typeof raw.logo === 'object' && (raw.logo.light || raw.logo.dark || raw.logo.favicon)) ? {
+          light: raw.logo.light || '',
+          dark: raw.logo.dark || raw.logo.light || '',
+          favicon: raw.logo.favicon || '',
+          height: raw.logo.height || '28px'
+        } : null,
+        theme: {
+          primaryColor: (raw.theme && raw.theme.primaryColor) || DEFAULT_BRANDING.theme.primaryColor,
+          accentColor: (raw.theme && raw.theme.accentColor) || DEFAULT_BRANDING.theme.accentColor,
+          backgroundColor: (raw.theme && raw.theme.backgroundColor) || DEFAULT_BRANDING.theme.backgroundColor,
+          navBackgroundColor: (raw.theme && raw.theme.navBackgroundColor) || DEFAULT_BRANDING.theme.navBackgroundColor,
+          navTextColor: (raw.theme && raw.theme.navTextColor) || DEFAULT_BRANDING.theme.navTextColor
+        },
+        navigation: Array.isArray(raw.navigation) ? raw.navigation.filter(item => item && typeof item === 'object' && item.label && item.url).slice(0, 3) : null
+      };
+      applyBrandingTheme(_brandingConfig.theme);
+    }
+  } catch (err) {
+    console.info('[Branding] Using default branding configuration:', err);
+    applyBrandingTheme(DEFAULT_BRANDING.theme);
+  }
+  renderBrandingUI(_brandingConfig);
+}
+
 // ── Theme ─────────────────────────────────────────────────────────────────────
 
 const THEME_KEY = 'pim-portal-theme';
@@ -639,6 +918,7 @@ function applyTheme(theme) {
   
   localStorage.setItem(THEME_KEY, theme);
   _renderQuickActions();
+  renderBrandingUI(_brandingConfig);
 }
 
 function showSettingsModal() {
@@ -2053,6 +2333,7 @@ function _timeAgo(dateString) {
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 
 async function bootstrap() {
+  await initBranding();
   initTheme();
   _applySectionOrder();
   _applyInitialSectionStates();

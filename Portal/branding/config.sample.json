@@ -1,0 +1,89 @@
+// ==============================================================================
+// PIMActivation Portal — Corporate Branding & Theme Configuration
+// ==============================================================================
+// How to use:
+// 1. Save this file as "config.json".
+// 2. Upload it along with your logo files to the 'branding' container in your
+//    PIMActivation Storage Account (named stpimact...).
+// 3. Comments (// and /* */) are fully supported and will be automatically parsed.
+// ==============================================================================
+{
+  "$schema": "./branding.schema.json",
+
+  // ── Company / Organization Name ─────────────────────────────────────────────
+  // Used as the alt-text/tooltip for your logo and as a fallback if the logo fails to load.
+  // Note: The title "PIM ACTIVATION PORTAL" remains visible in the header.
+  "companyName": "Fabrikam Cloud",
+
+  // ── Logo Assets ─────────────────────────────────────────────────────────────
+  // Custom logo paths and browser tab favicon.
+  "logo": {
+    // Logo for light mode / light backgrounds:
+    "light": "/branding/logo-light.svg",
+
+    // Optional logo for dark mode (defaults to light if omitted):
+    "dark": "/branding/logo-dark.svg",
+
+    // Optional browser tab favicon (.svg, .ico, or .png).
+    // In this sample, a modern circle design is used:
+    "favicon": "/branding/favicon.svg",
+
+    // Height of the logo in the header (default: "28px"):
+    "height": "28px"
+  },
+
+  // ── Corporate Theme Colors ──────────────────────────────────────────────────
+  // All colors support HEX (#8b5cf6), RGB (rgb(139,92,246)), or HSL formats.
+  "theme": {
+    // Primary brand color used for active tabs, selected states, and main action buttons:
+    "primaryColor": "#8b5cf6",
+
+    // Accent color used for secondary highlights, badge tints, and focus rings:
+    "accentColor": "#ec4899",
+
+    // Custom background / canvas color for the portal page body:
+    "backgroundColor": "#120d24",
+
+    // Navigation / header background color:
+    "navBackgroundColor": "#1e113a",
+
+    // Text and icon color used in navigation / header:
+    "navTextColor": "#fdf4ff"
+  },
+
+  // ── Custom Header Navigation Links (OPTIONAL) ──────────────────────────────
+  // You can add up to 3 custom enterprise links displayed in the top header.
+  // IMPORTANT:
+  // - This section is completely OPTIONAL.
+  // - If you do not want custom links, simply delete this entire "navigation" block
+  //   or set it to: "navigation": []
+  // - Maximum 3 items will be displayed.
+  //
+  // Available Icons for "icon":
+  //   - "help"     -> Question mark / Helpdesk icon
+  //   - "shield"   -> Security shield icon
+  //   - "home"     -> House / Intranet icon
+  //   - "book"     -> Documentation / Wiki book icon
+  //   - "link"     -> Chain link icon
+  //   - "phone"    -> Contact / Support phone icon
+  //   - "info"     -> Information circle icon
+  //   - "star"     -> Favorite / Star icon
+  //   - "external" -> External link arrow icon (default)
+  "navigation": [
+    {
+      "label": "IT Helpdesk",
+      "url": "https://support.fabrikam.com",
+      "icon": "help"
+    },
+    {
+      "label": "Security Wiki",
+      "url": "https://wiki.fabrikam.com/security",
+      "icon": "shield"
+    },
+    {
+      "label": "Intranet",
+      "url": "https://intranet.fabrikam.com",
+      "icon": "home"
+    }
+  ]
+}

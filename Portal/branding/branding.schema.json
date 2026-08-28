@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pimactivation.com/schemas/branding.schema.json",
+  "title": "PIMActivation Corporate Branding Configuration",
+  "description": "Runtime branding configuration for PIMActivation portal tenants (logos, theme colors, and custom enterprise links).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "theme"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "URI to the branding JSON Schema for IDE validation."
+    },
+    "companyName": {
+      "type": "string",
+      "maxLength": 100,
+      "description": "Optional company name used for logo alt text and fallback if logo fails to load."
+    },
+    "logo": {
+      "type": "object",
+      "description": "Custom company logo URLs and sizing.",
+      "additionalProperties": false,
+      "properties": {
+        "light": {
+          "type": "string",
+          "description": "URL or relative path to the logo used on light backgrounds or default light mode."
+        },
+        "dark": {
+          "type": "string",
+          "description": "Optional URL or relative path to the logo used on dark backgrounds or dark mode."
+        },
+        "favicon": {
+          "type": "string",
+          "description": "Optional URL or relative path to a custom browser tab favicon (.ico, .svg, or .png)."
+        },
+        "height": {
+          "type": "string",
+          "pattern": "^[0-9]+(px|rem|em|vh|%)$",
+          "description": "Optional CSS height value for the logo (e.g., '28px', '32px'). Defaults to '28px'."
+        }
+      }
+    },
+    "theme": {
+      "type": "object",
+      "description": "Corporate theme colors applied to root CSS variables.",
+      "additionalProperties": false,
+      "required": [
+        "primaryColor",
+        "accentColor",
+        "navBackgroundColor",
+        "navTextColor"
+      ],
+      "properties": {
+        "primaryColor": {
+          "type": "string",
+          "pattern": "^(#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|rgb\\([^)]+\\)|rgba\\([^)]+\\)|hsl\\([^)]+\\)|hsla\\([^)]+\\))$",
+          "description": "Primary brand color (mapped to --brand-primary) used for active states, highlights, and key buttons."
+        },
+        "accentColor": {
+          "type": "string",
+          "pattern": "^(#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|rgb\\([^)]+\\)|rgba\\([^)]+\\)|hsl\\([^)]+\\)|hsla\\([^)]+\\))$",
+          "description": "Accent brand color (mapped to --brand-accent) used for secondary highlights and badge tints."
+        },
+        "navBackgroundColor": {
+          "type": "string",
+          "pattern": "^(#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|rgb\\([^)]+\\)|rgba\\([^)]+\\)|hsl\\([^)]+\\)|hsla\\([^)]+\\))$",
+          "description": "Navigation/header background color (mapped to --brand-nav-bg and --header-bg)."
+        },
+        "navTextColor": {
+          "type": "string",
+          "pattern": "^(#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|rgb\\([^)]+\\)|rgba\\([^)]+\\)|hsl\\([^)]+\\)|hsla\\([^)]+\\))$",
+          "description": "Navigation text and icon color (mapped to --brand-nav-text)."
+        },
+        "backgroundColor": {
+          "type": "string",
+          "pattern": "^(#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|rgb\\([^)]+\\)|rgba\\([^)]+\\)|hsl\\([^)]+\\)|hsla\\([^)]+\\))$",
+          "description": "Optional custom page canvas / background color (mapped to --brand-bg and --bg-base)."
+        }
+      }
+    },
+    "navigation": {
+      "type": "array",
+      "maxItems": 3,
+      "description": "Up to 3 custom enterprise navigation links rendered in the header.",
+      "items": {
+        "type": "object",
+        "required": [
+          "label",
+          "url"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 30,
+            "description": "Display text for the link button (e.g. 'Helpdesk', 'Wiki')."
+          },
+          "url": {
+            "type": "string",
+            "description": "Target URL (https://... or relative path)."
+          },
+          "icon": {
+            "type": "string",
+            "enum": [
+              "help",
+              "book",
+              "external",
+              "shield",
+              "link",
+              "phone",
+              "info",
+              "home",
+              "star"
+            ],
+            "description": "Optional icon name ('help', 'book', 'external', 'shield', 'link', 'phone', 'info', 'home', 'star'). Defaults to 'external'."
+          },
+          "target": {
+            "type": "string",
+            "enum": [
+              "_blank",
+              "_self"
+            ],
+            "description": "Target browser window/tab. Defaults to '_blank'."
+          }
+        }
+      }
+    }
+  }
+}
