@@ -2044,21 +2044,128 @@ body.show-inactive-policies .pol-none-label {
   padding: 12px 14px;
   border-top: 1px solid var(--border);
 }
-.azure-scope-path {
-  font-size: 10px;
-  font-family: monospace;
-  color: var(--text-faint);
+
+
+/* ── Interactive Scope Checklist ────────────────────────────────────────────── */
+.azure-scope-breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
   margin-bottom: 8px;
+  padding: 6px 10px;
+  background: var(--bg-hover);
+  border-radius: var(--radius-sm, 4px);
+}
+.azure-scope-crumb-link {
+  color: var(--primary);
+  cursor: pointer;
+  font-weight: 500;
+  text-decoration: underline;
+}
+.azure-scope-crumb-link:hover {
+  color: var(--primary-hover, #40a9ff);
+}
+.azure-scope-crumb-sep {
+  color: var(--text-faint);
+  font-weight: 400;
+}
+.azure-scope-crumb-current {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.azure-scope-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 220px;
+  overflow-y: auto;
+  margin-bottom: 10px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--bg-surface, rgba(255, 255, 255, 0.02));
+}
+
+.azure-scope-check-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  user-select: none;
+}
+.azure-scope-check-item:hover {
+  background: var(--bg-hover);
+}
+.azure-scope-check-item.selected {
+  border-color: var(--primary);
+  background: var(--bg-hover);
+}
+
+.azure-scope-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+.azure-scope-check-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.azure-scope-check-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.azure-scope-check-type {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.azure-scope-explore-btn {
+  padding: 2px 8px;
+  font-size: 11px;
+  border-radius: 4px;
   white-space: nowrap;
 }
-.azure-scope-picker-row {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 8px;
+
+.azure-scope-tags-header {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 6px;
 }
-.azure-scope-select { flex: 1; min-width: 0; }
+
+.azure-scope-empty-state {
+  padding: 10px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+  text-align: center;
+  background: var(--bg-surface, rgba(255, 255, 255, 0.02));
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm, 4px);
+  margin-bottom: 10px;
+}
+
+.azure-scope-chip-remove:hover {
+  color: var(--danger, #ff4d4f);
+}
 
 .scope-hint { font-size: 11px; color: var(--text-muted); line-height: 1.4; }
 .scope-hint-error { color: var(--danger); }
