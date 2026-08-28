@@ -2,12 +2,9 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://pimactivation.com/schemas/branding.schema.json",
   "title": "PIMActivation Corporate Branding Configuration",
-  "description": "Runtime branding configuration for PIMActivation portal tenants (logos, theme colors, and custom enterprise links).",
+  "description": "Runtime branding configuration for PIMActivation portal tenants (logos, theme colors per design mode, and custom enterprise links).",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "theme"
-  ],
   "properties": {
     "$schema": {
       "type": "string",
@@ -44,40 +41,61 @@
     },
     "theme": {
       "type": "object",
-      "description": "Corporate theme colors applied to root CSS variables.",
+      "description": "Corporate theme colors applied to root CSS variables with optional design-specific overrides (dark, light, contrast).",
       "additionalProperties": false,
-      "required": [
-        "primaryColor",
-        "accentColor",
-        "navBackgroundColor",
-        "navTextColor"
-      ],
       "properties": {
         "primaryColor": {
           "type": "string",
           "pattern": "^(#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|rgb\\([^)]+\\)|rgba\\([^)]+\\)|hsl\\([^)]+\\)|hsla\\([^)]+\\))$",
-          "description": "Primary brand color (mapped to --brand-primary) used for active states, highlights, and key buttons."
+          "description": "Base primary brand color used for active states, highlights, and key buttons."
         },
         "accentColor": {
           "type": "string",
           "pattern": "^(#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|rgb\\([^)]+\\)|rgba\\([^)]+\\)|hsl\\([^)]+\\)|hsla\\([^)]+\\))$",
-          "description": "Accent brand color (mapped to --brand-accent) used for secondary highlights and badge tints."
+          "description": "Base accent brand color used for secondary highlights and badge tints."
         },
         "navBackgroundColor": {
           "type": "string",
           "pattern": "^(#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|rgb\\([^)]+\\)|rgba\\([^)]+\\)|hsl\\([^)]+\\)|hsla\\([^)]+\\))$",
-          "description": "Navigation/header background color (mapped to --brand-nav-bg and --header-bg)."
+          "description": "Base navigation/header background color."
         },
         "navTextColor": {
           "type": "string",
           "pattern": "^(#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|rgb\\([^)]+\\)|rgba\\([^)]+\\)|hsl\\([^)]+\\)|hsla\\([^)]+\\))$",
-          "description": "Navigation text and icon color (mapped to --brand-nav-text)."
+          "description": "Base navigation text and icon color."
         },
         "backgroundColor": {
           "type": "string",
           "pattern": "^(#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|rgb\\([^)]+\\)|rgba\\([^)]+\\)|hsl\\([^)]+\\)|hsla\\([^)]+\\))$",
-          "description": "Optional custom page canvas / background color (mapped to --brand-bg and --bg-base)."
+          "description": "Base custom page canvas / background color."
+        },
+        "dark": {
+          "$ref": "#/$defs/themeProps",
+          "description": "Custom color overrides specifically for Dark Mode."
+        },
+        "light": {
+          "$ref": "#/$defs/themeProps",
+          "description": "Custom color overrides specifically for Light Mode."
+        },
+        "contrast": {
+          "$ref": "#/$defs/themeProps",
+          "description": "Custom color overrides specifically for High Contrast Mode."
+        },
+        "hc": {
+          "$ref": "#/$defs/themeProps",
+          "description": "Alias for High Contrast Mode color overrides."
         }
+      }
+    },
+    "themes": {
+      "type": "object",
+      "description": "Alternative design mode dictionary for theme colors.",
+      "additionalProperties": false,
+      "properties": {
+        "dark": { "$ref": "#/$defs/themeProps" },
+        "light": { "$ref": "#/$defs/themeProps" },
+        "contrast": { "$ref": "#/$defs/themeProps" },
+        "hc": { "$ref": "#/$defs/themeProps" }
       }
     },
     "navigation": {
@@ -125,6 +143,39 @@
             ],
             "description": "Target browser window/tab. Defaults to '_blank'."
           }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "themeProps": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "primaryColor": {
+          "type": "string",
+          "pattern": "^(#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|rgb\\([^)]+\\)|rgba\\([^)]+\\)|hsl\\([^)]+\\)|hsla\\([^)]+\\))$",
+          "description": "Primary brand color."
+        },
+        "accentColor": {
+          "type": "string",
+          "pattern": "^(#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|rgb\\([^)]+\\)|rgba\\([^)]+\\)|hsl\\([^)]+\\)|hsla\\([^)]+\\))$",
+          "description": "Accent brand color."
+        },
+        "navBackgroundColor": {
+          "type": "string",
+          "pattern": "^(#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|rgb\\([^)]+\\)|rgba\\([^)]+\\)|hsl\\([^)]+\\)|hsla\\([^)]+\\))$",
+          "description": "Navigation / header background color."
+        },
+        "navTextColor": {
+          "type": "string",
+          "pattern": "^(#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|rgb\\([^)]+\\)|rgba\\([^)]+\\)|hsl\\([^)]+\\)|hsla\\([^)]+\\))$",
+          "description": "Navigation text and icon color."
+        },
+        "backgroundColor": {
+          "type": "string",
+          "pattern": "^(#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|rgb\\([^)]+\\)|rgba\\([^)]+\\)|hsl\\([^)]+\\)|hsla\\([^)]+\\))$",
+          "description": "Page background / canvas color."
         }
       }
     }

@@ -25,7 +25,6 @@
     "dark": "/branding/logo-dark.svg",
 
     // Optional browser tab favicon (.svg, .ico, or .png).
-    // In this sample, a modern circle design is used:
     "favicon": "/branding/favicon.svg",
 
     // Height of the logo in the header (default: "28px"):
@@ -34,6 +33,9 @@
 
   // ── Corporate Theme Colors ──────────────────────────────────────────────────
   // All colors support HEX (#8b5cf6), RGB (rgb(139,92,246)), or HSL formats.
+  //
+  // You can specify base colors here, and optionally provide mode-specific overrides
+  // for "dark", "light", and "contrast" designs.
   "theme": {
     // Primary brand color used for active tabs, selected states, and main action buttons:
     "primaryColor": "#8b5cf6",
@@ -41,14 +43,30 @@
     // Accent color used for secondary highlights, badge tints, and focus rings:
     "accentColor": "#ec4899",
 
-    // Custom background / canvas color for the portal page body:
-    "backgroundColor": "#120d24",
+    // ── Dark Mode Customization (Optional) ────────────────────────────────────
+    "dark": {
+      "backgroundColor": "#120d24",
+      "navBackgroundColor": "#1e113a",
+      "navTextColor": "#fdf4ff"
+    },
 
-    // Navigation / header background color:
-    "navBackgroundColor": "#1e113a",
+    // ── Light Mode Customization (Optional) ───────────────────────────────────
+    "light": {
+      "primaryColor": "#7c3aed",
+      "accentColor": "#db2777",
+      "backgroundColor": "#faf5ff",
+      "navBackgroundColor": "#ffffff",
+      "navTextColor": "#1e113a"
+    },
 
-    // Text and icon color used in navigation / header:
-    "navTextColor": "#fdf4ff"
+    // ── High Contrast Mode Customization (Optional) ───────────────────────────
+    "contrast": {
+      "primaryColor": "#ffff00",
+      "accentColor": "#00ffff",
+      "backgroundColor": "#000000",
+      "navBackgroundColor": "#000000",
+      "navTextColor": "#ffffff"
+    }
   },
 
   // ── Custom Header Navigation Links (OPTIONAL) ──────────────────────────────

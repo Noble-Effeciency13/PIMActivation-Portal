@@ -23,10 +23,256 @@ const _flags = {
   showInactivePolicies: true,
   quickInactivePolicies: true,
   tenantScopedProfiles:  true,
+  colType:              true,
+  colMax:               true,
+  colMfa:               true,
+  colJust:              true,
+  colTicket:            true,
+  colApprv:             true,
+  colExt:               true,
+  columnOrder:          ['colType', 'colRole', 'colMax', 'colMfa', 'colJust', 'colTicket', 'colApprv', 'colExt'],
   ...JSON.parse(localStorage.getItem(FLAGS_KEY) || '{}')
 };
 
+window._flags = _flags;
+
+const COLUMN_FLAGS = [
+  ['flag-col-type',   'colType',   'hide-col-type'],
+  ['flag-col-max',    'colMax',    'hide-col-max'],
+  ['flag-col-mfa',    'colMfa',    'hide-col-mfa'],
+  ['flag-col-just',   'colJust',   'hide-col-just'],
+  ['flag-col-ticket', 'colTicket', 'hide-col-ticket'],
+  ['flag-col-apprv',  'colApprv',  'hide-col-apprv'],
+  ['flag-col-ext',    'colExt',    'hide-col-ext'],
+];
+
+const DEFAULT_COLUMN_ORDER = ['colType', 'colRole', 'colMax', 'colMfa', 'colJust', 'colTicket', 'colApprv', 'colExt'];
+
+function _getColumnOrder() {
+  const saved = Array.isArray(_flags.columnOrder) ? _flags.columnOrder : [];
+  let order = saved.filter(k => DEFAULT_COLUMN_ORDER.includes(k));
+  if (order.length === 0) {
+    return [...DEFAULT_COLUMN_ORDER];
+  }
+  if (!order.includes('colRole')) {
+    const typeIdx = order.indexOf('colType');
+    if (typeIdx !== -1) {
+      order.splice(typeIdx + 1, 0, 'colRole');
+    } else {
+      order.splice(1, 0, 'colRole');
+    }
+  }
+  if (!order.includes('colType')) {
+    const roleIdx = order.indexOf('colRole');
+    if (roleIdx !== -1) {
+      order.splice(roleIdx, 0, 'colType');
+    } else {
+      order.unshift('colType');
+    }
+  }
+  DEFAULT_COLUMN_ORDER.forEach(k => {
+    if (!order.includes(k)) order.push(k);
+  });
+  return order;
+}
+
+window._getColumnOrder = _getColumnOrder;
+
+function _renderColumnSettings() {
+  const container = document.getElementById('settings-columns-body');
+  if (!container) return;
+  const order = _getColumnOrder();
+  
+  order.forEach(colKey => {
+    const row = container.querySelector(`.column-order-row[data-col="${colKey}"]`);
+    if (row) container.appendChild(row);
+  });
+
+  const rows = container.querySelectorAll('.column-order-row');
+  rows.forEach((row, idx) => {
+    const upBtn = row.querySelector('.column-move-btn[data-action="up"]');
+    const downBtn = row.querySelector('.column-move-btn[data-action="down"]');
+    if (upBtn) upBtn.disabled = (idx === 0);
+    if (downBtn) downBtn.disabled = (idx === rows.length - 1);
+  });
+}
+
+function _applyTableHeadersOrder() {
+  const tr = document.querySelector('#eligible-table thead tr');
+  if (!tr) return;
+  const cbTh = tr.querySelector('.col-cb');
+  const expandTh = tr.querySelector('.col-expand');
+  const order = _getColumnOrder();
+
+  if (cbTh) tr.appendChild(cbTh);
+  order.forEach(colKey => {
+    const th = tr.querySelector(`[data-col="${colKey}"]`);
+    if (th) tr.appendChild(th);
+  });
+  if (expandTh) tr.appendChild(expandTh);
+}
+
+function _moveColumn(colKey, direction) {
+  const order = _getColumnOrder();
+  const idx = order.indexOf(colKey);
+  if (idx === -1) return;
+  const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+  if (targetIdx < 0 || targetIdx >= order.length) return;
+  
+  const temp = order[idx];
+  order[idx] = order[targetIdx];
+  order[targetIdx] = temp;
+  
+  _flags.columnOrder = order;
+  localStorage.setItem(FLAGS_KEY, JSON.stringify(_flags));
+  
+  _renderColumnSettings();
+  _applyTableHeadersOrder();
+  if (typeof roleManager !== 'undefined' && roleManager.renderEligible) {
+    roleManager.renderEligible();
+  }
+  _applyColumnVisibility();
+}
+
+function _initColumnDragAndDrop() {
+  const container = document.getElementById('settings-columns-body');
+  if (!container || container._dndInitialized) return;
+  container._dndInitialized = true;
+
+  let draggedItem = null;
+
+  container.addEventListener('dragstart', (e) => {
+    if (e.target.closest('button') || e.target.closest('.toggle-switch')) {
+      e.preventDefault();
+      return;
+    }
+    const row = e.target.closest('.column-order-row');
+    if (!row) return;
+    draggedItem = row;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', row.dataset.col || '');
+    setTimeout(() => {
+      row.classList.add('is-dragging');
+    }, 0);
+  });
+
+  container.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    if (!draggedItem) return;
+    e.dataTransfer.dropEffect = 'move';
+
+    const targetRow = e.target.closest('.column-order-row');
+    if (!targetRow || targetRow === draggedItem) {
+      container.querySelectorAll('.column-order-row').forEach(r => {
+        if (r !== targetRow) {
+          r.classList.remove('drag-over-top', 'drag-over-bottom');
+        }
+      });
+      return;
+    }
+
+    const rect = targetRow.getBoundingClientRect();
+    const isAbove = (e.clientY - rect.top) < (rect.height / 2);
+
+    container.querySelectorAll('.column-order-row').forEach(r => {
+      if (r !== targetRow) r.classList.remove('drag-over-top', 'drag-over-bottom');
+    });
+
+    targetRow.classList.toggle('drag-over-top', isAbove);
+    targetRow.classList.toggle('drag-over-bottom', !isAbove);
+  });
+
+  container.addEventListener('dragleave', (e) => {
+    const targetRow = e.target.closest('.column-order-row');
+    if (targetRow && !targetRow.contains(e.relatedTarget)) {
+      targetRow.classList.remove('drag-over-top', 'drag-over-bottom');
+    }
+  });
+
+  container.addEventListener('drop', (e) => {
+    e.preventDefault();
+    if (!draggedItem) return;
+
+    const targetRow = e.target.closest('.column-order-row');
+    if (targetRow && targetRow !== draggedItem) {
+      const rect = targetRow.getBoundingClientRect();
+      const isAbove = (e.clientY - rect.top) < (rect.height / 2);
+      if (isAbove) {
+        container.insertBefore(draggedItem, targetRow);
+      } else {
+        container.insertBefore(draggedItem, targetRow.nextSibling);
+      }
+
+      const newOrder = Array.from(container.querySelectorAll('.column-order-row'))
+        .map(r => r.dataset.col)
+        .filter(Boolean);
+
+      _flags.columnOrder = newOrder;
+      localStorage.setItem(FLAGS_KEY, JSON.stringify(_flags));
+
+      _renderColumnSettings();
+      _applyTableHeadersOrder();
+      if (typeof roleManager !== 'undefined' && roleManager.renderEligible) {
+        roleManager.renderEligible();
+      }
+      _applyColumnVisibility();
+    }
+
+    container.querySelectorAll('.column-order-row').forEach(r => {
+      r.classList.remove('is-dragging', 'drag-over-top', 'drag-over-bottom');
+    });
+    draggedItem = null;
+  });
+
+  container.addEventListener('dragend', () => {
+    if (draggedItem) {
+      draggedItem.classList.remove('is-dragging');
+      draggedItem = null;
+    }
+    container.querySelectorAll('.column-order-row').forEach(r => {
+      r.classList.remove('drag-over-top', 'drag-over-bottom');
+    });
+  });
+}
+
+function _applyInactivePolicies() {
+  document.body?.classList.toggle('show-inactive-policies', !!_flags.showInactivePolicies);
+}
+
+function _applyColumnVisibility() {
+  if (!document.body) return;
+  let hasHiddenPolicy = false;
+  let hiddenPolicyCount = 0;
+  let isTypeHidden = false;
+
+  COLUMN_FLAGS.forEach(([, key, cls]) => {
+    const isVisible = _flags[key] !== false;
+    document.body.classList.toggle(cls, !isVisible);
+    if (!isVisible) {
+      if (key === 'colType') {
+        isTypeHidden = true;
+      } else {
+        hasHiddenPolicy = true;
+        hiddenPolicyCount++;
+      }
+    }
+  });
+  document.body.classList.toggle('has-hidden-policy-cols', hasHiddenPolicy);
+
+  // Dynamic layout max-width calculation:
+  // Base width is 1080px when all columns are visible.
+  // Each hidden policy column saves ~65px.
+  // Hidden role type saves ~75px.
+  // Minimum width is 680px so Active Roles and User Context remain beautifully proportioned.
+  const baseWidth = 1080;
+  const minWidth = 680;
+  const reduction = (hiddenPolicyCount * 65) + (isTypeHidden ? 75 : 0);
+  const targetWidth = Math.max(minWidth, baseWidth - reduction);
+  document.documentElement.style.setProperty('--app-max-width', `${targetWidth}px`);
+}
+
 _applyInactivePolicies();
+_applyColumnVisibility();
 
 function escapeHtml(str) {
   if (str == null) return '';
@@ -544,10 +790,6 @@ function _deleteActiveQuickFilter(id) {
   _saveActiveQuickFilters(_getActiveQuickFilters().filter(f => f.id !== id));
 }
 
-function _applyInactivePolicies() {
-  document.body.classList.toggle('show-inactive-policies', !!_flags.showInactivePolicies);
-}
-
 function _applySectionOrder() {
   document.querySelector('.app-main')?.classList.toggle('sections-swapped', !!_flags.swapSections);
 }
@@ -619,37 +861,130 @@ async function _grantAzureAccess() {
 const DEFAULT_BRANDING = {
   companyName: 'PIM Activation Portal',
   logo: null,
-  theme: {
-    primaryColor: '#2563eb',
-    accentColor: '#3b82f6',
-    backgroundColor: '#0f172a',
-    navBackgroundColor: 'rgba(15, 23, 42, 0.97)',
-    navTextColor: '#f1f5f9'
-  },
+  theme: null,
+  themes: null,
   navigation: null
 };
 
 let _brandingConfig = { ...DEFAULT_BRANDING };
 
-function applyBrandingTheme(theme) {
+function _getActiveThemeMode(themeSetting) {
+  const current = themeSetting || document.documentElement.dataset.theme || localStorage.getItem(THEME_KEY) || 'system';
+  if (current === 'light' || current === 'dark' || current === 'hc') {
+    return current;
+  }
+  // 'system'
+  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+    return 'light';
+  }
+  return 'dark';
+}
+
+function applyBrandingTheme(themeConfig, themeSetting) {
   if (!document || !document.documentElement) return;
   const root = document.documentElement;
-  const t = { ...DEFAULT_BRANDING.theme, ...(theme || {}) };
+  const activeMode = _getActiveThemeMode(themeSetting);
 
-  root.style.setProperty('--brand-primary', t.primaryColor);
-  root.style.setProperty('--brand-accent', t.accentColor);
-  root.style.setProperty('--brand-nav-bg', t.navBackgroundColor);
-  root.style.setProperty('--brand-nav-text', t.navTextColor);
-  if (t.backgroundColor) {
-    root.style.setProperty('--brand-bg', t.backgroundColor);
-    root.style.setProperty('--bg', t.backgroundColor);
+  const rawTheme = themeConfig || _brandingConfig?.theme;
+  const rawThemes = _brandingConfig?.themes;
+
+  if (!rawTheme && !rawThemes) {
+    // Clear all inline brand styles so stylesheet rules apply naturally
+    root.style.removeProperty('--brand-primary');
+    root.style.removeProperty('--brand-accent');
+    root.style.removeProperty('--brand-nav-bg');
+    root.style.removeProperty('--brand-nav-text');
+    root.style.removeProperty('--brand-bg');
+    root.style.removeProperty('--bg');
+    root.style.removeProperty('--header-bg');
+    root.style.removeProperty('--primary');
+    root.style.removeProperty('--brand-600');
+    root.style.removeProperty('--brand-500');
+    return;
   }
 
-  // Synchronize dependent variables
-  root.style.setProperty('--header-bg', t.navBackgroundColor);
-  root.style.setProperty('--primary', t.primaryColor);
-  root.style.setProperty('--brand-600', t.primaryColor);
-  root.style.setProperty('--brand-500', t.accentColor);
+  // Find mode-specific overrides
+  let modeOverrides = null;
+  if (activeMode === 'hc') {
+    modeOverrides = rawTheme?.hc || rawTheme?.contrast || rawTheme?.['high-contrast'] ||
+                    rawThemes?.hc || rawThemes?.contrast || rawThemes?.['high-contrast'] || null;
+  } else if (activeMode === 'light') {
+    modeOverrides = rawTheme?.light || rawThemes?.light || null;
+  } else {
+    // dark
+    modeOverrides = rawTheme?.dark || rawThemes?.dark || null;
+  }
+
+  // Base values (strings only, excluding sub-objects)
+  const base = {};
+  if (rawTheme && typeof rawTheme === 'object') {
+    for (const [k, v] of Object.entries(rawTheme)) {
+      if (typeof v === 'string' && v.trim()) {
+        base[k] = v.trim();
+      }
+    }
+  }
+
+  // Background and NavBackground resolution:
+  // If in dark mode, flat base backgroundColor/navBackgroundColor applies to dark mode.
+  // If in light or hc mode, flat base backgroundColor/navBackgroundColor must NOT leak into light/hc mode
+  // unless explicitly defined in modeOverrides.
+  let effectiveBg = modeOverrides?.backgroundColor;
+  let effectiveNavBg = modeOverrides?.navBackgroundColor;
+  let effectiveNavText = modeOverrides?.navTextColor;
+
+  if (activeMode === 'dark') {
+    if (!effectiveBg && base.backgroundColor) effectiveBg = base.backgroundColor;
+    if (!effectiveNavBg && base.navBackgroundColor) effectiveNavBg = base.navBackgroundColor;
+    if (!effectiveNavText && base.navTextColor) effectiveNavText = base.navTextColor;
+  } else {
+    if (!effectiveNavText && base.navTextColor && modeOverrides?.navBackgroundColor) {
+      effectiveNavText = base.navTextColor;
+    }
+  }
+
+  const effectivePrimary = modeOverrides?.primaryColor || base.primaryColor;
+  const effectiveAccent = modeOverrides?.accentColor || base.accentColor;
+
+  if (effectivePrimary) {
+    root.style.setProperty('--brand-primary', effectivePrimary);
+    root.style.setProperty('--primary', effectivePrimary);
+    root.style.setProperty('--brand-600', effectivePrimary);
+  } else {
+    root.style.removeProperty('--brand-primary');
+    root.style.removeProperty('--primary');
+    root.style.removeProperty('--brand-600');
+  }
+
+  if (effectiveAccent) {
+    root.style.setProperty('--brand-accent', effectiveAccent);
+    root.style.setProperty('--brand-500', effectiveAccent);
+  } else {
+    root.style.removeProperty('--brand-accent');
+    root.style.removeProperty('--brand-500');
+  }
+
+  if (effectiveBg) {
+    root.style.setProperty('--brand-bg', effectiveBg);
+    root.style.setProperty('--bg', effectiveBg);
+  } else {
+    root.style.removeProperty('--brand-bg');
+    root.style.removeProperty('--bg');
+  }
+
+  if (effectiveNavBg) {
+    root.style.setProperty('--brand-nav-bg', effectiveNavBg);
+    root.style.setProperty('--header-bg', effectiveNavBg);
+  } else {
+    root.style.removeProperty('--brand-nav-bg');
+    root.style.removeProperty('--header-bg');
+  }
+
+  if (effectiveNavText) {
+    root.style.setProperty('--brand-nav-text', effectiveNavText);
+  } else {
+    root.style.removeProperty('--brand-nav-text');
+  }
 }
 
 function _getNavIconSvg(iconName) {
@@ -681,30 +1016,33 @@ function renderBrandingUI(config) {
   const activeCfg = config || _brandingConfig;
   if (!activeCfg) return;
 
+  const currentMode = _getActiveThemeMode();
+  const isLight = currentMode === 'light';
+
   // Header Logo (with company name fallback)
   const headerBrand = document.querySelector('.header-brand');
   if (headerBrand) {
     const brandIcon = headerBrand.querySelector('.brand-icon');
-    const logoImg = headerBrand.querySelector('.brand-logo-img');
+    let logoImg = headerBrand.querySelector('.brand-logo-img');
 
     if (activeCfg.logo && (activeCfg.logo.light || activeCfg.logo.dark)) {
-      const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
-      const logoSrc = isDark && activeCfg.logo.dark ? activeCfg.logo.dark : (activeCfg.logo.light || activeCfg.logo.dark);
+      const logoSrc = isLight
+        ? (activeCfg.logo.light || activeCfg.logo.dark)
+        : (activeCfg.logo.dark || activeCfg.logo.light);
       const height = activeCfg.logo.height || '28px';
 
       if (!logoImg) {
-        const img = document.createElement('img');
-        img.className = 'brand-logo-img';
-        img.alt = activeCfg.companyName || 'Logo';
-        img.title = activeCfg.companyName || 'PIM Activation Portal';
-        img.style.height = height;
-        img.style.maxHeight = '36px';
-        img.style.width = 'auto';
-        img.style.objectFit = 'contain';
-        img.style.display = 'block';
+        logoImg = document.createElement('img');
+        logoImg.className = 'brand-logo-img';
+        logoImg.alt = activeCfg.companyName || 'Logo';
+        logoImg.title = activeCfg.companyName || 'PIM Activation Portal';
+        logoImg.style.maxHeight = '36px';
+        logoImg.style.width = 'auto';
+        logoImg.style.objectFit = 'contain';
+        logoImg.style.display = 'block';
 
-        img.onerror = function () {
-          img.hidden = true;
+        logoImg.onerror = function () {
+          logoImg.hidden = true;
           if (brandIcon) {
             brandIcon.hidden = false;
             if (activeCfg.companyName) {
@@ -715,21 +1053,19 @@ function renderBrandingUI(config) {
 
         if (brandIcon) {
           brandIcon.hidden = true;
-          headerBrand.insertBefore(img, brandIcon);
+          headerBrand.insertBefore(logoImg, brandIcon);
         } else {
-          headerBrand.prepend(img);
+          headerBrand.prepend(logoImg);
         }
-        img.src = logoSrc;
-      } else {
-        logoImg.src = logoSrc;
-        logoImg.alt = activeCfg.companyName || 'Logo';
-        logoImg.title = activeCfg.companyName || 'PIM Activation Portal';
-        logoImg.style.height = height;
-        logoImg.hidden = false;
-        if (brandIcon) brandIcon.hidden = true;
       }
+
+      logoImg.src = logoSrc;
+      logoImg.alt = activeCfg.companyName || 'Logo';
+      logoImg.title = activeCfg.companyName || 'PIM Activation Portal';
+      logoImg.style.height = height;
+      logoImg.hidden = false;
+      if (brandIcon) brandIcon.hidden = true;
     } else {
-      // Default uncustomized state: restore default lightning bolt icon
       if (brandIcon) {
         brandIcon.hidden = false;
         brandIcon.removeAttribute('title');
@@ -738,6 +1074,12 @@ function renderBrandingUI(config) {
         logoImg.remove();
       }
     }
+  }
+
+  // Header Brand Name
+  const brandNameEl = document.querySelector('.brand-name');
+  if (brandNameEl) {
+    brandNameEl.textContent = activeCfg.companyName || DEFAULT_BRANDING.companyName;
   }
 
   // Update Favicon (if custom favicon is configured)
@@ -829,6 +1171,9 @@ function _stripJsonComments(str) {
       } else if (char === '"') {
         inString = false;
       }
+      result += '';
+      result = result;
+      // Already appended char
       continue;
     }
 
@@ -857,7 +1202,6 @@ function _stripJsonComments(str) {
 }
 
 async function initBranding() {
-  applyBrandingTheme(DEFAULT_BRANDING.theme);
   try {
     const resp = await fetch('/branding/config.json', {
       method: 'GET',
@@ -876,20 +1220,19 @@ async function initBranding() {
           favicon: raw.logo.favicon || '',
           height: raw.logo.height || '28px'
         } : null,
-        theme: {
-          primaryColor: (raw.theme && raw.theme.primaryColor) || DEFAULT_BRANDING.theme.primaryColor,
-          accentColor: (raw.theme && raw.theme.accentColor) || DEFAULT_BRANDING.theme.accentColor,
-          backgroundColor: (raw.theme && raw.theme.backgroundColor) || DEFAULT_BRANDING.theme.backgroundColor,
-          navBackgroundColor: (raw.theme && raw.theme.navBackgroundColor) || DEFAULT_BRANDING.theme.navBackgroundColor,
-          navTextColor: (raw.theme && raw.theme.navTextColor) || DEFAULT_BRANDING.theme.navTextColor
-        },
+        theme: (raw.theme && typeof raw.theme === 'object') ? raw.theme : null,
+        themes: (raw.themes && typeof raw.themes === 'object') ? raw.themes : null,
         navigation: Array.isArray(raw.navigation) ? raw.navigation.filter(item => item && typeof item === 'object' && item.label && item.url).slice(0, 3) : null
       };
       applyBrandingTheme(_brandingConfig.theme);
+    } else {
+      _brandingConfig = { ...DEFAULT_BRANDING };
+      applyBrandingTheme(null);
     }
   } catch (err) {
     console.info('[Branding] Using default branding configuration:', err);
-    applyBrandingTheme(DEFAULT_BRANDING.theme);
+    _brandingConfig = { ...DEFAULT_BRANDING };
+    applyBrandingTheme(null);
   }
   renderBrandingUI(_brandingConfig);
 }
@@ -901,6 +1244,16 @@ const THEME_KEY = 'pim-portal-theme';
 function initTheme() {
   const saved = localStorage.getItem(THEME_KEY) || 'system';
   applyTheme(saved);
+
+  if (window.matchMedia) {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+      const current = localStorage.getItem(THEME_KEY) || 'system';
+      if (current === 'system') {
+        applyBrandingTheme(_brandingConfig.theme, 'system');
+        renderBrandingUI(_brandingConfig);
+      }
+    });
+  }
 }
 
 function applyTheme(theme) {
@@ -917,11 +1270,12 @@ function applyTheme(theme) {
   });
   
   localStorage.setItem(THEME_KEY, theme);
+  applyBrandingTheme(_brandingConfig.theme, theme);
   _renderQuickActions();
   renderBrandingUI(_brandingConfig);
 }
 
-function showSettingsModal() {
+function _syncSettingsUI() {
   const modal = document.getElementById('settings-modal');
   if (!modal) return;
 
@@ -944,10 +1298,11 @@ function showSettingsModal() {
     ['flag-persist-sections',   'persistSectionState'],
     ['flag-persist-filter-bar', 'persistFilterBarState'],
     ['flag-tenant-profiles',    'tenantScopedProfiles'],
+    ...COLUMN_FLAGS.map(([id, key]) => [id, key]),
   ].forEach(([id, key]) => {
     const btn = document.getElementById(id);
     if (btn) {
-      const on = !!_flags[key];
+      const on = _flags[key] !== false;
       btn.classList.toggle('active', on);
       btn.setAttribute('aria-checked', on);
     }
@@ -960,6 +1315,14 @@ function showSettingsModal() {
   const quickInactCb = document.getElementById('flag-quick-inactive');
   if (quickInactCb) quickInactCb.checked = !!_flags.quickInactivePolicies;
 
+  _renderColumnSettings();
+  _initColumnDragAndDrop();
+}
+
+function showSettingsModal() {
+  const modal = document.getElementById('settings-modal');
+  if (!modal) return;
+  _syncSettingsUI();
   modal.hidden = false;
   modal.querySelector('.modal')?.classList.add('fade-in');
 }
@@ -2236,7 +2599,43 @@ async function _handleSaveProfile() {
 }
 
 /**
- * Export all saved profiles to a JSON file.
+ * Open the Export Configuration modal
+ */
+async function _showExportConfigModal() {
+  const modal = document.getElementById('export-config-modal');
+  if (!modal) return;
+  
+  const desc = document.getElementById('export-profiles-desc');
+  try {
+    const profiles = await profileManager.getAllProfiles();
+    if (desc) {
+      desc.textContent = profiles.length > 0
+        ? `Include ${profiles.length} saved activation profile${profiles.length === 1 ? '' : 's'}.`
+        : 'No saved activation profiles found.';
+    }
+    const cb = document.getElementById('export-include-profiles');
+    if (cb) {
+      cb.disabled = (profiles.length === 0);
+      cb.checked = (profiles.length > 0);
+    }
+  } catch {
+    if (desc) desc.textContent = 'Export saved role activation profiles.';
+  }
+
+  modal.hidden = false;
+  modal.querySelector('.modal')?.classList.add('fade-in');
+}
+
+/**
+ * Close the Export Configuration modal
+ */
+function _hideExportConfigModal() {
+  const modal = document.getElementById('export-config-modal');
+  if (modal) modal.hidden = true;
+}
+
+/**
+ * Export all saved profiles to a JSON file (from Profiles modal).
  */
 async function _handleExportProfiles() {
   try {
@@ -2262,7 +2661,237 @@ async function _handleExportProfiles() {
 }
 
 /**
- * Handle import file selection.
+ * Export portal configuration (and optionally profiles) to a JSON file.
+ */
+async function _handleExportSettings(includeProfiles = false) {
+  try {
+    const exportBundle = {
+      version: 1,
+      type: 'pim-portal-config',
+      exportedAt: new Date().toISOString(),
+      settings: {
+        flags: { ..._flags },
+        quickFilters: _getQuickFilters(),
+        activeQuickFilters: _getActiveQuickFilters(),
+        sectionStates: _getSectionStates(),
+        theme: localStorage.getItem(THEME_KEY) || 'dark',
+        filterBarState: _filterBarOpen,
+        activeFilterBarState: _activeFilterBarOpen
+      }
+    };
+
+    let profileCount = 0;
+    if (includeProfiles && typeof profileManager !== 'undefined') {
+      const profiles = await profileManager.getAllProfiles();
+      exportBundle.profiles = profiles;
+      profileCount = profiles.length;
+    }
+
+    const blob = new Blob([JSON.stringify(exportBundle, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0];
+    const timeStr = String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0');
+    a.href = url;
+    a.download = includeProfiles
+      ? `pim-portal-config-with-profiles-${dateStr}-${timeStr}.json`
+      : `pim-portal-config-${dateStr}-${timeStr}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    _hideExportConfigModal();
+    const msg = includeProfiles
+      ? `Settings and ${profileCount} profile${profileCount === 1 ? '' : 's'} exported.`
+      : 'Settings exported successfully.';
+    showToast({ title: 'Exported', description: msg, type: 'success' });
+  } catch (err) {
+    showToast({ title: 'Export failed', description: err.message, type: 'error' });
+  }
+}
+
+/**
+ * Prompt user whether to append, overwrite, skip, or cancel profile import.
+ * @param {number} existingCount
+ * @param {number} importCount
+ * @param {boolean} [allowSkip=false] — Whether to show the 'Skip profiles' button
+ * @returns {Promise<'append'|'overwrite'|'skip'|'cancel'>}
+ */
+function _promptProfileImportMode(existingCount, importCount, allowSkip = false) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('import-profiles-modal');
+    if (!modal) {
+      resolve('append');
+      return;
+    }
+
+    const countsEl = document.getElementById('import-profiles-modal-counts');
+    if (countsEl) {
+      countsEl.innerHTML = `<strong>Existing:</strong> ${existingCount} profile${existingCount === 1 ? '' : 's'} &nbsp;·&nbsp; <strong>Importing:</strong> ${importCount} profile${importCount === 1 ? '' : 's'}`;
+    }
+
+    const skipBtn = document.getElementById('import-profiles-modal-skip');
+    if (skipBtn) {
+      skipBtn.hidden = !allowSkip;
+    }
+
+    const closeBtn = document.getElementById('import-profiles-modal-close-btn');
+    const cancelBtn = document.getElementById('import-profiles-modal-cancel');
+    const appendBtn = document.getElementById('import-profiles-modal-append');
+    const overwriteBtn = document.getElementById('import-profiles-modal-overwrite');
+
+    function cleanup(result) {
+      modal.hidden = true;
+      closeBtn?.removeEventListener('click', onCancel);
+      cancelBtn?.removeEventListener('click', onCancel);
+      skipBtn?.removeEventListener('click', onSkip);
+      appendBtn?.removeEventListener('click', onAppend);
+      overwriteBtn?.removeEventListener('click', onOverwrite);
+      modal.removeEventListener('click', onBackdrop);
+      resolve(result);
+    }
+
+    function onCancel() { cleanup('cancel'); }
+    function onSkip() { cleanup('skip'); }
+    function onAppend() { cleanup('append'); }
+    function onOverwrite() { cleanup('overwrite'); }
+    function onBackdrop(e) { if (e.target === e.currentTarget) cleanup('cancel'); }
+
+    closeBtn?.addEventListener('click', onCancel);
+    cancelBtn?.addEventListener('click', onCancel);
+    skipBtn?.addEventListener('click', onSkip);
+    appendBtn?.addEventListener('click', onAppend);
+    overwriteBtn?.addEventListener('click', onOverwrite);
+    modal.addEventListener('click', onBackdrop);
+
+    modal.hidden = false;
+    modal.querySelector('.modal')?.classList.add('fade-in');
+  });
+}
+
+/**
+ * Handle import settings & config file selection.
+ */
+async function _handleImportSettings(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = async (event) => {
+    try {
+      const json = JSON.parse(event.target.result);
+      let importedSettings = false;
+      let importedProfilesCount = 0;
+      let overwriteMode = false;
+      let skippedProfiles = false;
+
+      // Check if profiles are included in the bundle or if the file is a profiles array
+      const profilesData = Array.isArray(json.profiles)
+        ? json.profiles
+        : (Array.isArray(json) ? json : null);
+
+      if (profilesData && profilesData.length > 0 && typeof profileManager !== 'undefined') {
+        const existing = await profileManager.getAllProfiles().catch(() => []);
+        const mode = await _promptProfileImportMode(existing.length, profilesData.length, true);
+        if (mode === 'cancel') {
+          e.target.value = '';
+          return;
+        }
+        if (mode === 'skip') {
+          skippedProfiles = true;
+        } else {
+          overwriteMode = (mode === 'overwrite');
+          await profileManager.importProfiles(profilesData, overwriteMode);
+          importedProfilesCount = profilesData.length;
+        }
+      }
+
+      // Check if it's a unified config file or legacy settings object
+      const settingsData = json.settings || (json.flags ? json : null);
+      if (settingsData) {
+        if (settingsData.flags && typeof settingsData.flags === 'object') {
+          Object.assign(_flags, settingsData.flags);
+          localStorage.setItem(FLAGS_KEY, JSON.stringify(_flags));
+          importedSettings = true;
+        }
+        if (Array.isArray(settingsData.quickFilters)) {
+          _saveQuickFilters(settingsData.quickFilters);
+          importedSettings = true;
+        }
+        if (Array.isArray(settingsData.activeQuickFilters)) {
+          _saveActiveQuickFilters(settingsData.activeQuickFilters);
+          importedSettings = true;
+        }
+        if (settingsData.sectionStates && typeof settingsData.sectionStates === 'object') {
+          localStorage.setItem(SECTION_STATE_KEY, JSON.stringify(settingsData.sectionStates));
+          importedSettings = true;
+        }
+        if (settingsData.theme) {
+          localStorage.setItem(THEME_KEY, settingsData.theme);
+          applyTheme(settingsData.theme);
+          importedSettings = true;
+        }
+        if (typeof settingsData.filterBarState === 'boolean') {
+          _filterBarOpen = settingsData.filterBarState;
+          localStorage.setItem(FILTER_BAR_STATE_KEY, String(_filterBarOpen));
+          _applyFilterBarState();
+          importedSettings = true;
+        }
+        if (typeof settingsData.activeFilterBarState === 'boolean') {
+          _activeFilterBarOpen = settingsData.activeFilterBarState;
+          localStorage.setItem(ACTIVE_FILTER_BAR_STATE_KEY, String(_activeFilterBarOpen));
+          _applyActiveFilterBarState();
+          importedSettings = true;
+        }
+      }
+
+      if (!importedSettings && importedProfilesCount === 0 && !skippedProfiles) {
+        throw new Error('Unrecognized configuration format.');
+      }
+
+      // Re-apply all UI states live
+      _applyInactivePolicies();
+      _applyColumnVisibility();
+      _applyTableHeadersOrder();
+      _renderColumnSettings();
+      _applySectionOrder();
+      _applyInitialSectionStates();
+      _renderQuickActions();
+      _syncSettingsUI();
+      if (typeof _refresh === 'function') {
+        await _refresh();
+      } else if (typeof roleManager !== 'undefined') {
+        if (roleManager.renderFilterBar) roleManager.renderFilterBar();
+        if (roleManager.renderActiveFilterBar) roleManager.renderActiveFilterBar();
+        if (roleManager.renderEligible) roleManager.renderEligible();
+        if (roleManager.renderActive) roleManager.renderActive();
+      }
+      if (importedProfilesCount > 0 && typeof _renderProfilesList === 'function') {
+        _renderProfilesList();
+      }
+
+      let desc = '';
+      if (importedSettings && importedProfilesCount > 0) {
+        desc = `Settings and ${importedProfilesCount} profile${importedProfilesCount === 1 ? '' : 's'} imported (${overwriteMode ? 'overwritten' : 'added'}).`;
+      } else if (importedSettings && skippedProfiles) {
+        desc = 'Settings imported successfully (profiles skipped).';
+      } else if (importedSettings) {
+        desc = 'Settings imported successfully.';
+      } else if (importedProfilesCount > 0) {
+        desc = `${importedProfilesCount} profile${importedProfilesCount === 1 ? '' : 's'} imported (${overwriteMode ? 'overwritten' : 'added'}).`;
+      }
+      showToast({ title: 'Import successful', description: desc, type: 'success' });
+    } catch (err) {
+      showToast({ title: 'Import failed', description: err.message || 'Invalid JSON file.', type: 'error' });
+    } finally {
+      e.target.value = '';
+    }
+  };
+  reader.readAsText(file);
+}
+
+/**
+ * Handle import in Profiles modal.
  */
 async function _handleImportProfiles(e) {
   const file = e.target.files?.[0];
@@ -2272,15 +2901,32 @@ async function _handleImportProfiles(e) {
   reader.onload = async (event) => {
     try {
       const json = JSON.parse(event.target.result);
-      if (!Array.isArray(json)) throw new Error('Invalid format: expected an array of profiles');
+      const profiles = Array.isArray(json)
+        ? json
+        : (Array.isArray(json.profiles) ? json.profiles : null);
+
+      if (!profiles || !profiles.length) {
+        throw new Error('Invalid format: no profiles found in file.');
+      }
       
-      await profileManager.importProfiles(json);
-      showToast({ title: 'Imported', description: `${json.length} profile${json.length === 1 ? '' : 's'} imported successfully.`, type: 'success' });
+      const existing = await profileManager.getAllProfiles().catch(() => []);
+      let overwrite = false;
+      if (existing.length > 0) {
+        const mode = await _promptProfileImportMode(existing.length, profiles.length);
+        if (mode === 'cancel') {
+          e.target.value = '';
+          return;
+        }
+        overwrite = (mode === 'overwrite');
+      }
+
+      await profileManager.importProfiles(profiles, overwrite);
+      showToast({ title: 'Imported', description: `${profiles.length} profile${profiles.length === 1 ? '' : 's'} imported (${overwrite ? 'overwritten' : 'added'}).`, type: 'success' });
       _renderProfilesList();
     } catch (err) {
-      showToast({ title: 'Import failed', description: 'Invalid JSON file or format.', type: 'error' });
+      showToast({ title: 'Import failed', description: err.message || 'Invalid JSON file.', type: 'error' });
     } finally {
-      e.target.value = ''; // Reset input so same file can be imported again
+      e.target.value = '';
     }
   };
   reader.readAsText(file);
@@ -2336,6 +2982,7 @@ async function bootstrap() {
   await initBranding();
   initTheme();
   _applySectionOrder();
+  _applyTableHeadersOrder();
   _applyInitialSectionStates();
   _filterBarOpen = _flags.persistFilterBarState
     ? localStorage.getItem(FILTER_BAR_STATE_KEY) === 'true'
@@ -2606,6 +3253,28 @@ async function bootstrap() {
     if (btn) { btn.classList.toggle('active', on); btn.setAttribute('aria-checked', on); }
   });
 
+  // Column visibility toggles
+  COLUMN_FLAGS.forEach(([id, key]) => {
+    document.getElementById(id)?.addEventListener('click', () => {
+      const on = !(_flags[key] !== false);
+      _flags[key] = on;
+      localStorage.setItem(FLAGS_KEY, JSON.stringify(_flags));
+      const btn = document.getElementById(id);
+      if (btn) { btn.classList.toggle('active', on); btn.setAttribute('aria-checked', on); }
+      _applyColumnVisibility();
+    });
+  });
+
+  // Column reorder buttons & drag/drop
+  _initColumnDragAndDrop();
+  document.getElementById('settings-columns-body')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('.column-move-btn');
+    if (!btn || btn.disabled) return;
+    const row = btn.closest('.column-order-row');
+    if (!row || !row.dataset.col) return;
+    _moveColumn(row.dataset.col, btn.dataset.action);
+  });
+
   // Settings group collapse toggles
   document.querySelectorAll('.settings-group-toggle').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -2652,6 +3321,29 @@ async function bootstrap() {
     });
     location.reload();
   });
+
+  // Settings Export / Import
+  document.getElementById('settings-export-btn')
+    ?.addEventListener('click', _showExportConfigModal);
+  document.getElementById('settings-import-btn')
+    ?.addEventListener('click', () => document.getElementById('settings-import-input')?.click());
+  document.getElementById('settings-import-input')
+    ?.addEventListener('change', _handleImportSettings);
+
+  // Export Config Modal controls
+  document.getElementById('export-config-modal-close-btn')
+    ?.addEventListener('click', _hideExportConfigModal);
+  document.getElementById('export-config-modal-cancel')
+    ?.addEventListener('click', _hideExportConfigModal);
+  document.getElementById('export-config-modal-download')
+    ?.addEventListener('click', () => {
+      const inc = document.getElementById('export-include-profiles')?.checked ?? false;
+      _handleExportSettings(inc);
+    });
+  document.getElementById('export-config-modal')
+    ?.addEventListener('click', e => {
+      if (e.target === e.currentTarget) _hideExportConfigModal();
+    });
 
   // Activation modal profile save toggle
   document.getElementById('save-profile-checkbox')?.addEventListener('change', e => {
@@ -2824,7 +3516,11 @@ async function bootstrap() {
     const profModal  = document.getElementById('profiles-modal');
     const notifModal = document.getElementById('notifications-modal');
     const setModal   = document.getElementById('settings-modal');
+    const expModal   = document.getElementById('export-config-modal');
+    const impModal   = document.getElementById('import-profiles-modal');
     const helpModal  = document.getElementById('help-modal');
+    if (impModal   && !impModal.hidden)   { impModal.hidden = true;   return; }
+    if (expModal   && !expModal.hidden)   { _hideExportConfigModal(); return; }
     if (actModal   && !actModal.hidden)   { hideActivationModal();    return; }
     if (profModal  && !profModal.hidden)  { hideProfilesModal();      return; }
     if (notifModal && !notifModal.hidden) { hideNotificationsModal(); return; }
