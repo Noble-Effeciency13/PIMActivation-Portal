@@ -329,6 +329,13 @@ resource deployScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
 
       echo "==> Syncing custom branding from private storage account..."
       mkdir -p "${DEPLOY_DIR}/branding"
+      az storage container create \
+        --account-name "${SOURCE_CACHE_ACCOUNT}" \
+        --account-key "${SOURCE_CACHE_KEY}" \
+        --name branding \
+        --auth-mode key \
+        --only-show-errors >/dev/null 2>&1 || true
+
       if [ -f "${PORTAL_DIR}/branding/branding.schema.json" ]; then
         az storage blob upload \
           --account-name "${SOURCE_CACHE_ACCOUNT}" \
