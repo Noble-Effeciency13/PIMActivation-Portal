@@ -7,3 +7,6 @@ RELEASE_NOTES.md
 # E2E tests
 e2e/*
 
+# Security tooling
+security/node_modules/
+security/.tmp-*
