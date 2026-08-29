@@ -1076,10 +1076,10 @@ function renderBrandingUI(config) {
     }
   }
 
-  // Header Brand Name
+  // Header Brand Name (Title remains PIM Activation Portal)
   const brandNameEl = document.querySelector('.brand-name');
   if (brandNameEl) {
-    brandNameEl.textContent = activeCfg.companyName || DEFAULT_BRANDING.companyName;
+    brandNameEl.textContent = 'PIM Activation Portal';
   }
 
   // Update Favicon (if custom favicon is configured)
