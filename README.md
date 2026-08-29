@@ -253,7 +253,7 @@ See [`docs/wiki/Self-Hosted-Deployment.md`](docs/wiki/Self-Hosted-Deployment.md)
 
 - **Single-page app** — vanilla JavaScript, no framework, no build step. `Portal/` is the entire deployable.
 - **No backend** — every privileged call goes directly from the browser to Microsoft Graph or Azure Resource Manager.
-- **Auth** — MSAL.js v5 (loaded from `cdn.jsdelivr.net`, the only allowed third-party origin), authorization code + PKCE, redirect flow for sign-in and sign-out, tokens cached in `sessionStorage` only.
+- **Auth** — MSAL.js v5 authorization code + PKCE, redirect flow for sign-in and sign-out, tokens cached in `sessionStorage` only.
 - **Batch engine** — Entra and Group calls are chunked into Microsoft Graph `$batch` requests (20 per request) with exponential backoff on `429`. Azure Resource calls run concurrently against ARM with a small concurrency limit and `Promise.allSettled` so one failure does not abort the batch.
 - **Policy enrichment** — eligible roles are bulk-enriched with their PIM policies through tenant-root policy assignment queries (avoids per-AU permission issues), then cached for 30 minutes in memory.
 - **Storage** — `sessionStorage` for tokens and tab-scoped state; `localStorage` for non-sensitive caches and feature flags; IndexedDB for activation profiles.
@@ -277,7 +277,7 @@ The Static Web App enforces the following CSP on every response (see [`Portal/st
 
 ```text
 default-src 'self';
-script-src  'self' https://cdn.jsdelivr.net;
+script-src  'self';
 connect-src 'self' https://login.microsoftonline.com
                    https://graph.microsoft.com
                    https://management.azure.com;
@@ -287,7 +287,7 @@ frame-ancestors 'none';
 upgrade-insecure-requests
 ```
 
-No inline scripts, no `eval`, no third-party tracking, no CDN beyond the single MSAL bundle. `style-src 'unsafe-inline'` is required for theme-switching CSS variables and is mitigated by the absence of any inline scripts.
+No inline scripts, no `eval`, no third-party tracking, no CDN. `style-src 'unsafe-inline'` is required for theme-switching CSS variables and is mitigated by the absence of any inline scripts.
 
 Additional global headers:
 
