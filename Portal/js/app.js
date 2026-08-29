@@ -15,6 +15,7 @@ const _flags = {
   azure:               true,
   group:               true,
   defaultDuration:     8,
+  showUserCard:        true,
   showActiveInEligible: false,
   swapSections:         true,
   persistSectionState:  true,
@@ -273,6 +274,15 @@ function _applyColumnVisibility() {
 
 _applyInactivePolicies();
 _applyColumnVisibility();
+
+function _applyUserCardVisibility() {
+  const card = document.getElementById('user-context-card');
+  if (card) {
+    card.hidden = _flags.showUserCard === false;
+  }
+}
+
+_applyUserCardVisibility();
 
 function escapeHtml(str) {
   if (str == null) return '';
@@ -1292,6 +1302,7 @@ function _syncSettingsUI() {
 
   // Sync toggle switches
   [
+    ['flag-show-user-card',     'showUserCard'],
     ['flag-show-active',        'showActiveInEligible'],
     ['flag-show-inactive',      'showInactivePolicies'],
     ['flag-swap-sections',      'swapSections'],
@@ -2856,6 +2867,7 @@ async function _handleImportSettings(e) {
       _renderColumnSettings();
       _applySectionOrder();
       _applyInitialSectionStates();
+      _applyUserCardVisibility();
       _renderQuickActions();
       _syncSettingsUI();
       if (typeof _refresh === 'function') {
@@ -2982,6 +2994,7 @@ async function bootstrap() {
   await initBranding();
   initTheme();
   _applySectionOrder();
+  _applyUserCardVisibility();
   _applyTableHeadersOrder();
   _applyInitialSectionStates();
   _filterBarOpen = _flags.persistFilterBarState
@@ -3187,6 +3200,16 @@ async function bootstrap() {
     _flags.defaultDuration = val;
     e.target.value = val;
     localStorage.setItem(FLAGS_KEY, JSON.stringify(_flags));
+  });
+
+  // Show user & tenant card toggle
+  document.getElementById('flag-show-user-card')?.addEventListener('click', () => {
+    const on = !(_flags.showUserCard !== false);
+    _flags.showUserCard = on;
+    localStorage.setItem(FLAGS_KEY, JSON.stringify(_flags));
+    const btn = document.getElementById('flag-show-user-card');
+    if (btn) { btn.classList.toggle('active', on); btn.setAttribute('aria-checked', on); }
+    _applyUserCardVisibility();
   });
 
   // Show active in eligible toggle
