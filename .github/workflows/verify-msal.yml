@@ -1,21 +1,54 @@
-name: Verify Vendored MSAL
+name: Verify and Sync Vendored MSAL
 
 on:
   pull_request:
     paths:
       - 'Portal/js/lib/**'
-      - 'security/package.json'
+      - 'security/**'
+      - '.github/workflows/verify-msal.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
-  verify:
+  verify-and-sync:
+    name: Verify & Sync MSAL
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
+      - name: Check out repository
+        uses: actions/checkout@v4
         with:
-          node-version: '20'
+          ref: ${{ github.head_ref || github.ref }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Auto-vendor MSAL matching security/package.json
+        shell: pwsh
+        run: |
+          $pkg = Get-Content ./security/package.json -Raw | ConvertFrom-Json
+          $version = $pkg.dependencies.'@azure/msal-browser'
+          Write-Host "Syncing vendored MSAL to @azure/msal-browser@$version..."
+          ./security/update-msal.ps1 -Version $version
 
       - name: Verify MSAL hash against npm registry
         shell: pwsh
         run: ./security/verify-msal.ps1
+
+      - name: Commit vendored MSAL if updated
+        if: github.event_name == 'pull_request'
+        run: |
+          if git diff --quiet -- Portal/js/lib/msal-browser.min.js; then
+            echo "Vendored MSAL is already up to date."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Portal/js/lib/msal-browser.min.js
+          git commit -m "chore(deps): vendor @azure/msal-browser matching security/package.json"
+          git push origin HEAD:${{ github.head_ref }}
+

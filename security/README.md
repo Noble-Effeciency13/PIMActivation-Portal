@@ -42,7 +42,7 @@ pwsh ./security/verify-msal.ps1
 3. Compares SHA-256 hashes of the local vs. official file
 4. Exits with code `0` (match) or `1` (mismatch)
 
-**Use in CI:** The `verify-msal.yml` GitHub Actions workflow runs this automatically on PRs that touch `Portal/js/lib/`.
+**Use in CI:** The `verify-msal.yml` GitHub Actions workflow runs automatically on PRs touching `security/` or `Portal/js/lib/`. If Dependabot opens a PR bumping the version in `package.json`, CI automatically runs `update-msal.ps1`, verifies the hash with `verify-msal.ps1`, and commits the updated vendored bundle directly to the PR branch.
 
 **Prerequisites:** `npm` (Node.js)
 
@@ -50,7 +50,7 @@ pwsh ./security/verify-msal.ps1
 
 ### `package.json`
 
-A minimal `package.json` that lists `@azure/msal-browser` as a dependency. It exists **solely for Dependabot** to monitor for new versions. When a new version is published on npm, Dependabot automatically opens a PR updating this file — prompting the team to evaluate the update.
+A minimal `package.json` that lists `@azure/msal-browser` as a dependency. It exists **solely for Dependabot** to monitor for new versions. When a new version is published on npm, Dependabot automatically opens a PR updating this file.
 
 This file is not used at build time, deploy time, or runtime.
 
@@ -60,9 +60,8 @@ Temporary directories created and cleaned up by the scripts above. They are excl
 
 ## Version Update Workflow
 
-1. **Dependabot opens a PR** updating `security/package.json` to a new MSAL version
-2. Review the [MSAL changelog](https://github.com/AzureAD/microsoft-authentication-library-for-js/blob/dev/lib/msal-browser/CHANGELOG.md) for breaking changes
-3. Run `pwsh ./security/update-msal.ps1 -Version <new-version>`
-4. Test locally: `node dev.js`
-5. Run `pwsh ./security/verify-msal.ps1` to confirm integrity
-6. Commit and merge
+1. **Dependabot opens a PR** updating `security/package.json` to a new MSAL version.
+2. **CI automatically vendors & verifies:** The `verify-msal.yml` workflow runs `update-msal.ps1`, verifies SHA-256 integrity, and commits the updated `Portal/js/lib/msal-browser.min.js` to the PR branch.
+3. **Review the changelog:** Check the [MSAL changelog](https://github.com/AzureAD/microsoft-authentication-library-for-js/blob/dev/lib/msal-browser/CHANGELOG.md) in the PR for any breaking changes or deprecations.
+4. **Approve and Merge:** Review the diff and approve/merge the pull request when satisfied.
+
