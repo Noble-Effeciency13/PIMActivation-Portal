@@ -1,0 +1,8 @@
+{
+  "private": true,
+  "name": "pimactivation-portal-security",
+  "description": "Dependabot anchor — monitors @azure/msal-browser for version updates. Not used at build or runtime.",
+  "dependencies": {
+    "@azure/msal-browser": "5.18.0"
+  }
+}
