@@ -6,9 +6,40 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-### Changed
+## [1.3.0] — 2026-08-30
 
-- Self-hosted deployments now pull the portal source from the latest published GitHub **release asset** (`portal-source.zip`) by default instead of the `main` branch archive, so each deployment tracks a tagged, tested release (and registers a release download). Set the `portalSourceBranch` parameter to deploy a branch's latest commit instead.
+### Added
+
+#### Corporate branding
+- Runtime corporate branding configuration supporting custom light/dark logos with auto-switching, custom browser favicons, corporate theme color palettes (primary, accent, nav, background per design mode), and up to 3 custom enterprise navigation links in the header.
+- Automated provisioning of a private `branding` blob container in the customer-owned storage account in self-hosted Bicep / ARM deployments, syncing schema, sample, and custom uploaded assets directly into the SWA payload.
+
+#### Table & column customization
+- Column visibility toggles for the Eligible roles table (Role type, Max duration, MFA, Justification, Ticket, Approval, Custom Extension).
+- Drag-and-drop handles and Up/Down move buttons in Settings to reorder columns (#10).
+- Adaptive policy detail view: automatically activates the expandable policy row on desktop when policy columns are hidden, ensuring all policy metadata remains accessible.
+
+#### Workspace settings
+- Setting to toggle User & Tenant card visibility to maximize vertical table area.
+
+#### Configuration export / import
+- Settings export and import supporting all UI flags, column layouts, duration defaults, and quick actions in JSON format, with optional profile bundling.
+
+### Changed
+- Content Security Policy in `Portal/staticwebapp.config.json`: added route caching rules for `/branding/*` while maintaining strict `script-src 'self'` and `img-src 'self' data:;`.
+
+## [1.2.0] — 2026-08-28
+
+### Added
+
+#### Role activation
+- Multi-role Azure reduced-scope activation (#9) — select and activate multiple Azure Resource roles simultaneously with per-role reduced scope overrides (management group, subscription, resource group, or resource).
+
+#### Security & architecture
+- Self-hosted MSAL bundle (#11) — shipped MSAL.js directly in `Portal/js/lib/msal-browser.min.js`, removing the runtime CDN dependency.
+
+### Changed
+- Removed `https://cdn.jsdelivr.net` from Content Security Policy `script-src` in `Portal/staticwebapp.config.json` (#11), making all scripts 100% self-hosted with zero external script origins.
 
 ## [1.1.0] — 2026-06-28
 
@@ -140,6 +171,8 @@ First public release. The portal is live at <https://portal.pimactivation.com> a
 - GitHub issue forms (bug, feature, documentation) and pull-request template under [`.github/`](.github).
 - Wiki content authored under [`docs/wiki/`](docs/wiki) for upload to the GitHub Wiki.
 
-[Unreleased]: https://github.com/Noble-Effeciency13/PIMActivation-Portal/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/Noble-Effeciency13/PIMActivation-Portal/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/Noble-Effeciency13/PIMActivation-Portal/compare/v1.2.0...v1.3.0
+[1.2.0]: https://github.com/Noble-Effeciency13/PIMActivation-Portal/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/Noble-Effeciency13/PIMActivation-Portal/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Noble-Effeciency13/PIMActivation-Portal/releases/tag/v1.0.0
