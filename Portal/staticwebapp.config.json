@@ -61,7 +61,7 @@
     }
   },
   "globalHeaders": {
-    "content-security-policy": "default-src 'self'; script-src 'self'; connect-src 'self' https://login.microsoftonline.com https://graph.microsoft.com https://management.azure.com; img-src 'self' data: https: blob:; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; upgrade-insecure-requests",
+    "content-security-policy": "default-src 'self'; script-src 'self'; connect-src 'self' https://login.microsoftonline.com https://graph.microsoft.com https://management.azure.com; img-src 'self' data:; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; upgrade-insecure-requests",
     "x-content-type-options": "nosniff",
     "x-frame-options": "DENY",
     "x-xss-protection": "1; mode=block",
