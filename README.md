@@ -115,6 +115,8 @@ The portal is a pure single-page application. There is no backend, no proxy, and
 - **Help and settings** — in-app guide, FAQ, feature flags, and theme selector all reachable from the header
 - **Responsive** — works from phone-width up to ultra-wide displays
 - **Installable as an app** — see [Install as an app (PWA)](#install-as-an-app-pwa) for details
+- **Corporate Branding** — Configurable logos, theme colors, and enterprise header links. (self-hosted version only)
+- **Column & Section Customization** — Reorder and toggle columns, hide user card, swap sections
 
 ### State and caching
 
@@ -358,6 +360,7 @@ PIMActivation-Portal/
 │   ├── manifest.json
 │   ├── staticwebapp.config.json     # SPA routing, CSP, security headers
 │   ├── css/portal.css
+│   ├── branding/                    # Custom branding
 │   ├── js/
 │   │   ├── app.js                   # Bootstrap and event wiring
 │   │   ├── auth.js                  # MSAL wrapper (redirect flow, claims threading)
