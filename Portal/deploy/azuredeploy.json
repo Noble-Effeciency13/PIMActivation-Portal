@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.46.1.21595",
-      "templateHash": "7651626151606770294"
+      "templateHash": "11545429505827861774"
     },
     "description": "PIMActivation Portal - Self-Hosted Deployment. Provisions an Azure Static Web App and deploys the portal SPA configured for an existing Entra app registration.",
     "source": "https://github.com/Noble-Effeciency13/PIMActivation-Portal"
@@ -35,16 +35,16 @@
     },
     "portalSourceBranch": {
       "type": "string",
-      "defaultValue": "main",
+      "defaultValue": "",
       "metadata": {
-        "description": "Repository branch to download when portalSourceArchiveUrl is not provided. Defaults to main so each deployment pulls the latest commit from main at deployment time."
+        "description": "Optional repository branch to deploy from instead of the latest published release. Leave blank (default) to deploy the latest release asset (portal-source.zip). Set e.g. to \"main\" to pull the newest commit at deployment time."
       }
     },
     "portalSourceArchiveUrl": {
       "type": "string",
       "defaultValue": "",
       "metadata": {
-        "description": "Optional publicly reachable ZIP archive containing the repository files. Leave blank to download the latest commit from portalSourceBranch. The archive must include Portal/index.html. Private GitHub repositories return 404 to the deployment script unless you provide an authenticated or pre-signed archive URL."
+        "description": "Optional publicly reachable ZIP archive containing the repository files. Takes precedence over portalSourceBranch and the default release asset. The archive must include Portal/index.html. Private GitHub repositories return 404 to the deployment script unless you provide an authenticated or pre-signed archive URL."
       }
     },
     "deploymentScriptRunId": {
@@ -90,7 +90,9 @@
     "sourceCacheStorageName": "[format('stpimact{0}', variables('suffix'))]",
     "sourceCacheContainerName": "portal-source",
     "sourceCacheBlobName": "portal-source.zip",
-    "defaultSourceArchiveUrl": "[format('https://github.com/Noble-Effeciency13/PIMActivation-Portal/archive/refs/heads/{0}.zip', parameters('portalSourceBranch'))]",
+    "releaseSourceArchiveUrl": "https://github.com/Noble-Effeciency13/PIMActivation-Portal/releases/latest/download/portal-source.zip",
+    "branchSourceArchiveUrl": "[format('https://github.com/Noble-Effeciency13/PIMActivation-Portal/archive/refs/heads/{0}.zip', parameters('portalSourceBranch'))]",
+    "defaultSourceArchiveUrl": "[if(empty(parameters('portalSourceBranch')), variables('releaseSourceArchiveUrl'), variables('branchSourceArchiveUrl'))]",
     "resolvedSourceArchiveUrl": "[if(empty(parameters('portalSourceArchiveUrl')), variables('defaultSourceArchiveUrl'), parameters('portalSourceArchiveUrl'))]",
     "tags": {
       "project": "[parameters('resourceTag')]"

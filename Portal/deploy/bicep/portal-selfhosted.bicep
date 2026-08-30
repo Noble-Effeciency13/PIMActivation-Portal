@@ -39,10 +39,10 @@ param tenantId string = subscription().tenantId
 @description('Optional custom domain to add as an Entra SPA redirect URI (e.g. pim.contoso.com). The Static Web App custom domain must be added manually after deployment, once DNS can point at the generated default hostname.')
 param customDomain string = ''
 
-@description('Repository branch to download when portalSourceArchiveUrl is not provided. Defaults to main so each deployment pulls the latest commit from main at deployment time.')
-param portalSourceBranch string = 'main'
+@description('Optional repository branch to deploy from instead of the latest published release. Leave blank (default) to deploy the latest release asset (portal-source.zip). Set e.g. to "main" to pull the newest commit at deployment time.')
+param portalSourceBranch string = ''
 
-@description('Optional publicly reachable ZIP archive containing the repository files. Leave blank to download the latest commit from portalSourceBranch. The archive must include Portal/index.html. Private GitHub repositories return 404 to the deployment script unless you provide an authenticated or pre-signed archive URL.')
+@description('Optional publicly reachable ZIP archive containing the repository files. Takes precedence over portalSourceBranch and the default release asset. The archive must include Portal/index.html. Private GitHub repositories return 404 to the deployment script unless you provide an authenticated or pre-signed archive URL.')
 param portalSourceArchiveUrl string = ''
 
 @description('Unique value used to force the deployment script to run on each deployment. The default also gives each run a fresh deployment script resource name to avoid Azure Files sharing violations during retries.')
@@ -67,7 +67,9 @@ var scriptName  = 'script-pimactivation-deploy-${suffix}-${deploymentScriptRunId
 var sourceCacheStorageName = 'stpimact${suffix}'
 var sourceCacheContainerName = 'portal-source'
 var sourceCacheBlobName = 'portal-source.zip'
-var defaultSourceArchiveUrl = 'https://github.com/Noble-Effeciency13/PIMActivation-Portal/archive/refs/heads/${portalSourceBranch}.zip'
+var releaseSourceArchiveUrl = 'https://github.com/Noble-Effeciency13/PIMActivation-Portal/releases/latest/download/portal-source.zip'
+var branchSourceArchiveUrl = 'https://github.com/Noble-Effeciency13/PIMActivation-Portal/archive/refs/heads/${portalSourceBranch}.zip'
+var defaultSourceArchiveUrl = empty(portalSourceBranch) ? releaseSourceArchiveUrl : branchSourceArchiveUrl
 var resolvedSourceArchiveUrl = empty(portalSourceArchiveUrl) ? defaultSourceArchiveUrl : portalSourceArchiveUrl
 var tags        = { project: resourceTag }
 var portalUrl   = 'https://${staticWebApp.properties.defaultHostname}'
