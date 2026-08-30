@@ -1,0 +1,183 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pimactivation.com/schemas/branding.schema.json",
+  "title": "PIMActivation Corporate Branding Configuration",
+  "description": "Runtime branding configuration for PIMActivation portal tenants (logos, theme colors per design mode, and custom enterprise links).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "URI to the branding JSON Schema for IDE validation."
+    },
+    "companyName": {
+      "type": "string",
+      "maxLength": 100,
+      "description": "Optional company name used for logo alt text and fallback if logo fails to load."
+    },
+    "logo": {
+      "type": "object",
+      "description": "Custom company logo URLs and sizing.",
+      "additionalProperties": false,
+      "properties": {
+        "light": {
+          "type": "string",
+          "description": "URL or relative path to the logo used on light backgrounds or default light mode."
+        },
+        "dark": {
+          "type": "string",
+          "description": "Optional URL or relative path to the logo used on dark backgrounds or dark mode."
+        },
+        "favicon": {
+          "type": "string",
+          "description": "Optional URL or relative path to a custom browser tab favicon (.ico, .svg, or .png)."
+        },
+        "height": {
+          "type": "string",
+          "pattern": "^[0-9]+(px|rem|em|vh|%)$",
+          "description": "Optional CSS height value for the logo (e.g., '28px', '32px'). Defaults to '28px'."
+        }
+      }
+    },
+    "theme": {
+      "type": "object",
+      "description": "Corporate theme colors applied to root CSS variables with optional design-specific overrides (dark, light, contrast).",
+      "additionalProperties": false,
+      "properties": {
+        "primaryColor": {
+          "type": "string",
+          "pattern": "^(#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|rgb\\([^)]+\\)|rgba\\([^)]+\\)|hsl\\([^)]+\\)|hsla\\([^)]+\\))$",
+          "description": "Base primary brand color used for active states, highlights, and key buttons."
+        },
+        "accentColor": {
+          "type": "string",
+          "pattern": "^(#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|rgb\\([^)]+\\)|rgba\\([^)]+\\)|hsl\\([^)]+\\)|hsla\\([^)]+\\))$",
+          "description": "Base accent brand color used for secondary highlights and badge tints."
+        },
+        "navBackgroundColor": {
+          "type": "string",
+          "pattern": "^(#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|rgb\\([^)]+\\)|rgba\\([^)]+\\)|hsl\\([^)]+\\)|hsla\\([^)]+\\))$",
+          "description": "Base navigation/header background color."
+        },
+        "navTextColor": {
+          "type": "string",
+          "pattern": "^(#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|rgb\\([^)]+\\)|rgba\\([^)]+\\)|hsl\\([^)]+\\)|hsla\\([^)]+\\))$",
+          "description": "Base navigation text and icon color."
+        },
+        "backgroundColor": {
+          "type": "string",
+          "pattern": "^(#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|rgb\\([^)]+\\)|rgba\\([^)]+\\)|hsl\\([^)]+\\)|hsla\\([^)]+\\))$",
+          "description": "Base custom page canvas / background color."
+        },
+        "dark": {
+          "$ref": "#/$defs/themeProps",
+          "description": "Custom color overrides specifically for Dark Mode."
+        },
+        "light": {
+          "$ref": "#/$defs/themeProps",
+          "description": "Custom color overrides specifically for Light Mode."
+        },
+        "contrast": {
+          "$ref": "#/$defs/themeProps",
+          "description": "Custom color overrides specifically for High Contrast Mode."
+        },
+        "hc": {
+          "$ref": "#/$defs/themeProps",
+          "description": "Alias for High Contrast Mode color overrides."
+        }
+      }
+    },
+    "themes": {
+      "type": "object",
+      "description": "Alternative design mode dictionary for theme colors.",
+      "additionalProperties": false,
+      "properties": {
+        "dark": { "$ref": "#/$defs/themeProps" },
+        "light": { "$ref": "#/$defs/themeProps" },
+        "contrast": { "$ref": "#/$defs/themeProps" },
+        "hc": { "$ref": "#/$defs/themeProps" }
+      }
+    },
+    "navigation": {
+      "type": "array",
+      "maxItems": 3,
+      "description": "Up to 3 custom enterprise navigation links rendered in the header.",
+      "items": {
+        "type": "object",
+        "required": [
+          "label",
+          "url"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 30,
+            "description": "Display text for the link button (e.g. 'Helpdesk', 'Wiki')."
+          },
+          "url": {
+            "type": "string",
+            "description": "Target URL (https://... or relative path)."
+          },
+          "icon": {
+            "type": "string",
+            "enum": [
+              "help",
+              "book",
+              "external",
+              "shield",
+              "link",
+              "phone",
+              "info",
+              "home",
+              "star"
+            ],
+            "description": "Optional icon name ('help', 'book', 'external', 'shield', 'link', 'phone', 'info', 'home', 'star'). Defaults to 'external'."
+          },
+          "target": {
+            "type": "string",
+            "enum": [
+              "_blank",
+              "_self"
+            ],
+            "description": "Target browser window/tab. Defaults to '_blank'."
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "themeProps": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "primaryColor": {
+          "type": "string",
+          "pattern": "^(#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|rgb\\([^)]+\\)|rgba\\([^)]+\\)|hsl\\([^)]+\\)|hsla\\([^)]+\\))$",
+          "description": "Primary brand color."
+        },
+        "accentColor": {
+          "type": "string",
+          "pattern": "^(#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|rgb\\([^)]+\\)|rgba\\([^)]+\\)|hsl\\([^)]+\\)|hsla\\([^)]+\\))$",
+          "description": "Accent brand color."
+        },
+        "navBackgroundColor": {
+          "type": "string",
+          "pattern": "^(#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|rgb\\([^)]+\\)|rgba\\([^)]+\\)|hsl\\([^)]+\\)|hsla\\([^)]+\\))$",
+          "description": "Navigation / header background color."
+        },
+        "navTextColor": {
+          "type": "string",
+          "pattern": "^(#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|rgb\\([^)]+\\)|rgba\\([^)]+\\)|hsl\\([^)]+\\)|hsla\\([^)]+\\))$",
+          "description": "Navigation text and icon color."
+        },
+        "backgroundColor": {
+          "type": "string",
+          "pattern": "^(#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|rgb\\([^)]+\\)|rgba\\([^)]+\\)|hsl\\([^)]+\\)|hsla\\([^)]+\\))$",
+          "description": "Page background / canvas color."
+        }
+      }
+    }
+  }
+}

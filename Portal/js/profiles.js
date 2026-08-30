@@ -103,11 +103,27 @@ class ProfileManager {
   }
 
   /**
+   * Clear all saved profiles.
+   */
+  async clearAll() {
+    return new Promise((resolve, reject) => {
+      const req = this._tx('readwrite').clear();
+      req.onsuccess = () => resolve();
+      req.onerror   = e => reject(e.target.error);
+    });
+  }
+
+  /**
    * Import multiple profiles.
    * @param {object[]} profiles
+   * @param {boolean}  [overwrite=false] — If true, clears existing profiles before importing
    */
-  async importProfiles(profiles) {
+  async importProfiles(profiles, overwrite = false) {
     if (!Array.isArray(profiles)) throw new Error('Invalid profiles format');
+    
+    if (overwrite) {
+      await this.clearAll();
+    }
     
     for (const p of profiles) {
       if (!p.name || !Array.isArray(p.roles)) continue;

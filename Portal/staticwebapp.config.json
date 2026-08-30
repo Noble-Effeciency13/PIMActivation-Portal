@@ -1,6 +1,12 @@
 {
   "routes": [
     {
+      "route": "/branding/*",
+      "headers": {
+        "Cache-Control": "no-cache, no-store, must-revalidate"
+      }
+    },
+    {
       "route": "/js/*",
       "headers": {
         "Cache-Control": "no-cache, must-revalidate"
@@ -33,7 +39,20 @@
   ],
   "navigationFallback": {
     "rewrite": "/index.html",
-    "exclude": ["/css/*", "/js/*", "/images/*", "/favicons/*", "/manifest.json", "*.ico", "*.svg", "*.png", "*.webmanifest", "*.woff2"]
+    "exclude": [
+      "/css/*",
+      "/js/*",
+      "/images/*",
+      "/favicons/*",
+      "/branding/*",
+      "/manifest.json",
+      "*.ico",
+      "*.svg",
+      "*.png",
+      "*.webmanifest",
+      "*.woff2",
+      "*.json"
+    ]
   },
   "responseOverrides": {
     "404": {
@@ -51,12 +70,12 @@
     "strict-transport-security": "max-age=31536000; includeSubDomains; preload"
   },
   "mimeTypes": {
-    ".json":  "application/json",
-    ".ico":   "image/x-icon",
-    ".svg":   "image/svg+xml",
-    ".png":   "image/png",
+    ".json": "application/json",
+    ".ico": "image/x-icon",
+    ".svg": "image/svg+xml",
+    ".png": "image/png",
     ".webmanifest": "application/manifest+json",
-    ".webp":  "image/webp",
+    ".webp": "image/webp",
     ".woff2": "font/woff2"
   }
 }

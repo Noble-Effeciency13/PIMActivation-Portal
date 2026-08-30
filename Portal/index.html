@@ -36,13 +36,14 @@
     <!-- ── Header ──────────────────────────────────────────────────────────── -->
     <header class="app-header">
       <div class="header-brand">
-        <svg class="brand-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        <svg class="brand-icon" id="default-brand-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
           stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" />
         </svg>
         <span class="brand-name">PIM Activation Portal</span>
       </div>
       <div class="header-right">
+        <div class="header-enterprise-links" id="header-enterprise-links"></div>
         <div class="header-quick-actions" id="header-quick-actions"></div>
         <button class="icon-btn" id="refresh-btn" aria-label="Refresh roles" title="Refresh roles">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
@@ -243,14 +244,14 @@
                     <input type="checkbox" id="select-all-eligible" aria-label="Select all eligible roles">
                   </label>
                 </th>
-                <th class="col-type">Type</th>
-                <th class="col-role">Role</th>
-                <th class="col-policy" title="Maximum activation duration">Max</th>
-                <th class="col-policy" title="Multi-Factor Authentication / Conditional Access">MFA</th>
-                <th class="col-policy" title="Business justification required">Just.</th>
-                <th class="col-policy" title="Ticket number required">Ticket</th>
-                <th class="col-policy" title="Approval required from approver">Apprv.</th>
-                <th class="col-policy" title="Pre-approval custom extension required">Ext</th>
+                <th class="col-type" data-col="colType">Type</th>
+                <th class="col-role" data-col="colRole">Role</th>
+                <th class="col-policy col-pol-max" data-col="colMax" title="Maximum activation duration">Max</th>
+                <th class="col-policy col-pol-mfa" data-col="colMfa" title="Multi-Factor Authentication / Conditional Access">MFA</th>
+                <th class="col-policy col-pol-just" data-col="colJust" title="Business justification required">Just.</th>
+                <th class="col-policy col-pol-ticket" data-col="colTicket" title="Ticket number required">Ticket</th>
+                <th class="col-policy col-pol-apprv" data-col="colApprv" title="Approval required from approver">Apprv.</th>
+                <th class="col-policy col-pol-ext" data-col="colExt" title="Pre-approval custom extension required">Ext</th>
                 <th class="col-expand" aria-label="Policy details"></th>
               </tr>
             </thead>
@@ -437,6 +438,16 @@
 
             <div class="settings-row">
               <div class="settings-info">
+                <div class="settings-title">Show user &amp; tenant card</div>
+                <div class="settings-desc">Display the user profile, account, and tenant banner below the header.</div>
+              </div>
+              <button class="toggle-switch active" id="flag-show-user-card" type="button" role="switch" aria-checked="true">
+                <span class="toggle-thumb" aria-hidden="true"></span>
+              </button>
+            </div>
+
+            <div class="settings-row">
+              <div class="settings-info">
                 <div class="settings-title">Show active roles in eligible list</div>
                 <div class="settings-desc">If disabled, already-active roles are hidden from the eligible table.</div>
               </div>
@@ -500,6 +511,187 @@
 
         <hr class="settings-hr">
 
+        <!-- Eligible table columns (collapsible) -->
+        <div class="settings-group collapsed" id="settings-group-columns">
+          <button class="settings-group-toggle" type="button" aria-expanded="false">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+            <span>Eligible table columns</span>
+          </button>
+          <div class="settings-group-body" id="settings-columns-body">
+
+            <div class="settings-row column-order-row" data-col="colType" draggable="true">
+              <div class="column-drag-handle" title="Drag to reorder" aria-label="Drag to reorder">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="9" cy="6" r="1.8"/><circle cx="15" cy="6" r="1.8"/><circle cx="9" cy="12" r="1.8"/><circle cx="15" cy="12" r="1.8"/><circle cx="9" cy="18" r="1.8"/><circle cx="15" cy="18" r="1.8"/></svg>
+              </div>
+              <div class="column-order-controls">
+                <button class="icon-btn column-move-btn" data-action="up" type="button" title="Move up" aria-label="Move Role type up">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+                </button>
+                <button class="icon-btn column-move-btn" data-action="down" type="button" title="Move down" aria-label="Move Role type down">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+              </div>
+              <div class="settings-info">
+                <div class="settings-title">Role type</div>
+                <div class="settings-desc">Show the Type badge column (Entra, Azure, Groups).</div>
+              </div>
+              <button class="toggle-switch active" id="flag-col-type" type="button" role="switch" aria-checked="true">
+                <span class="toggle-thumb" aria-hidden="true"></span>
+              </button>
+            </div>
+
+            <div class="settings-row column-order-row" data-col="colRole" draggable="true">
+              <div class="column-drag-handle" title="Drag to reorder" aria-label="Drag to reorder">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="9" cy="6" r="1.8"/><circle cx="15" cy="6" r="1.8"/><circle cx="9" cy="12" r="1.8"/><circle cx="15" cy="12" r="1.8"/><circle cx="9" cy="18" r="1.8"/><circle cx="15" cy="18" r="1.8"/></svg>
+              </div>
+              <div class="column-order-controls">
+                <button class="icon-btn column-move-btn" data-action="up" type="button" title="Move up" aria-label="Move Role up">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+                </button>
+                <button class="icon-btn column-move-btn" data-action="down" type="button" title="Move down" aria-label="Move Role down">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+              </div>
+              <div class="settings-info">
+                <div class="settings-title">Role name &amp; scope</div>
+                <div class="settings-desc">Primary role title and assigned scope (required).</div>
+              </div>
+              <button class="toggle-switch active toggle-disabled" id="flag-col-role" type="button" role="switch" aria-checked="true" disabled title="Role column is required and cannot be disabled">
+                <span class="toggle-thumb" aria-hidden="true"></span>
+              </button>
+            </div>
+
+            <div class="settings-row column-order-row" data-col="colMax" draggable="true">
+              <div class="column-drag-handle" title="Drag to reorder" aria-label="Drag to reorder">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="9" cy="6" r="1.8"/><circle cx="15" cy="6" r="1.8"/><circle cx="9" cy="12" r="1.8"/><circle cx="15" cy="12" r="1.8"/><circle cx="9" cy="18" r="1.8"/><circle cx="15" cy="18" r="1.8"/></svg>
+              </div>
+              <div class="column-order-controls">
+                <button class="icon-btn column-move-btn" data-action="up" type="button" title="Move up" aria-label="Move Max duration up">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+                </button>
+                <button class="icon-btn column-move-btn" data-action="down" type="button" title="Move down" aria-label="Move Max duration down">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+              </div>
+              <div class="settings-info">
+                <div class="settings-title">Max duration</div>
+                <div class="settings-desc">Show the Maximum duration policy column (Max).</div>
+              </div>
+              <button class="toggle-switch active" id="flag-col-max" type="button" role="switch" aria-checked="true">
+                <span class="toggle-thumb" aria-hidden="true"></span>
+              </button>
+            </div>
+
+            <div class="settings-row column-order-row" data-col="colMfa" draggable="true">
+              <div class="column-drag-handle" title="Drag to reorder" aria-label="Drag to reorder">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="9" cy="6" r="1.8"/><circle cx="15" cy="6" r="1.8"/><circle cx="9" cy="12" r="1.8"/><circle cx="15" cy="12" r="1.8"/><circle cx="9" cy="18" r="1.8"/><circle cx="15" cy="18" r="1.8"/></svg>
+              </div>
+              <div class="column-order-controls">
+                <button class="icon-btn column-move-btn" data-action="up" type="button" title="Move up" aria-label="Move MFA up">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+                </button>
+                <button class="icon-btn column-move-btn" data-action="down" type="button" title="Move down" aria-label="Move MFA down">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+              </div>
+              <div class="settings-info">
+                <div class="settings-title">MFA / Auth Context</div>
+                <div class="settings-desc">Show the MFA and Authentication Context column (MFA).</div>
+              </div>
+              <button class="toggle-switch active" id="flag-col-mfa" type="button" role="switch" aria-checked="true">
+                <span class="toggle-thumb" aria-hidden="true"></span>
+              </button>
+            </div>
+
+            <div class="settings-row column-order-row" data-col="colJust" draggable="true">
+              <div class="column-drag-handle" title="Drag to reorder" aria-label="Drag to reorder">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="9" cy="6" r="1.8"/><circle cx="15" cy="6" r="1.8"/><circle cx="9" cy="12" r="1.8"/><circle cx="15" cy="12" r="1.8"/><circle cx="9" cy="18" r="1.8"/><circle cx="15" cy="18" r="1.8"/></svg>
+              </div>
+              <div class="column-order-controls">
+                <button class="icon-btn column-move-btn" data-action="up" type="button" title="Move up" aria-label="Move Justification up">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+                </button>
+                <button class="icon-btn column-move-btn" data-action="down" type="button" title="Move down" aria-label="Move Justification down">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+              </div>
+              <div class="settings-info">
+                <div class="settings-title">Justification</div>
+                <div class="settings-desc">Show the Business justification required column (Just.).</div>
+              </div>
+              <button class="toggle-switch active" id="flag-col-just" type="button" role="switch" aria-checked="true">
+                <span class="toggle-thumb" aria-hidden="true"></span>
+              </button>
+            </div>
+
+            <div class="settings-row column-order-row" data-col="colTicket" draggable="true">
+              <div class="column-drag-handle" title="Drag to reorder" aria-label="Drag to reorder">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="9" cy="6" r="1.8"/><circle cx="15" cy="6" r="1.8"/><circle cx="9" cy="12" r="1.8"/><circle cx="15" cy="12" r="1.8"/><circle cx="9" cy="18" r="1.8"/><circle cx="15" cy="18" r="1.8"/></svg>
+              </div>
+              <div class="column-order-controls">
+                <button class="icon-btn column-move-btn" data-action="up" type="button" title="Move up" aria-label="Move Ticket number up">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+                </button>
+                <button class="icon-btn column-move-btn" data-action="down" type="button" title="Move down" aria-label="Move Ticket number down">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+              </div>
+              <div class="settings-info">
+                <div class="settings-title">Ticket number</div>
+                <div class="settings-desc">Show the Ticket number required column (Ticket).</div>
+              </div>
+              <button class="toggle-switch active" id="flag-col-ticket" type="button" role="switch" aria-checked="true">
+                <span class="toggle-thumb" aria-hidden="true"></span>
+              </button>
+            </div>
+
+            <div class="settings-row column-order-row" data-col="colApprv" draggable="true">
+              <div class="column-drag-handle" title="Drag to reorder" aria-label="Drag to reorder">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="9" cy="6" r="1.8"/><circle cx="15" cy="6" r="1.8"/><circle cx="9" cy="12" r="1.8"/><circle cx="15" cy="12" r="1.8"/><circle cx="9" cy="18" r="1.8"/><circle cx="15" cy="18" r="1.8"/></svg>
+              </div>
+              <div class="column-order-controls">
+                <button class="icon-btn column-move-btn" data-action="up" type="button" title="Move up" aria-label="Move Approval required up">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+                </button>
+                <button class="icon-btn column-move-btn" data-action="down" type="button" title="Move down" aria-label="Move Approval required down">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+              </div>
+              <div class="settings-info">
+                <div class="settings-title">Approval required</div>
+                <div class="settings-desc">Show the Approval required from approver column (Apprv.).</div>
+              </div>
+              <button class="toggle-switch active" id="flag-col-apprv" type="button" role="switch" aria-checked="true">
+                <span class="toggle-thumb" aria-hidden="true"></span>
+              </button>
+            </div>
+
+            <div class="settings-row column-order-row" data-col="colExt" draggable="true">
+              <div class="column-drag-handle" title="Drag to reorder" aria-label="Drag to reorder">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="9" cy="6" r="1.8"/><circle cx="15" cy="6" r="1.8"/><circle cx="9" cy="12" r="1.8"/><circle cx="15" cy="12" r="1.8"/><circle cx="9" cy="18" r="1.8"/><circle cx="15" cy="18" r="1.8"/></svg>
+              </div>
+              <div class="column-order-controls">
+                <button class="icon-btn column-move-btn" data-action="up" type="button" title="Move up" aria-label="Move Custom extension up">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+                </button>
+                <button class="icon-btn column-move-btn" data-action="down" type="button" title="Move down" aria-label="Move Custom extension down">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+              </div>
+              <div class="settings-info">
+                <div class="settings-title">Custom extension</div>
+                <div class="settings-desc">Show the Pre-approval custom extension column (Ext).</div>
+              </div>
+              <button class="toggle-switch active" id="flag-col-ext" type="button" role="switch" aria-checked="true">
+                <span class="toggle-thumb" aria-hidden="true"></span>
+              </button>
+            </div>
+
+          </div>
+        </div>
+
+        <hr class="settings-hr">
+
         <!-- PIM surfaces (collapsible) -->
         <div class="settings-group collapsed" id="settings-group-pim">
           <button class="settings-group-toggle" type="button" aria-expanded="false">
@@ -536,15 +728,105 @@
 
       </div>
       <div class="modal-footer settings-modal-footer">
-        <div class="settings-reset-wrap">
-          <button class="btn btn-ghost btn-sm settings-reset-btn" id="settings-reset-btn">Reset to defaults</button>
-          <div class="settings-reset-confirm" id="settings-reset-confirm" hidden>
-            <span class="settings-reset-label">Are you sure?</span>
-            <button class="btn btn-danger btn-sm" id="settings-reset-yes">Yes, reset</button>
-            <button class="btn btn-ghost btn-sm" id="settings-reset-no">Cancel</button>
+        <div class="settings-actions-left">
+          <button class="btn btn-ghost btn-sm" id="settings-export-btn" title="Export settings to JSON">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export
+          </button>
+          <button class="btn btn-ghost btn-sm" id="settings-import-btn" title="Import settings from JSON">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Import
+          </button>
+          <input type="file" id="settings-import-input" accept=".json" hidden>
+          <div class="settings-reset-wrap">
+            <button class="btn btn-ghost btn-sm settings-reset-btn" id="settings-reset-btn">Reset to defaults</button>
+            <div class="settings-reset-confirm" id="settings-reset-confirm" hidden>
+              <span class="settings-reset-label">Are you sure?</span>
+              <button class="btn btn-danger btn-sm" id="settings-reset-yes">Yes, reset</button>
+              <button class="btn btn-ghost btn-sm" id="settings-reset-no">Cancel</button>
+            </div>
           </div>
         </div>
         <button class="btn btn-primary btn-sm" id="settings-modal-close-footer">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Export config modal ─────────────────────────────────────────────── -->
+  <div id="export-config-modal" class="modal-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="export-config-modal-title">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <h2 class="modal-title" id="export-config-modal-title">Export Configuration</h2>
+        <button class="icon-btn modal-close" id="export-config-modal-close-btn" aria-label="Close">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 13px; color: var(--text); margin-bottom: 14px;">Choose what you would like to include in the exported JSON file:</p>
+        <div class="export-options-card">
+          <div class="settings-row" style="margin-bottom: 0;">
+            <div class="settings-info">
+              <div class="settings-title">Portal Settings &amp; Columns</div>
+              <div class="settings-desc">Surface flags, column order, column visibility, duration defaults, and quick filters.</div>
+            </div>
+            <span class="badge" style="background: var(--bg-hover); color: var(--text-muted); font-size: 11px;">Included</span>
+          </div>
+          <hr class="settings-hr" style="margin: 10px 0;">
+          <div class="settings-row" style="margin-bottom: 0; align-items: center;">
+            <div class="settings-info">
+              <div class="settings-title">Include Activation Profiles</div>
+              <div class="settings-desc" id="export-profiles-desc">Export saved role activation profiles.</div>
+            </div>
+            <label class="cb-wrap" style="cursor: pointer;">
+              <input type="checkbox" id="export-include-profiles" checked style="width: 16px; height: 16px; accent-color: var(--primary);">
+            </label>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost btn-sm" id="export-config-modal-cancel">Cancel</button>
+        <button class="btn btn-primary btn-sm" id="export-config-modal-download">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download JSON
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Import profiles conflict modal ──────────────────────────────────── -->
+  <div id="import-profiles-modal" class="modal-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="import-profiles-modal-title">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <h2 class="modal-title" id="import-profiles-modal-title">Import Profiles</h2>
+        <button class="icon-btn modal-close" id="import-profiles-modal-close-btn" aria-label="Close">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 13px; color: var(--text); margin-bottom: 12px;">
+          How would you like to handle your existing saved activation profiles?
+        </p>
+        <div class="export-options-card" style="display: flex; flex-direction: column; gap: 8px;">
+          <div style="font-size: 12px; color: var(--text-muted);" id="import-profiles-modal-counts">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+        <div style="display: flex; gap: 6px;">
+          <button class="btn btn-ghost btn-sm" id="import-profiles-modal-cancel">Cancel</button>
+          <button class="btn btn-ghost btn-sm" id="import-profiles-modal-skip" hidden>Skip profiles</button>
+        </div>
+        <div style="display: flex; gap: 6px;">
+          <button class="btn btn-primary btn-sm" id="import-profiles-modal-append">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add to existing
+          </button>
+          <button class="btn btn-danger btn-sm" id="import-profiles-modal-overwrite">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            Overwrite existing
+          </button>
+        </div>
       </div>
     </div>
   </div>

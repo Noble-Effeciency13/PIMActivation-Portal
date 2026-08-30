@@ -323,8 +323,9 @@ class RoleManager {
     const tbody = document.getElementById('eligible-roles-body');
     if (!tbody) return;
 
+    const quickFilters = typeof _getQuickFilters === 'function' ? _getQuickFilters() : [];
     const _savedActive = this._activeSavedFilterId
-      ? _getQuickFilters().find(f => f.id === this._activeSavedFilterId)
+      ? quickFilters.find(f => f.id === this._activeSavedFilterId)
       : null;
     const query = (_savedActive
       ? _savedActive.query
@@ -332,8 +333,9 @@ class RoleManager {
     ).toLowerCase();
 
     // When "show active in eligible" is off, hide eligible roles that are already active
+    const flags = window._flags || (typeof _flags !== 'undefined' ? _flags : {});
     let source = this.eligibleRoles;
-    if (typeof _flags !== 'undefined' && !_flags.showActiveInEligible) {
+    if (!flags.showActiveInEligible) {
       const activeKeys = new Set(this.activeRoles.map(r =>
         _roleKey(r.id) + '|' + _normalizeScopeId(r.scopeId || r.directoryScopeId || '').toLowerCase() + '|' + (r.type || '')
       ));
@@ -378,51 +380,75 @@ class RoleManager {
         : 'Not required';
       const customExtensionText = _customExtensionText(role);
 
+      const order = (typeof _getColumnOrder === 'function')
+        ? _getColumnOrder()
+        : ['colType', 'colRole', 'colMax', 'colMfa', 'colJust', 'colTicket', 'colApprv', 'colExt'];
+
+      const mobilePillGenerators = {
+        colType:   '',
+        colMax:    '<span class="mobile-col-max pol-max">' + maxDisp + '</span>',
+        colMfa:    '<span class="mobile-col-mfa">' + _polMfa(role) + '</span>',
+        colJust:   '<span class="mobile-col-just">' + _polDot(role.requiresJustification, 'Just.',  'pol-warning', 'Justification required') + '</span>',
+        colTicket: '<span class="mobile-col-ticket">' + _polDot(role.requiresTicket,        'Ticket', 'pol-warning', 'Ticket required') + '</span>',
+        colApprv:  '<span class="mobile-col-apprv">' + _polDot(role.requiresApproval,      'Apprv.', 'pol-purple',  'Approval required') + '</span>',
+        colExt:    '<span class="mobile-col-ext">' + _polCustomExtension(role) + '</span>'
+      };
+
+      let mobilePolicyStripHtml = '';
+      order.forEach(colKey => {
+        if (mobilePillGenerators[colKey]) mobilePolicyStripHtml += mobilePillGenerators[colKey];
+      });
+
+      const cellGenerators = {
+        colType:   '<td class="col-type" data-label="Type">' + badge + '</td>',
+        colRole:   '<td class="col-role" data-label="Role"><div class="role-cell">' +
+          '<span class="role-name">' + escapeHtml(role.name) + pending + '</span>' +
+          '<span class="role-scope"><span class="mobile-badge mobile-col-type">' + badge + '</span>' + escapeHtml(this.getScopeDisplay(role)) + '</span>' +
+          '<div class="mobile-policy-strip">' +
+            mobilePolicyStripHtml +
+          '</div>' +
+        '</div></td>',
+        colMax:    '<td class="col-policy col-pol-max" data-label="Max"><span class="pol-max">' + maxDisp + '</span></td>',
+        colMfa:    '<td class="col-policy col-pol-mfa" data-label="MFA">'    + _polMfa(role)                                     + '</td>',
+        colJust:   '<td class="col-policy col-pol-just" data-label="Just.">'  + _polDot(role.requiresJustification, 'Just.',  'pol-warning', 'Justification required') + '</td>',
+        colTicket: '<td class="col-policy col-pol-ticket" data-label="Ticket">' + _polDot(role.requiresTicket,        'Ticket', 'pol-warning', 'Ticket required')        + '</td>',
+        colApprv:  '<td class="col-policy col-pol-apprv" data-label="Apprv.">' + _polDot(role.requiresApproval,      'Apprv.', 'pol-purple',  'Approval required')       + '</td>',
+        colExt:    '<td class="col-policy col-pol-ext" data-label="Ext">'    + _polCustomExtension(role)                         + '</td>'
+      };
+
+      let cellsHtml = '<td class="col-cb"><label class="cb-wrap">' +
+        '<input type="checkbox" class="elig-cb" data-uid="' + escapeHtml(uid) + '" ' + checked +
+        ' aria-label="' + escapeHtml(role.name) + '">' +
+        '</label></td>';
+
+      order.forEach(colKey => {
+        if (cellGenerators[colKey]) cellsHtml += cellGenerators[colKey];
+      });
+
+      cellsHtml += '<td class="col-expand">' +
+        '<button class="expand-btn" data-uid="' + escapeHtml(uid) + '" aria-label="Show policy details" aria-expanded="false">' +
+          '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">' +
+            '<polyline points="6 9 12 15 18 9"/>' +
+          '</svg>' +
+        '</button>' +
+      '</td>';
+
       const mainRow =
         '<tr class="' + selCls + '" data-uid="' + escapeHtml(uid) + '">' +
-          '<td class="col-cb"><label class="cb-wrap">' +
-            '<input type="checkbox" class="elig-cb" data-uid="' + escapeHtml(uid) + '" ' + checked +
-            ' aria-label="' + escapeHtml(role.name) + '">' +
-          '</label></td>' +
-          '<td class="col-type" data-label="Type">' + badge + '</td>' +
-          '<td class="col-role" data-label="Role"><div class="role-cell">' +
-            '<span class="role-name">' + escapeHtml(role.name) + pending + '</span>' +
-            '<span class="role-scope"><span class="mobile-badge">' + badge + '</span>' + escapeHtml(this.getScopeDisplay(role)) + '</span>' +
-            '<div class="mobile-policy-strip">' +
-              '<span class="pol-max">' + maxDisp + '</span>' +
-              _polMfa(role) +
-              _polDot(role.requiresJustification, 'Just.',  'pol-warning', 'Justification required') +
-              _polDot(role.requiresTicket,        'Ticket', 'pol-warning', 'Ticket required') +
-              _polDot(role.requiresApproval,      'Apprv.', 'pol-purple',  'Approval required') +
-              _polCustomExtension(role) +
-            '</div>' +
-          '</div></td>' +
-          '<td class="col-policy" data-label="Max"><span class="pol-max">' + maxDisp + '</span></td>' +
-          '<td class="col-policy" data-label="MFA">'    + _polMfa(role)                                     + '</td>' +
-          '<td class="col-policy" data-label="Just.">'  + _polDot(role.requiresJustification, 'Just.',  'pol-warning', 'Justification required') + '</td>' +
-          '<td class="col-policy" data-label="Ticket">' + _polDot(role.requiresTicket,        'Ticket', 'pol-warning', 'Ticket required')        + '</td>' +
-          '<td class="col-policy" data-label="Apprv.">' + _polDot(role.requiresApproval,      'Apprv.', 'pol-purple',  'Approval required')       + '</td>' +
-          '<td class="col-policy" data-label="Ext">'    + _polCustomExtension(role)                         + '</td>' +
-          '<td class="col-expand">' +
-            '<button class="expand-btn" data-uid="' + escapeHtml(uid) + '" aria-label="Show policy details" aria-expanded="false">' +
-              '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">' +
-                '<polyline points="6 9 12 15 18 9"/>' +
-              '</svg>' +
-            '</button>' +
-          '</td>' +
+          cellsHtml +
         '</tr>';
 
       const detailRow =
         '<tr class="row-detail" data-detail-uid="' + escapeHtml(uid) + '" hidden>' +
           '<td colspan="99">' +
             '<div class="policy-detail">' +
-              '<span class="pd-label">Max duration</span><span class="pd-value">' + maxText + '</span>' +
-              '<span class="pd-label">MFA</span><span class="pd-value">' + mfaText + '</span>' +
-              '<span class="pd-label">Auth Context</span><span class="pd-value">' + authCtxText + '</span>' +
-              '<span class="pd-label">Justification</span><span class="pd-value">' + (role.requiresJustification ? 'Required' : 'Not required') + '</span>' +
-              '<span class="pd-label">Ticket</span><span class="pd-value">' + (role.requiresTicket ? 'Required' : 'Not required') + '</span>' +
-              '<span class="pd-label">Approval</span><span class="pd-value">' + (role.requiresApproval ? 'Required' : 'Not required') + '</span>' +
-              '<span class="pd-label">Custom extension</span><span class="pd-value">' + customExtensionText + '</span>' +
+              '<span class="pd-label mobile-col-max">Max duration</span><span class="pd-value mobile-col-max">' + maxText + '</span>' +
+              '<span class="pd-label mobile-col-mfa">MFA</span><span class="pd-value mobile-col-mfa">' + mfaText + '</span>' +
+              '<span class="pd-label mobile-col-mfa">Auth Context</span><span class="pd-value mobile-col-mfa">' + authCtxText + '</span>' +
+              '<span class="pd-label mobile-col-just">Justification</span><span class="pd-value mobile-col-just">' + (role.requiresJustification ? 'Required' : 'Not required') + '</span>' +
+              '<span class="pd-label mobile-col-ticket">Ticket</span><span class="pd-value mobile-col-ticket">' + (role.requiresTicket ? 'Required' : 'Not required') + '</span>' +
+              '<span class="pd-label mobile-col-apprv">Approval</span><span class="pd-value mobile-col-apprv">' + (role.requiresApproval ? 'Required' : 'Not required') + '</span>' +
+              '<span class="pd-label mobile-col-ext">Custom extension</span><span class="pd-value mobile-col-ext">' + customExtensionText + '</span>' +
             '</div>' +
           '</td>' +
         '</tr>';
@@ -475,8 +501,9 @@ class RoleManager {
     const tbody = document.getElementById('active-roles-body');
     if (!tbody) return;
 
+    const activeQuickFilters = typeof _getActiveQuickFilters === 'function' ? _getActiveQuickFilters() : [];
     const _activeSaved = this._activeSavedId
-      ? _getActiveQuickFilters().find(f => f.id === this._activeSavedId)
+      ? activeQuickFilters.find(f => f.id === this._activeSavedId)
       : null;
     const query = (_activeSaved
       ? _activeSaved.query
@@ -592,7 +619,7 @@ class RoleManager {
         '<td class="col-type" data-label="Type">' + badge + '</td>' +
         '<td class="col-role" data-label="Role"><div class="role-cell">' +
           '<span class="role-name">' + escapeHtml(role.name) + '</span>' +
-          '<span class="role-scope"><span class="mobile-badge">' + badge + '</span>' + escapeHtml(this.getScopeDisplay(role)) + '</span>' +
+          '<span class="role-scope"><span class="mobile-badge mobile-col-type">' + badge + '</span>' + escapeHtml(this.getScopeDisplay(role)) + '</span>' +
         '</div></td>' +
         '<td class="col-expires" data-label="Expires">' + expiryHtml + '</td>' +
       '</tr>';
@@ -607,7 +634,7 @@ class RoleManager {
         '<td class="col-type" data-label="Type">' + badge + '</td>' +
         '<td class="col-role" data-label="Role"><div class="role-cell">' +
           '<span class="role-name">' + escapeHtml(role.name) + '</span>' +
-          '<span class="role-scope"><span class="mobile-badge">' + badge + '</span>' + escapeHtml(_scopeDisplay(role)) + '</span>' +
+          '<span class="role-scope"><span class="mobile-badge mobile-col-type">' + badge + '</span>' + escapeHtml(_scopeDisplay(role)) + '</span>' +
           '<span class="awaiting-tag">Awaiting approval</span>' +
         '</div></td>' +
         '<td class="col-expires"></td>' +
