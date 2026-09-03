@@ -298,6 +298,39 @@ async function stepUpForAuthContexts(authContextIds, roles) {
   // Page navigates away — execution does not continue here.
 }
 
+/** Claims blob requesting an `mfa` value in the token's amr claim, as MSAL expects it. */
+const MFA_CLAIMS = JSON.stringify({ access_token: { amr: { values: ['mfa'] } } });
+
+/**
+ * True when the active account already authenticated with MFA, so a policy MFA
+ * requirement is satisfied without another round trip.
+ * @returns {boolean}
+ */
+function hasMfaClaim() {
+  const amr = _account?.idTokenClaims?.amr;
+  return Array.isArray(amr) && amr.includes('mfa');
+}
+
+/**
+ * Proactively step up authentication for a policy MFA requirement (the
+ * MultiFactorAuthentication enablement rule, with no auth context involved).
+ *
+ * Needed because PIM rejects such a request with a 400 carrying no claims
+ * challenge, so there is nothing for the reactive path to react to — the token
+ * has to carry `mfa` before the request is sent.
+ *
+ * @param {object[]} roles - the roles being activated
+ */
+async function stepUpForMfa(roles) {
+  const hasEntraGroup = roles.some(r => r.type === 'User' || r.type === 'Group');
+
+  // Prefer Graph scopes; ARM follows automatically because MFA is session-level.
+  const scopes = hasEntraGroup ? window.GRAPH_SCOPES : [window.ARM_SCOPE];
+
+  await msalInstance.acquireTokenRedirect({ scopes, account: _account, authority: _authority(), claims: MFA_CLAIMS });
+  // Page navigates away — execution does not continue here.
+}
+
 /**
  * Request ARM consent interactively via a popup (used by the consent banner).
  * Unlike getArmToken(), this always uses a popup so the user doesn't navigate away.
@@ -329,4 +362,4 @@ async function switchTenant(tenantId) {
 }
 
 // Expose globally for other modules
-window.portalAuth = { initAuth, signIn, signOut, getGraphToken, getArmToken, getGraphTokenWithAuthContext, stepUpForAuthContexts, stepUpWithClaims, parseClaimsChallenge, ClaimsChallengeError, grantArmConsent, setAuthContextClaims, setRawClaims, getAccount, getUserId, switchTenant };
+window.portalAuth = { initAuth, signIn, signOut, getGraphToken, getArmToken, getGraphTokenWithAuthContext, stepUpForAuthContexts, stepUpForMfa, hasMfaClaim, MFA_CLAIMS, stepUpWithClaims, parseClaimsChallenge, ClaimsChallengeError, grantArmConsent, setAuthContextClaims, setRawClaims, getAccount, getUserId, switchTenant };

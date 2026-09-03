@@ -2288,6 +2288,23 @@ async function handleActivate() {
     return;
   }
 
+  // Proactive MFA step-up — policies that require MFA without an auth context.
+  // PIM rejects those with a 400 carrying no claims challenge, so the token has to
+  // carry `mfa` before the request is sent. Skipped when the account already did MFA.
+  if (cappedRoles.some(r => r.requiresMfa) && !portalAuth.hasMfaClaim()) {
+    sessionStorage.setItem(PENDING_ACTIVATION_KEY, JSON.stringify({
+      cappedRoles,
+      justification,
+      ticketNumber,
+      scheduledStartDateTime,
+      claims: portalAuth.MFA_CLAIMS
+    }));
+    showProgress('Redirecting for authentication…');
+    await portalAuth.stepUpForMfa(cappedRoles);
+    // acquireTokenRedirect navigates away — execution does not continue here.
+    return;
+  }
+
   const isScheduled = Boolean(scheduledStartDateTime);
   const progressVerb = isScheduled ? 'Scheduling' : 'Activating';
   const successLabel = isScheduled ? 'Scheduled' : 'Activated';

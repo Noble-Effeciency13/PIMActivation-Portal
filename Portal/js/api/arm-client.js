@@ -15,6 +15,17 @@ const ARM_VERSION_REQ    = '2020-10-01-preview';
 const ARM_VERSION_CHILD_RESOURCES = '2020-10-01';
 
 /**
+ * True for the 400 PIM returns when the role's activation policy enables the
+ * MultiFactorAuthentication enablement rule but the caller's ARM token carries
+ * no `mfa` in its amr claim. ARM sends no WWW-Authenticate challenge for this,
+ * so it has to be recognized from the error body.
+ */
+function _isMfaRuleFailure(resp, bodyText) {
+  if (resp.status !== 400 || !bodyText) return false;
+  return bodyText.includes('RoleAssignmentRequestPolicyValidationFailed') && /\bMfaRule\b/.test(bodyText);
+}
+
+/**
  * On a non-OK ARM response, detect a Conditional Access "insufficient_claims"
  * challenge (401 with WWW-Authenticate or a claims-bearing JSON body) and
  * throw a typed `ClaimsChallengeError` so callers can step the user up via
@@ -32,6 +43,15 @@ function _throwArmError(resp, bodyText, label) {
         message: `${label} → 401 (claims challenge)`
       });
     }
+  }
+  // Backstop for a policy that gained its MFA rule after the policy cache was filled.
+  if (_isMfaRuleFailure(resp, bodyText)) {
+    throw new portalAuth.ClaimsChallengeError({
+      claims:  portalAuth.MFA_CLAIMS,
+      scopes:  [window.ARM_SCOPE],
+      status:  400,
+      message: `${label} → 400 (MFA required)`
+    });
   }
   throw new Error(`${label} → ${resp.status}: ${bodyText}`);
 }

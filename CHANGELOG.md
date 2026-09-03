@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+- Azure Resource roles whose PIM policy requires MFA (the `MultiFactorAuthentication` enablement rule, without a Conditional Access auth context) now step the user up before activation instead of failing with `RoleAssignmentRequestPolicyValidationFailed` / `MfaRule`. `requiresMfa` was parsed and rendered as a policy badge but never acted on, and because ARM returns that failure as a 400 with no `WWW-Authenticate` challenge, the reactive claims-challenge path could not recover from it either.
+
 ## [1.3.0] — 2026-08-30
 
 ### Added
